@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa 3D · chefs en Uruguay</title>
+<style>
+  :root{
+    --bg:      #0F1B23;
+    --agua:    #16303F;
+    --hueso:   #E8E2D4;
+    --tierra:  #CFC0A0;
+    --panel:   rgba(16,29,38,.88);
+    --linea:   rgba(232,226,212,.16);
+    --tenue:   rgba(232,226,212,.55);
+    --parrilla:#C4453C;
+    --mar:     #4E86A0;
+    --verde:   #7A9B54;
+    --autor:   #C88B3C;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--hueso)}
+  body{
+    font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size:14px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas{display:block}
+
+  h1{
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    font-weight:600;font-size:26px;line-height:1.15;letter-spacing:-.01em;margin:0 0 4px;
+  }
+  .sub{color:var(--tenue);font-size:13px;margin:0}
+
+  /* ---------- cabezal ---------- */
+  #cabezal{
+    position:fixed;top:0;left:0;padding:26px 28px;z-index:10;
+    max-width:340px;pointer-events:none;
+  }
+
+  /* ---------- filtros ---------- */
+  #filtros{
+    position:fixed;left:28px;bottom:26px;z-index:10;
+    display:flex;flex-wrap:wrap;gap:8px;max-width:380px;
+  }
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:7px 13px 7px 11px;border-radius:999px;cursor:pointer;
+    border:1px solid var(--linea);background:rgba(16,29,38,.7);
+    color:var(--tenue);font-size:13px;font-family:inherit;
+    transition:color .15s, border-color .15s, background .15s;
+  }
+  .chip:hover{color:var(--hueso);border-color:rgba(232,226,212,.34)}
+  .chip:focus-visible{outline:2px solid var(--hueso);outline-offset:2px}
+  .chip[aria-pressed="true"]{color:var(--hueso);border-color:rgba(232,226,212,.45);background:rgba(232,226,212,.09)}
+  .punto{width:9px;height:9px;border-radius:50%;flex:none;opacity:.4;transition:opacity .15s}
+  .chip[aria-pressed="true"] .punto{opacity:1}
+
+  /* ---------- panel de detalle ---------- */
+  #panel{
+    position:fixed;top:0;right:0;height:100%;width:320px;z-index:12;
+    background:var(--panel);backdrop-filter:blur(14px);
+    border-left:1px solid var(--linea);
+    padding:26px 26px 22px;
+    display:flex;flex-direction:column;
+    transform:translateX(100%);transition:transform .32s cubic-bezier(.22,.61,.36,1);
+  }
+  #panel.abierto{transform:none}
+  #cerrar{
+    position:absolute;top:18px;right:18px;width:30px;height:30px;
+    border:1px solid var(--linea);background:none;border-radius:50%;
+    color:var(--tenue);cursor:pointer;font-size:15px;line-height:1;font-family:inherit;
+  }
+  #cerrar:hover{color:var(--hueso)}
+  .cocina{display:flex;align-items:center;gap:8px;margin:0 0 18px;color:var(--tenue);font-size:13px}
+  .cocina .punto{opacity:1}
+  dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:9px 18px;font-size:13px}
+  dt{color:var(--tenue);margin:0}
+  dd{margin:0;text-align:right}
+  .nota{
+    margin-top:auto;padding-top:18px;border-top:1px solid var(--linea);
+    color:var(--tenue);font-size:12px;line-height:1.55;
+  }
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--hueso)}
+
+  /* ---------- etiquetas y tooltip ---------- */
+  #capas{position:fixed;inset:0;pointer-events:none;z-index:8}
+  .etiqueta{
+    position:absolute;transform:translate(-50%,-50%);
+    color:rgba(232,226,212,.72);font-size:11.5px;letter-spacing:.06em;
+    white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.7);
+    transition:opacity .25s;
+  }
+  #tooltip{
+    position:fixed;z-index:14;pointer-events:none;opacity:0;
+    transform:translate(-50%,calc(-100% - 14px));
+    padding:6px 11px;border-radius:6px;
+    background:rgba(10,20,26,.94);border:1px solid var(--linea);
+    font-size:12.5px;white-space:nowrap;transition:opacity .12s;
+  }
+  #ayuda{
+    position:fixed;right:26px;bottom:26px;z-index:10;
+    color:rgba(232,226,212,.38);font-size:12px;text-align:right;line-height:1.6;
+  }
+  @media (max-width:760px){
+    #panel{width:100%}
+    #cabezal{max-width:none;padding:18px 20px}
+    #filtros{left:20px;right:20px;bottom:18px;max-width:none}
+    #ayuda{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition-duration:.01ms !important}
+  }
+</style>
+</head>
+<body>
+
+<header id="cabezal">
+  <h1>Chefs en Uruguay</h1>
+  <p class="sub">Arrastrá para girar el mapa. Tocá un pin para ver al chef.</p>
+</header>
+
+<div id="capas"></div>
+<div id="tooltip"></div>
+
+<div id="filtros"></div>
+
+<p id="ayuda">Rueda del mouse: acercar<br>Clic derecho + arrastrar: desplazar</p>
+
+<aside id="panel" aria-live="polite">
+  <button id="cerrar" aria-label="Cerrar detalle">×</button>
+  <h1 id="p-nombre">—</h1>
+  <p class="cocina"><span class="punto" id="p-color"></span><span id="p-cocina"></span></p>
+  <dl>
+    <dt>Zona</dt><dd id="p-zona"></dd>
+    <dt>Desde</dt><dd id="p-precio"></dd>
+    <dt>Puntaje</dt><dd id="p-rating"></dd>
+    <dt>Servicios</dt><dd id="p-servicios"></dd>
+    <dt>Coordenadas</dt><dd id="p-coords"></dd>
+  </dl>
+  <p class="nota">Datos de ejemplo. Reemplazá el array <code>CHEFS</code> por la respuesta de tu API: cada chef necesita <code>lat</code> y <code>lon</code>, el resto es libre.</p>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   1. DATOS — todo lo editable vive acá arriba
+   ============================================================ */
+
+const COCINAS = {
+  parrilla:   { nombre:'Parrilla y campo', color:'#C4453C' },
+  mar:        { nombre:'Pescados y mariscos', color:'#4E86A0' },
+  vegetal:    { nombre:'Vegetariana', color:'#7A9B54' },
+  autor:      { nombre:'Cocina de autor', color:'#C88B3C' },
+};
+
+const CHEFS = [
+  { id:1,  nombre:'Valentina Rocha',  lat:-34.906, lon:-56.190, cocina:'autor',    zona:'Montevideo',        precio:1800, rating:4.9, servicios:132 },
+  { id:2,  nombre:'Martín Olivera',   lat:-34.884, lon:-56.075, cocina:'parrilla', zona:'Montevideo',        precio:1400, rating:4.7, servicios:88  },
+  { id:3,  nombre:'Sofía Cabrera',    lat:-34.870, lon:-56.230, cocina:'vegetal',  zona:'Montevideo',        precio:1250, rating:4.8, servicios:64  },
+  { id:4,  nombre:'Diego Pereyra',    lat:-34.958, lon:-54.950, cocina:'mar',      zona:'Punta del Este',    precio:3200, rating:5.0, servicios:210 },
+  { id:5,  nombre:'Lucía Ferreira',   lat:-34.910, lon:-54.780, cocina:'autor',    zona:'José Ignacio',      precio:3600, rating:4.9, servicios:97  },
+  { id:6,  nombre:'Andrés Sosa',      lat:-34.660, lon:-54.140, cocina:'mar',      zona:'La Paloma',         precio:1900, rating:4.6, servicios:51  },
+  { id:7,  nombre:'Camila Duarte',    lat:-34.042, lon:-53.540, cocina:'mar',      zona:'Punta del Diablo',  precio:1700, rating:4.5, servicios:38  },
+  { id:8,  nombre:'Rodrigo Méndez',   lat:-34.470, lon:-57.845, cocina:'parrilla', zona:'Colonia',           precio:1600, rating:4.8, servicios:73  },
+  { id:9,  nombre:'Paula Irigoyen',   lat:-31.388, lon:-57.961, cocina:'vegetal',  zona:'Salto',             precio:1100, rating:4.4, servicios:29  },
+  { id:10, nombre:'Joaquín Silva',    lat:-32.320, lon:-58.080, cocina:'parrilla', zona:'Paysandú',          precio:1150, rating:4.6, servicios:44  },
+  { id:11, nombre:'Natalia Bentos',   lat:-31.730, lon:-55.980, cocina:'parrilla', zona:'Tacuarembó',        precio:1050, rating:4.7, servicios:56  },
+  { id:12, nombre:'Emilia Vázquez',   lat:-34.795, lon:-55.960, cocina:'autor',    zona:'Ciudad de la Costa',precio:1500, rating:4.5, servicios:41  },
+  { id:13, nombre:'Bruno Castro',     lat:-34.870, lon:-55.270, cocina:'mar',      zona:'Piriápolis',        precio:1750, rating:4.6, servicios:62  },
+  { id:14, nombre:'Renata Suárez',    lat:-30.900, lon:-55.550, cocina:'vegetal',  zona:'Rivera',            precio:980,  rating:4.3, servicios:22  },
+];
+
+// Zonas de interés: círculos apoyados sobre el terreno.
+const ZONAS = [
+  { nombre:'Área metropolitana', lat:-34.83, lon:-56.15, radio:1.05, color:'#4E86A0' },
+  { nombre:'Costa de Oro',       lat:-34.79, lon:-55.60, radio:0.75, color:'#7A9B54' },
+  { nombre:'Fernando / Rocha',   lat:-34.75, lon:-54.60, radio:1.10, color:'#C88B3C' },
+  { nombre:'Litoral termal',     lat:-31.60, lon:-57.85, radio:0.95, color:'#C4453C' },
+];
+
+// Contorno simplificado de Uruguay [lon, lat], sentido antihorario.
+const CONTORNO = [
+  [-57.61,-30.25],[-57.10,-30.35],[-56.60,-30.20],[-56.20,-30.10],[-55.90,-30.35],
+  [-55.55,-30.90],[-55.20,-31.10],[-54.90,-31.45],[-54.50,-31.60],[-54.10,-31.85],
+  [-53.80,-32.10],[-53.40,-32.55],[-53.10,-32.90],[-53.35,-33.30],[-53.20,-33.70],
+  [-53.55,-33.72],[-53.80,-34.00],[-54.20,-34.32],[-54.60,-34.66],[-54.95,-34.97],
+  [-55.30,-34.80],[-55.70,-34.78],[-56.20,-34.90],[-56.60,-34.75],[-57.10,-34.45],
+  [-57.60,-34.45],[-58.20,-34.10],[-58.42,-33.90],[-58.10,-33.50],[-58.30,-33.10],
+  [-58.08,-32.60],[-58.15,-32.30],[-57.90,-31.80],[-57.98,-31.38],[-57.80,-30.90],
+  [-57.90,-30.60],
+];
+
+/* ============================================================
+   2. PROYECCIÓN — de lat/lon a coordenadas del mundo 3D
+   ============================================================ */
+
+const LON0 = -55.80, LAT0 = -32.50, ESCALA = 15;
+const COS0 = Math.cos(LAT0 * Math.PI / 180);
+const ALTURA = 3;              // espesor del terreno extruido
+
+function proyectar(lon, lat){
+  return [ (lon - LON0) * COS0 * ESCALA, (lat - LAT0) * ESCALA ];
+}
+// Punto sobre la superficie del mapa. El norte apunta hacia -Z.
+function aMundo(lon, lat, y = ALTURA){
+  const [x, z] = proyectar(lon, lat);
+  return new THREE.Vector3(x, y, -z);
+}
+
+/* ============================================================
+   3. ESCENA
+   ============================================================ */
+
+const escena = new THREE.Scene();
+escena.background = new THREE.Color(0x0F1B23);
+escena.fog = new THREE.Fog(0x0F1B23, 150, 320);
+
+const camara = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 900);
+
+const render = new THREE.WebGLRenderer({ antialias:true });
+render.setPixelRatio(Math.min(devicePixelRatio, 2));
+render.setSize(innerWidth, innerHeight);
+render.shadowMap.enabled = true;
+render.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(render.domElement);
+
+// --- luces ---
+escena.add(new THREE.HemisphereLight(0xBFD4E0, 0x2A3138, 0.75));
+const sol = new THREE.DirectionalLight(0xFFF3DC, 1.15);
+sol.position.set(-55, 90, 55);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+const s = sol.shadow.camera;
+s.left = -90; s.right = 90; s.top = 90; s.bottom = -90; s.near = 10; s.far = 260;
+escena.add(sol);
+const relleno = new THREE.DirectionalLight(0x5E8CA8, 0.35);
+relleno.position.set(60, 30, -70);
+escena.add(relleno);
+
+// --- agua ---
+const agua = new THREE.Mesh(
+  new THREE.PlaneGeometry(700, 700),
+  new THREE.MeshStandardMaterial({ color:0x16303F, roughness:0.35, metalness:0.15 })
+);
+agua.rotation.x = -Math.PI/2;
+agua.position.y = -0.2;
+agua.receiveShadow = true;
+escena.add(agua);
+
+// --- terreno extruido ---
+const forma = new THREE.Shape();
+CONTORNO.forEach(([lon, lat], i) => {
+  const [x, y] = proyectar(lon, lat);
+  i === 0 ? forma.moveTo(x, y) : forma.lineTo(x, y);
+});
+forma.closePath();
+
+const geoTierra = new THREE.ExtrudeGeometry(forma, {
+  depth: ALTURA, bevelEnabled: true,
+  bevelThickness: 0.35, bevelSize: 0.3, bevelSegments: 2, curveSegments: 12,
+});
+const tierra = new THREE.Mesh(geoTierra, [
+  new THREE.MeshStandardMaterial({ color:0xCFC0A0, roughness:0.92, metalness:0.02 }), // caras
+  new THREE.MeshStandardMaterial({ color:0x9E8C69, roughness:0.95, metalness:0.02 }), // laterales
+]);
+tierra.rotation.x = -Math.PI/2;
+tierra.castShadow = true;
+tierra.receiveShadow = true;
+escena.add(tierra);
+
+// borde superior marcado
+const puntosBorde = CONTORNO.map(([lon, lat]) => aMundo(lon, lat, ALTURA + 0.42));
+puntosBorde.push(puntosBorde[0].clone());
+escena.add(new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints(puntosBorde),
+  new THREE.LineBasicMaterial({ color:0x6E6047, transparent:true, opacity:0.85 })
+));
+
+/* ============================================================
+   4. ZONAS DE INTERÉS
+   ============================================================ */
+
+const grupoZonas = new THREE.Group();
+escena.add(grupoZonas);
+
+ZONAS.forEach(z => {
+  const radio = z.radio * COS0 * ESCALA;
+  const centro = aMundo(z.lon, z.lat, ALTURA + 0.06);
+
+  const disco = new THREE.Mesh(
+    new THREE.CircleGeometry(radio, 64),
+    new THREE.MeshBasicMaterial({ color:z.color, transparent:true, opacity:0.16, depthWrite:false })
+  );
+  disco.rotation.x = -Math.PI/2;
+  disco.position.copy(centro);
+
+  const anillo = new THREE.Mesh(
+    new THREE.RingGeometry(radio - 0.22, radio, 64),
+    new THREE.MeshBasicMaterial({ color:z.color, transparent:true, opacity:0.55, depthWrite:false })
+  );
+  anillo.rotation.x = -Math.PI/2;
+  anillo.position.copy(centro).setY(ALTURA + 0.08);
+
+  z.centro3d = centro;
+  grupoZonas.add(disco, anillo);
+});
+
+/* ============================================================
+   5. PINES DE CHEFS
+   ============================================================ */
+
+const grupoPines = new THREE.Group();
+escena.add(grupoPines);
+
+const geoTallo   = new THREE.CylinderGeometry(0.16, 0.16, 4.2, 10);
+const geoCabeza  = new THREE.SphereGeometry(1.05, 22, 16);
+const geoBase    = new THREE.CircleGeometry(0.85, 24);
+const cabezas    = [];   // objetos raycasteables
+
+CHEFS.forEach(chef => {
+  const color = new THREE.Color(COCINAS[chef.cocina].color);
+  const pos   = aMundo(chef.lon, chef.lat);
+  const pin   = new THREE.Group();
+  pin.position.copy(pos);
+
+  const tallo = new THREE.Mesh(geoTallo, new THREE.MeshStandardMaterial({
+    color:0x2B3942, roughness:0.6, metalness:0.3 }));
+  tallo.position.y = 2.1;
+  tallo.castShadow = true;
+
+  const cabeza = new THREE.Mesh(geoCabeza, new THREE.MeshStandardMaterial({
+    color, roughness:0.35, metalness:0.15,
+    emissive:color.clone().multiplyScalar(0.22) }));
+  cabeza.position.y = 4.6;
+  cabeza.castShadow = true;
+  cabeza.userData.chef = chef;
+
+  const base = new THREE.Mesh(geoBase, new THREE.MeshBasicMaterial({
+    color, transparent:true, opacity:0.4, depthWrite:false }));
+  base.rotation.x = -Math.PI/2;
+  base.position.y = 0.09;
+
+  pin.add(tallo, cabeza, base);
+  pin.userData = { chef, cabeza, escalaObjetivo:1 };
+  grupoPines.add(pin);
+  cabezas.push(cabeza);
+});
+
+// anillo de selección
+const halo = new THREE.Mesh(
+  new THREE.RingGeometry(1.3, 1.65, 40),
+  new THREE.MeshBasicMaterial({ color:0xE8E2D4, transparent:true, opacity:0.9, depthWrite:false })
+);
+halo.rotation.x = -Math.PI/2;
+halo.visible = false;
+escena.add(halo);
+
+/* ============================================================
+   6. CÁMARA ORBITAL (sin dependencias externas)
+   ============================================================ */
+
+const objetivo = new THREE.Vector3(0, ALTURA, 0);
+let radio = 155, theta = 0.30, phi = 0.78;
+let arrastrando = false, desplazando = false, ultimo = {x:0,y:0}, tocado = false;
+
+function ubicarCamara(){
+  phi = Math.max(0.22, Math.min(Math.PI/2 - 0.05, phi));
+  camara.position.set(
+    objetivo.x + radio * Math.sin(phi) * Math.sin(theta),
+    objetivo.y + radio * Math.cos(phi),
+    objetivo.z + radio * Math.sin(phi) * Math.cos(theta)
+  );
+  camara.lookAt(objetivo);
+}
+ubicarCamara();
+
+const lienzo = render.domElement;
+lienzo.addEventListener('contextmenu', e => e.preventDefault());
+
+lienzo.addEventListener('pointerdown', e => {
+  arrastrando = true; tocado = true;
+  desplazando = (e.button === 2 || e.shiftKey);
+  ultimo = { x:e.clientX, y:e.clientY };
+  lienzo.setPointerCapture(e.pointerId);
+});
+lienzo.addEventListener('pointerup', e => {
+  arrastrando = false;
+  lienzo.releasePointerCapture(e.pointerId);
+});
+lienzo.addEventListener('pointermove', e => {
+  const dx = e.clientX - ultimo.x, dy = e.clientY - ultimo.y;
+  ultimo = { x:e.clientX, y:e.clientY };
+
+  if (arrastrando){
+    if (desplazando){
+      const k = radio * 0.0016;
+      objetivo.x -= (dx * Math.cos(theta) - dy * Math.sin(theta) * Math.cos(phi)) * k;
+      objetivo.z += (dx * Math.sin(theta) + dy * Math.cos(theta) * Math.cos(phi)) * k;
+    } else {
+      theta -= dx * 0.005;
+      phi   -= dy * 0.005;
+    }
+    ubicarCamara();
+  }
+  raton.x =  (e.clientX / innerWidth)  * 2 - 1;
+  raton.y = -(e.clientY / innerHeight) * 2 + 1;
+  posRaton = { x:e.clientX, y:e.clientY };
+});
+lienzo.addEventListener('wheel', e => {
+  e.preventDefault();
+  tocado = true;
+  radio = Math.max(45, Math.min(280, radio + e.deltaY * 0.12));
+  ubicarCamara();
+}, { passive:false });
+
+/* ============================================================
+   7. INTERACCIÓN: hover, clic, filtros
+   ============================================================ */
+
+const rayo  = new THREE.Raycaster();
+const raton = new THREE.Vector2(-2, -2);
+let posRaton = { x:0, y:0 };
+let sobre = null, elegido = null;
+let activas = new Set(Object.keys(COCINAS));
+
+const tooltip = document.getElementById('tooltip');
+const panel   = document.getElementById('panel');
+
+function abrirPanel(chef){
+  elegido = chef;
+  const c = COCINAS[chef.cocina];
+  document.getElementById('p-nombre').textContent    = chef.nombre;
+  document.getElementById('p-cocina').textContent    = c.nombre;
+  document.getElementById('p-color').style.background = c.color;
+  document.getElementById('p-zona').textContent      = chef.zona;
+  document.getElementById('p-precio').textContent    = '$' + chef.precio.toLocaleString('es-UY') + ' por persona';
+  document.getElementById('p-rating').textContent    = chef.rating.toFixed(1) + ' / 5';
+  document.getElementById('p-servicios').textContent = chef.servicios + ' servicios';
+  document.getElementById('p-coords').textContent    = chef.lat.toFixed(3) + ', ' + chef.lon.toFixed(3);
+  panel.classList.add('abierto');
+
+  objetivo.copy(aMundo(chef.lon, chef.lat));
+  radio = Math.min(radio, 110);
+  ubicarCamara();
+}
+function cerrarPanel(){
+  elegido = null;
+  panel.classList.remove('abierto');
+  halo.visible = false;
+}
+document.getElementById('cerrar').addEventListener('click', cerrarPanel);
+addEventListener('keydown', e => { if (e.key === 'Escape') cerrarPanel(); });
+
+lienzo.addEventListener('click', () => {
+  if (sobre) abrirPanel(sobre.userData.chef);
+  else cerrarPanel();
+});
+
+// chips de filtro
+const contFiltros = document.getElementById('filtros');
+Object.entries(COCINAS).forEach(([clave, c]) => {
+  const b = document.createElement('button');
+  b.className = 'chip';
+  b.setAttribute('aria-pressed', 'true');
+  b.innerHTML = '<span class="punto" style="background:' + c.color + '"></span>' + c.nombre;
+  b.addEventListener('click', () => {
+    activas.has(clave) ? activas.delete(clave) : activas.add(clave);
+    b.setAttribute('aria-pressed', activas.has(clave));
+    grupoPines.children.forEach(p => p.visible = activas.has(p.userData.chef.cocina));
+    if (elegido && !activas.has(elegido.cocina)) cerrarPanel();
+  });
+  contFiltros.appendChild(b);
+});
+
+// etiquetas HTML de las zonas
+const capas = document.getElementById('capas');
+ZONAS.forEach(z => {
+  const el = document.createElement('div');
+  el.className = 'etiqueta';
+  el.textContent = z.nombre;
+  capas.appendChild(el);
+  z.el = el;
+});
+
+/* ============================================================
+   8. BUCLE DE RENDER
+   ============================================================ */
+
+const v = new THREE.Vector3();
+let reloj = 0;
+
+function animar(){
+  requestAnimationFrame(animar);
+  reloj += 0.016;
+
+  // giro suave hasta la primera interacción
+  if (!tocado){ theta += 0.0011; ubicarCamara(); }
+
+  // hover
+  rayo.setFromCamera(raton, camara);
+  const visibles = cabezas.filter(c => c.parent.visible);
+  const golpes = rayo.intersectObjects(visibles, false);
+  const nuevo = golpes.length ? golpes[0].object : null;
+
+  if (nuevo !== sobre){
+    sobre = nuevo;
+    lienzo.style.cursor = sobre ? 'pointer' : 'grab';
+    if (sobre){
+      tooltip.textContent = sobre.userData.chef.nombre + ' · ' + sobre.userData.chef.zona;
+      tooltip.style.opacity = 1;
+    } else {
+      tooltip.style.opacity = 0;
+    }
+  }
+  if (sobre){
+    tooltip.style.left = posRaton.x + 'px';
+    tooltip.style.top  = posRaton.y + 'px';
+  }
+
+  // escala de los pines
+  grupoPines.children.forEach(p => {
+    const activo = (sobre && sobre === p.userData.cabeza) || (elegido && elegido.id === p.userData.chef.id);
+    p.userData.escalaObjetivo += ((activo ? 1.35 : 1) - p.userData.escalaObjetivo) * 0.18;
+    p.scale.setScalar(p.userData.escalaObjetivo);
+  });
+
+  // halo del seleccionado
+  if (elegido){
+    const pin = grupoPines.children.find(p => p.userData.chef.id === elegido.id);
+    halo.visible = true;
+    halo.position.copy(pin.position).setY(ALTURA + 0.12);
+    halo.scale.setScalar(1 + Math.sin(reloj * 2.4) * 0.09);
+    halo.material.opacity = 0.65 + Math.sin(reloj * 2.4) * 0.22;
+  }
+
+  // etiquetas de zona proyectadas a pantalla
+  ZONAS.forEach(z => {
+    v.copy(z.centro3d).project(camara);
+    const visible = v.z < 1;
+    z.el.style.opacity = visible ? 1 : 0;
+    if (visible){
+      z.el.style.left = ( v.x * 0.5 + 0.5) * innerWidth  + 'px';
+      z.el.style.top  = (-v.y * 0.5 + 0.5) * innerHeight + 'px';
+    }
+  });
+
+  render.render(escena, camara);
+}
+animar();
+
+addEventListener('resize', () => {
+  camara.aspect = innerWidth / innerHeight;
+  camara.updateProjectionMatrix();
+  render.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

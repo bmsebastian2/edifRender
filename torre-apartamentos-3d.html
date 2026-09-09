@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Torre Rambla Sur · disponibilidad en 3D</title>
+<style>
+  :root{
+    --fondo:      #DCE1E3;
+    --tinta:      #1C2427;
+    --tinta-suave:#5C686C;
+    --linea:      rgba(28,36,39,.14);
+    --papel:      rgba(255,255,255,.82);
+    --disponible: #2F7A68;
+    --reservado:  #C08429;
+    --vendido:    #98A0A2;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--fondo);color:var(--tinta)}
+  body{
+    font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  }
+  canvas{display:block}
+  button{font-family:inherit;font-size:inherit;color:inherit}
+
+  h1{font-size:21px;font-weight:650;letter-spacing:-.015em;margin:0 0 2px}
+  .sub{margin:0;color:var(--tinta-suave);font-size:13px}
+
+  #cabezal{position:fixed;top:0;left:0;padding:24px 26px;z-index:10;max-width:330px}
+
+  /* barra de disponibilidad */
+  #stock{margin-top:16px}
+  #barra{display:flex;height:5px;border-radius:3px;overflow:hidden;background:rgba(28,36,39,.1)}
+  #barra span{display:block;height:100%}
+  #stock-texto{margin:8px 0 0;font-size:12.5px;color:var(--tinta-suave)}
+
+  /* filtros */
+  #filtros{position:fixed;left:26px;bottom:24px;z-index:10;max-width:330px}
+  .grupo{margin-bottom:12px}
+  .grupo p{margin:0 0 7px;font-size:12.5px;color:var(--tinta-suave)}
+  .fila{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:6px 12px;border-radius:4px;cursor:pointer;
+    border:1px solid var(--linea);background:var(--papel);color:var(--tinta-suave);
+    font-size:13px;transition:color .15s,border-color .15s,background .15s;
+  }
+  .chip:hover{color:var(--tinta);border-color:rgba(28,36,39,.3)}
+  .chip:focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
+  .chip[aria-pressed="true"]{color:#fff;background:var(--tinta);border-color:var(--tinta)}
+  .chip[aria-pressed="true"] .punto{box-shadow:0 0 0 1px rgba(255,255,255,.5)}
+  .punto{width:8px;height:8px;border-radius:2px;flex:none}
+
+  #separar{
+    margin-top:2px;padding:8px 14px;border-radius:4px;cursor:pointer;
+    border:1px solid var(--linea);background:var(--papel);color:var(--tinta-suave);
+  }
+  #separar[aria-pressed="true"]{color:#fff;background:var(--tinta);border-color:var(--tinta)}
+
+  /* riel de pisos */
+  #pisos{
+    position:fixed;right:26px;top:50%;transform:translateY(-50%);z-index:10;
+    display:flex;flex-direction:column-reverse;gap:2px;
+  }
+  #pisos button{
+    width:34px;height:24px;border:none;background:none;cursor:pointer;
+    color:var(--tinta-suave);font-size:12.5px;font-variant-numeric:tabular-nums;
+    border-right:2px solid transparent;transition:color .15s,border-color .15s;
+  }
+  #pisos button:hover{color:var(--tinta)}
+  #pisos button[aria-pressed="true"]{color:var(--tinta);font-weight:650;border-right-color:var(--tinta)}
+
+  /* panel */
+  #panel{
+    position:fixed;top:0;right:0;height:100%;width:326px;z-index:12;
+    background:rgba(255,255,255,.93);backdrop-filter:blur(12px);
+    border-left:1px solid var(--linea);padding:26px 26px 22px;
+    display:flex;flex-direction:column;
+    transform:translateX(100%);transition:transform .3s cubic-bezier(.22,.61,.36,1);
+  }
+  #panel.abierto{transform:none}
+  #cerrar{
+    position:absolute;top:18px;right:18px;width:28px;height:28px;
+    border:1px solid var(--linea);background:none;border-radius:50%;
+    color:var(--tinta-suave);cursor:pointer;line-height:1;
+  }
+  #p-unidad{font-size:34px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:0}
+  #p-estado{
+    display:inline-flex;align-items:center;gap:7px;margin:6px 0 22px;
+    font-size:13px;color:var(--tinta-suave);
+  }
+  dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:10px 18px;font-size:13.5px}
+  dt{color:var(--tinta-suave);margin:0}
+  dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+  #p-precio{font-size:19px;font-weight:600;margin:22px 0 0;font-variant-numeric:tabular-nums}
+  .nota{margin-top:auto;padding-top:16px;border-top:1px solid var(--linea);color:var(--tinta-suave);font-size:12px;line-height:1.55}
+
+  #tooltip{
+    position:fixed;z-index:14;pointer-events:none;opacity:0;
+    transform:translate(-50%,calc(-100% - 12px));
+    padding:5px 10px;border-radius:4px;background:var(--tinta);color:#fff;
+    font-size:12.5px;white-space:nowrap;transition:opacity .12s;
+  }
+  #ayuda{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:10;color:rgba(28,36,39,.4);font-size:12px}
+
+  @media (max-width:820px){
+    #panel{width:100%}
+    #filtros{right:26px;max-width:none}
+    #ayuda,#pisos{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+
+<header id="cabezal">
+  <h1>Torre Rambla Sur</h1>
+  <p class="sub">12 pisos · 72 unidades · entrega 2027</p>
+  <div id="stock">
+    <div id="barra"><span id="b-disp"></span><span id="b-res"></span><span id="b-vend"></span></div>
+    <p id="stock-texto"></p>
+  </div>
+</header>
+
+<div id="tooltip"></div>
+<p id="ayuda">Arrastrá para girar · rueda para acercar</p>
+
+<div id="filtros">
+  <div class="grupo"><p>Dormitorios</p><div class="fila" id="f-dorms"></div></div>
+  <div class="grupo"><p>Estado</p><div class="fila" id="f-estado"></div></div>
+  <button id="separar" aria-pressed="false">Separar pisos</button>
+</div>
+
+<nav id="pisos" aria-label="Pisos"></nav>
+
+<aside id="panel" aria-live="polite">
+  <button id="cerrar" aria-label="Cerrar">×</button>
+  <p id="p-unidad">—</p>
+  <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
+  <dl>
+    <dt>Piso</dt><dd id="p-piso"></dd>
+    <dt>Dormitorios</dt><dd id="p-dorms"></dd>
+    <dt>Superficie</dt><dd id="p-m2"></dd>
+    <dt>Orientación</dt><dd id="p-orient"></dd>
+    <dt>Precio por m²</dt><dd id="p-pm2"></dd>
+  </dl>
+  <p id="p-precio"></p>
+  <p class="nota">Demo. El estado de cada unidad se sincroniza desde la planilla de ventas; el sitio no se vuelve a publicar.</p>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   1. DATOS
+   ============================================================ */
+
+const ESTADOS = {
+  disponible: { nombre:'Disponible', color:'#2F7A68' },
+  reservado:  { nombre:'Reservado',  color:'#C08429' },
+  vendido:    { nombre:'Vendido',    color:'#98A0A2' },
+};
+
+const PISOS = 12;
+// Tipologías por posición en la planta. x = columna, z = frente(-1) o contrafrente(1).
+const PLANTA = [
+  { col:-1, frente:-1, dorms:2, m2:78,  orient:'Norte' },
+  { col: 0, frente:-1, dorms:1, m2:52,  orient:'Norte' },
+  { col: 1, frente:-1, dorms:3, m2:112, orient:'Noreste' },
+  { col:-1, frente: 1, dorms:3, m2:105, orient:'Suroeste' },
+  { col: 0, frente: 1, dorms:1, m2:48,  orient:'Sur' },
+  { col: 1, frente: 1, dorms:2, m2:71,  orient:'Sureste' },
+];
+
+// generador determinista, para que la demo se vea igual siempre
+let semilla = 20260909;
+function azar(){ semilla = (semilla * 1103515245 + 12345) % 2147483648; return semilla / 2147483648; }
+
+const UNIDADES = [];
+for (let piso = 1; piso <= PISOS; piso++){
+  PLANTA.forEach((t, i) => {
+    const r = azar();
+    // los pisos bajos están más vendidos
+    const cortaVendido = 0.34 - piso * 0.018;
+    const cortaReserva = cortaVendido + 0.22;
+    const estado = r < cortaVendido ? 'vendido' : r < cortaReserva ? 'reservado' : 'disponible';
+    const precioM2 = 2350 + piso * 48 + (t.orient.includes('Norte') ? 190 : 0);
+    UNIDADES.push({
+      id: piso * 100 + (i + 1),
+      piso, dorms:t.dorms, m2:t.m2, orient:t.orient,
+      precioM2, precio: Math.round(t.m2 * precioM2 / 500) * 500,
+      estado, col:t.col, frente:t.frente,
+    });
+  });
+}
+
+/* ============================================================
+   2. ESCENA
+   ============================================================ */
+
+const ANCHO = 6.2, PROF = 6.6, ALTO = 3, LOSA = 0.35, PASO = ALTO + LOSA;
+const SEP_X = ANCHO + 0.35, SEP_Z = (PROF + 2.2) / 2;
+
+const escena = new THREE.Scene();
+escena.background = new THREE.Color(0xDCE1E3);
+escena.fog = new THREE.Fog(0xDCE1E3, 120, 260);
+
+const camara = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.1, 600);
+const render = new THREE.WebGLRenderer({ antialias:true });
+render.setPixelRatio(Math.min(devicePixelRatio, 2));
+render.setSize(innerWidth, innerHeight);
+render.shadowMap.enabled = true;
+render.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(render.domElement);
+
+escena.add(new THREE.HemisphereLight(0xFFFFFF, 0xA8B2B5, 0.85));
+const sol = new THREE.DirectionalLight(0xFFF6E8, 1.0);
+sol.position.set(-38, 62, 34);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+const sc = sol.shadow.camera;
+sc.left=-50; sc.right=50; sc.top=70; sc.bottom=-30; sc.near=5; sc.far=180;
+escena.add(sol);
+
+// base de maqueta
+const base = new THREE.Mesh(
+  new THREE.CylinderGeometry(34, 34, 1.2, 72),
+  new THREE.MeshStandardMaterial({ color:0xCFD5D7, roughness:0.95 })
+);
+base.position.y = -0.6;
+base.receiveShadow = true;
+escena.add(base);
+
+/* ============================================================
+   3. TORRE
+   ============================================================ */
+
+const torre = new THREE.Group();
+escena.add(torre);
+
+const geoUnidad = new THREE.BoxGeometry(ANCHO, ALTO, PROF);
+const bordesUnidad = new THREE.EdgesGeometry(geoUnidad);
+const matBorde = new THREE.LineBasicMaterial({ color:0x1C2427, transparent:true, opacity:0.28 });
+const matLosa  = new THREE.MeshStandardMaterial({ color:0xB8BFC1, roughness:0.9 });
+const matNucleo= new THREE.MeshStandardMaterial({ color:0xA9B1B4, roughness:0.9 });
+
+const geoLosa   = new THREE.BoxGeometry(SEP_X*3 + 0.6, LOSA, SEP_Z*2 + PROF + 0.6);
+const geoNucleo = new THREE.BoxGeometry(SEP_X*2, ALTO, 1.8);
+
+const pisosGrupo = [];
+const cajas = [];          // meshes raycasteables
+
+for (let piso = 1; piso <= PISOS; piso++){
+  const g = new THREE.Group();
+  g.position.y = (piso - 1) * PASO;
+  g.userData = { piso, offset:0, offsetObjetivo:0 };
+
+  const losa = new THREE.Mesh(geoLosa, matLosa);
+  losa.position.y = -LOSA/2;
+  losa.castShadow = true; losa.receiveShadow = true;
+  g.add(losa);
+
+  const nucleo = new THREE.Mesh(geoNucleo, matNucleo);
+  nucleo.position.y = ALTO/2;
+  nucleo.castShadow = true;
+  g.add(nucleo);
+
+  UNIDADES.filter(u => u.piso === piso).forEach(u => {
+    const color = new THREE.Color(ESTADOS[u.estado].color);
+    const mat = new THREE.MeshStandardMaterial({
+      color, roughness:0.42, metalness:0.05, transparent:true, opacity:0.93
+    });
+    const caja = new THREE.Mesh(geoUnidad, mat);
+    caja.position.set(u.col * SEP_X, ALTO/2, u.frente * SEP_Z);
+    caja.castShadow = true; caja.receiveShadow = true;
+    caja.userData = { unidad:u, colorBase:color.clone(), activa:true };
+    g.add(caja);
+    cajas.push(caja);
+
+    const borde = new THREE.LineSegments(bordesUnidad, matBorde.clone());
+    borde.position.copy(caja.position);
+    caja.userData.borde = borde;
+    g.add(borde);
+  });
+
+  torre.add(g);
+  pisosGrupo.push(g);
+}
+const ALTURA_TORRE = PISOS * PASO;
+
+/* ============================================================
+   4. CÁMARA ORBITAL
+   ============================================================ */
+
+const objetivo = new THREE.Vector3(0, ALTURA_TORRE * 0.45, 0);
+let radio = 108, theta = 0.72, phi = 1.16;
+let arrastrando = false, ultimo = {x:0,y:0}, tocado = false;
+
+function ubicarCamara(){
+  phi = Math.max(0.18, Math.min(Math.PI/2 + 0.16, phi));
+  camara.position.set(
+    objetivo.x + radio * Math.sin(phi) * Math.sin(theta),
+    objetivo.y + radio * Math.cos(phi),
+    objetivo.z + radio * Math.sin(phi) * Math.cos(theta)
+  );
+  camara.lookAt(objetivo);
+}
+ubicarCamara();
+
+const lienzo = render.domElement;
+lienzo.style.cursor = 'grab';
+lienzo.addEventListener('pointerdown', e => {
+  arrastrando = true; tocado = true;
+  ultimo = { x:e.clientX, y:e.clientY };
+  lienzo.setPointerCapture(e.pointerId);
+});
+lienzo.addEventListener('pointerup', e => { arrastrando = false; lienzo.releasePointerCapture(e.pointerId); });
+lienzo.addEventListener('pointermove', e => {
+  const dx = e.clientX - ultimo.x, dy = e.clientY - ultimo.y;
+  ultimo = { x:e.clientX, y:e.clientY };
+  if (arrastrando){ theta -= dx * 0.005; phi -= dy * 0.004; ubicarCamara(); }
+  raton.x =  (e.clientX / innerWidth)  * 2 - 1;
+  raton.y = -(e.clientY / innerHeight) * 2 + 1;
+  posRaton = { x:e.clientX, y:e.clientY };
+});
+lienzo.addEventListener('wheel', e => {
+  e.preventDefault(); tocado = true;
+  radio = Math.max(38, Math.min(210, radio + e.deltaY * 0.09));
+  ubicarCamara();
+}, { passive:false });
+
+/* ============================================================
+   5. FILTROS, RIEL DE PISOS, PANEL
+   ============================================================ */
+
+const rayo = new THREE.Raycaster();
+const raton = new THREE.Vector2(-2, -2);
+let posRaton = {x:0,y:0}, sobre = null, elegida = null;
+let separado = false, pisoAislado = null;
+let fDorms  = new Set([1,2,3]);
+let fEstado = new Set(Object.keys(ESTADOS));
+
+const tooltip = document.getElementById('tooltip');
+const panel   = document.getElementById('panel');
+
+function pasaFiltro(u){
+  return fDorms.has(u.dorms) && fEstado.has(u.estado) &&
+         (pisoAislado === null || u.piso === pisoAislado);
+}
+
+function aplicarFiltros(){
+  cajas.forEach(c => {
+    const u = c.userData.unidad;
+    const ok = pasaFiltro(u);
+    c.userData.activa = ok;
+    c.material.opacity = ok ? 0.93 : 0.07;
+    c.material.color.copy(ok ? c.userData.colorBase : new THREE.Color(0x9AA3A6));
+    c.castShadow = ok;
+    c.userData.borde.material.opacity = ok ? 0.28 : 0.04;
+  });
+  if (elegida && !pasaFiltro(elegida)) cerrarPanel();
+  actualizarStock();
+}
+
+function actualizarStock(){
+  const vis = UNIDADES.filter(u => pisoAislado === null || u.piso === pisoAislado);
+  const n = e => vis.filter(u => u.estado === e).length;
+  const d = n('disponible'), r = n('reservado'), v = n('vendido'), t = vis.length || 1;
+  document.getElementById('b-disp').style.cssText = 'width:' + (d/t*100) + '%;background:' + ESTADOS.disponible.color;
+  document.getElementById('b-res').style.cssText  = 'width:' + (r/t*100) + '%;background:' + ESTADOS.reservado.color;
+  document.getElementById('b-vend').style.cssText = 'width:' + (v/t*100) + '%;background:' + ESTADOS.vendido.color;
+  document.getElementById('stock-texto').textContent =
+    d + ' disponibles · ' + r + ' reservadas · ' + v + ' vendidas' +
+    (pisoAislado ? ' — piso ' + pisoAislado : '');
+}
+
+// chips
+function chip(cont, etiqueta, color, activo, alTocar){
+  const b = document.createElement('button');
+  b.className = 'chip';
+  b.setAttribute('aria-pressed', activo);
+  b.innerHTML = (color ? '<span class="punto" style="background:' + color + '"></span>' : '') + etiqueta;
+  b.addEventListener('click', () => {
+    const nuevo = b.getAttribute('aria-pressed') !== 'true';
+    b.setAttribute('aria-pressed', nuevo);
+    alTocar(nuevo);
+    aplicarFiltros();
+  });
+  cont.appendChild(b);
+}
+[1,2,3].forEach(d => chip(document.getElementById('f-dorms'), d + (d===1?' dorm':' dorms'), null, true,
+  on => on ? fDorms.add(d) : fDorms.delete(d)));
+Object.entries(ESTADOS).forEach(([k, e]) => chip(document.getElementById('f-estado'), e.nombre, e.color, true,
+  on => on ? fEstado.add(k) : fEstado.delete(k)));
+
+// separar pisos
+const btnSeparar = document.getElementById('separar');
+btnSeparar.addEventListener('click', () => {
+  separado = !separado;
+  btnSeparar.setAttribute('aria-pressed', separado);
+  pisosGrupo.forEach((g, i) => g.userData.offsetObjetivo = separado ? i * 2.6 : 0);
+});
+
+// riel de pisos
+const riel = document.getElementById('pisos');
+for (let p = 1; p <= PISOS; p++){
+  const b = document.createElement('button');
+  b.textContent = p;
+  b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => {
+    pisoAislado = (pisoAislado === p) ? null : p;
+    [...riel.children].forEach((el, i) => el.setAttribute('aria-pressed', pisoAislado === i + 1));
+    aplicarFiltros();
+  });
+  riel.appendChild(b);
+}
+
+// panel
+function abrirPanel(u){
+  elegida = u;
+  const e = ESTADOS[u.estado];
+  document.getElementById('p-unidad').textContent    = u.id;
+  document.getElementById('p-estado-txt').textContent= e.nombre;
+  document.getElementById('p-color').style.background= e.color;
+  document.getElementById('p-piso').textContent      = 'Piso ' + u.piso;
+  document.getElementById('p-dorms').textContent     = u.dorms;
+  document.getElementById('p-m2').textContent        = u.m2 + ' m²';
+  document.getElementById('p-orient').textContent    = u.orient;
+  document.getElementById('p-pm2').textContent       = 'US$ ' + u.precioM2.toLocaleString('es-UY');
+  document.getElementById('p-precio').textContent    = 'US$ ' + u.precio.toLocaleString('es-UY');
+  panel.classList.add('abierto');
+}
+function cerrarPanel(){ elegida = null; panel.classList.remove('abierto'); }
+document.getElementById('cerrar').addEventListener('click', cerrarPanel);
+addEventListener('keydown', e => { if (e.key === 'Escape') cerrarPanel(); });
+lienzo.addEventListener('click', () => sobre ? abrirPanel(sobre.userData.unidad) : cerrarPanel());
+
+aplicarFiltros();
+
+/* ============================================================
+   6. BUCLE
+   ============================================================ */
+
+function animar(){
+  requestAnimationFrame(animar);
+
+  if (!tocado){ theta += 0.0013; ubicarCamara(); }
+
+  // separación de pisos
+  pisosGrupo.forEach((g, i) => {
+    const d = g.userData;
+    d.offset += (d.offsetObjetivo - d.offset) * 0.11;
+    g.position.y = i * PASO + d.offset;
+  });
+
+  // hover
+  rayo.setFromCamera(raton, camara);
+  const golpes = rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
+  const nuevo = golpes.length ? golpes[0].object : null;
+  if (nuevo !== sobre){
+    if (sobre) sobre.material.emissive.setHex(0x000000);
+    sobre = nuevo;
+    lienzo.style.cursor = sobre ? 'pointer' : 'grab';
+    if (sobre){
+      sobre.material.emissive.copy(sobre.userData.colorBase).multiplyScalar(0.4);
+      const u = sobre.userData.unidad;
+      tooltip.textContent = u.id + ' · ' + u.dorms + ' dorm · ' + u.m2 + ' m²';
+      tooltip.style.opacity = 1;
+    } else tooltip.style.opacity = 0;
+  }
+  if (sobre){ tooltip.style.left = posRaton.x + 'px'; tooltip.style.top = posRaton.y + 'px'; }
+
+  render.render(escena, camara);
+}
+animar();
+
+addEventListener('resize', () => {
+  camara.aspect = innerWidth / innerHeight;
+  camara.updateProjectionMatrix();
+  render.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
