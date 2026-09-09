@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ROSSO by Block · disponibilidad navegable</title>
+<style>
+  :root{
+    --fondo:#DEE2E4; --tinta:#1A2124; --suave:#5D686C; --linea:rgba(26,33,36,.14);
+    --papel:rgba(255,255,255,.86); --verde:#2F7A68; --gris:#9AA2A5; --ambar:#C08429;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--fondo);color:var(--tinta)}
+  body{font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  canvas{display:block}
+  button{font-family:inherit;font-size:inherit;color:inherit}
+  h1{font-size:22px;font-weight:650;letter-spacing:-.02em;margin:0}
+  .sub{margin:3px 0 0;color:var(--suave);font-size:13px}
+
+  #cabezal{position:fixed;top:0;left:0;padding:22px 24px;z-index:10;max-width:330px}
+  #aviso{
+    margin-top:18px;padding:13px 15px;border-radius:5px;background:var(--papel);
+    border:1px solid var(--linea);border-left:3px solid var(--ambar);font-size:13px;
+  }
+  #aviso b{font-weight:600}
+
+  #cota{
+    position:fixed;top:22px;right:24px;z-index:11;display:flex;align-items:center;gap:8px;
+    font-size:13px;color:var(--suave);text-decoration:none;
+  }
+  #cota:hover{color:var(--tinta)}
+
+  #filtros{position:fixed;left:24px;bottom:22px;z-index:10;max-width:330px}
+  .grupo{margin-bottom:11px}
+  .grupo p{margin:0 0 6px;font-size:12.5px;color:var(--suave)}
+  .fila{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:4px;cursor:pointer;
+    border:1px solid var(--linea);background:var(--papel);color:var(--suave);font-size:13px;
+    transition:color .15s,background .15s,border-color .15s}
+  .chip:hover{color:var(--tinta);border-color:rgba(26,33,36,.32)}
+  .chip[aria-pressed="true"]{color:#fff;background:var(--tinta);border-color:var(--tinta)}
+  .chip:focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
+  .punto{width:8px;height:8px;border-radius:2px;flex:none}
+  #separar{margin-top:2px;padding:8px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--linea);background:var(--papel);color:var(--suave)}
+  #separar[aria-pressed="true"]{color:#fff;background:var(--tinta);border-color:var(--tinta)}
+
+  #pisos{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:10;display:flex;flex-direction:column-reverse;gap:2px}
+  #pisos button{width:36px;height:24px;border:none;background:none;cursor:pointer;color:var(--suave);
+    font-size:12.5px;font-variant-numeric:tabular-nums;border-right:2px solid transparent;transition:color .15s,border-color .15s}
+  #pisos button:hover{color:var(--tinta)}
+  #pisos button[aria-pressed="true"]{color:var(--tinta);font-weight:650;border-right-color:var(--tinta)}
+
+  #panel{position:fixed;top:0;right:0;height:100%;width:330px;z-index:12;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);border-left:1px solid var(--linea);padding:26px 26px 22px;
+    display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.22,.61,.36,1)}
+  #panel.abierto{transform:none}
+  #cerrar{position:absolute;top:18px;right:18px;width:28px;height:28px;border:1px solid var(--linea);
+    background:none;border-radius:50%;color:var(--suave);cursor:pointer;line-height:1}
+  #p-unidad{font-size:34px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:0}
+  #p-estado{display:inline-flex;align-items:center;gap:7px;margin:6px 0 20px;font-size:13px;color:var(--suave)}
+  dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:10px 18px;font-size:13.5px}
+  dt{color:var(--suave);margin:0}
+  dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+  #p-precio{font-size:20px;font-weight:600;margin:20px 0 4px;font-variant-numeric:tabular-nums}
+  #p-fuente{font-size:12px;color:var(--suave);margin:0}
+  .nota{margin-top:auto;padding-top:16px;border-top:1px solid var(--linea);color:var(--suave);font-size:12px;line-height:1.55}
+
+  #tooltip{position:fixed;z-index:14;pointer-events:none;opacity:0;transform:translate(-50%,calc(-100% - 12px));
+    padding:5px 10px;border-radius:4px;background:var(--tinta);color:#fff;font-size:12.5px;white-space:nowrap;transition:opacity .12s}
+
+  @media (max-width:860px){
+    #panel{width:100%}
+    #pisos,#cota{display:none}
+    #cabezal{max-width:none;padding:16px 18px}
+    #filtros{left:18px;right:18px;max-width:none;bottom:16px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+
+<header id="cabezal">
+  <h1>ROSSO by Block</h1>
+  <p class="sub">Ana Monterroso de Lavalleja 2166, Cordón · 10 pisos · 78 unidades · entrega marzo 2028</p>
+  <div id="aviso">
+    <b>12 de 78 unidades</b> tienen estado publicado hoy. Las otras 66 aparecen en gris:
+    nadie sabe si están disponibles.
+  </div>
+</header>
+
+<a id="cota" href="cota-landing.html">
+  <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+    <path d="M4 13h12" stroke="#2F7A68" stroke-width="1.7"/>
+    <path d="M10 5l3.4 5.6H6.6L10 5z" fill="#2F7A68"/>
+  </svg>
+  Armado por Cota
+</a>
+
+<div id="tooltip"></div>
+
+<div id="filtros">
+  <div class="grupo"><p>Tipología</p><div class="fila" id="f-dorms"></div></div>
+  <div class="grupo"><p>Estado</p><div class="fila" id="f-estado"></div></div>
+  <button id="separar" aria-pressed="false">Separar pisos</button>
+</div>
+
+<nav id="pisos" aria-label="Pisos"></nav>
+
+<aside id="panel" aria-live="polite">
+  <button id="cerrar" aria-label="Cerrar">×</button>
+  <p id="p-unidad">—</p>
+  <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
+  <dl>
+    <dt>Piso</dt><dd id="p-piso"></dd>
+    <dt>Dormitorios</dt><dd id="p-dorms"></dd>
+    <dt>Superficie total</dt><dd id="p-m2"></dd>
+    <dt>Orientación</dt><dd id="p-orient"></dd>
+  </dl>
+  <p id="p-precio"></p>
+  <p id="p-fuente"></p>
+  <p class="nota">
+    Demostración armada con datos públicos de avisos (setiembre 2026). Las superficies y
+    precios de 2 dormitorios son estimados: con la planilla real, cada unidad muestra su
+    dato exacto y el estado se actualiza solo.
+  </p>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   1. DATOS — reconstruidos de avisos públicos
+   ============================================================ */
+
+const ESTADOS = {
+  disponible: { nombre:'Disponible', color:'#2F7A68' },
+  sin_dato:   { nombre:'Sin estado público', color:'#9AA2A5' },
+};
+
+// Planta tipo: 8 unidades. 4 al frente (Lavalleja) y 4 al contrafrente.
+// Las de 1 dormitorio usan superficies y precios publicados.
+const PLANTA = [
+  { pos:1, col:-1.5, frente:-1, dorms:2, m2:92, orient:'Esquina Paullier', precio:196500, estimado:true  },
+  { pos:2, col:-0.5, frente:-1, dorms:1, m2:60, orient:'Frente',           precio:138904, estimado:false },
+  { pos:3, col: 0.5, frente:-1, dorms:1, m2:64, orient:'Frente',           precio:139874, estimado:false },
+  { pos:4, col: 1.5, frente:-1, dorms:2, m2:88, orient:'Frente',           precio:188400, estimado:true  },
+  { pos:5, col:-1.5, frente: 1, dorms:1, m2:78, orient:'Contrafrente',     precio:155976, estimado:false },
+  { pos:6, col:-0.5, frente: 1, dorms:1, m2:47, orient:'Contrafrente',     precio:136673, estimado:false },
+  { pos:7, col: 0.5, frente: 1, dorms:1, m2:48, orient:'Contrafrente',     precio:136673, estimado:false },
+  { pos:8, col: 1.5, frente: 1, dorms:1, m2:51, orient:'Contrafrente',     precio:128340, estimado:false },
+];
+
+// Piso 10: seis penthouses con terrazas grandes.
+const PENTHOUSE = [
+  { pos:1, col:-1.5, frente:-1, dorms:2, m2:187, orient:'Esquina, terraza', precio:227106, estimado:false },
+  { pos:2, col:-0.5, frente:-1, dorms:2, m2:140, orient:'Frente, terraza',  precio:214000, estimado:true  },
+  { pos:3, col: 0.5, frente:-1, dorms:2, m2:132, orient:'Frente, terraza',  precio:209000, estimado:true  },
+  { pos:4, col:-1.5, frente: 1, dorms:2, m2:126, orient:'Contrafrente',     precio:198000, estimado:true  },
+  { pos:5, col:-0.5, frente: 1, dorms:1, m2: 95, orient:'Contrafrente',     precio:172000, estimado:true  },
+  { pos:6, col: 0.5, frente: 1, dorms:1, m2: 88, orient:'Contrafrente',     precio:166000, estimado:true  },
+];
+
+// Las 12 unidades con aviso publicado hoy.
+const PUBLICADAS = [204, 306, 402, 503, 508, 605, 703, 707, 806, 902, 1001, 1005];
+
+const UNIDADES = [];
+for (let piso = 1; piso <= 10; piso++){
+  (piso === 10 ? PENTHOUSE : PLANTA).forEach(t => {
+    const id = piso === 10 ? 1000 + t.pos : piso * 100 + t.pos;
+    UNIDADES.push(Object.assign({}, t, {
+      id, piso,
+      estado: PUBLICADAS.includes(id) ? 'disponible' : 'sin_dato',
+    }));
+  });
+}
+
+/* ============================================================
+   2. ESCENA
+   ============================================================ */
+
+const ANCHO = 5.4, PROF = 6.4, ALTO = 3, LOSA = 0.32, PASO = ALTO + LOSA;
+const SEP_X = ANCHO + 0.3, SEP_Z = (PROF + 2.0) / 2;
+
+const escena = new THREE.Scene();
+escena.background = new THREE.Color(0xDEE2E4);
+escena.fog = new THREE.Fog(0xDEE2E4, 130, 280);
+
+const camara = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.1, 600);
+const render = new THREE.WebGLRenderer({ antialias:true });
+render.setPixelRatio(Math.min(devicePixelRatio, 2));
+render.setSize(innerWidth, innerHeight);
+render.shadowMap.enabled = true;
+render.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(render.domElement);
+
+escena.add(new THREE.HemisphereLight(0xFFFFFF, 0xA6B0B3, 0.9));
+const sol = new THREE.DirectionalLight(0xFFF6E8, 1.0);
+sol.position.set(-34, 58, 30);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+const sc = sol.shadow.camera;
+sc.left=-46; sc.right=46; sc.top=64; sc.bottom=-26; sc.near=5; sc.far=170;
+escena.add(sol);
+
+const base = new THREE.Mesh(
+  new THREE.CylinderGeometry(30, 30, 1.2, 72),
+  new THREE.MeshStandardMaterial({ color:0xD1D6D8, roughness:0.95 })
+);
+base.position.y = -0.6;
+base.receiveShadow = true;
+escena.add(base);
+
+/* ============================================================
+   3. TORRE
+   ============================================================ */
+
+const torre = new THREE.Group();
+escena.add(torre);
+
+const geoUnidad  = new THREE.BoxGeometry(ANCHO, ALTO, PROF);
+const bordesGeo  = new THREE.EdgesGeometry(geoUnidad);
+const geoLosa    = new THREE.BoxGeometry(SEP_X*4 + 0.5, LOSA, SEP_Z*2 + PROF + 0.5);
+const geoNucleo  = new THREE.BoxGeometry(SEP_X*2, ALTO, 1.7);
+const matLosa    = new THREE.MeshStandardMaterial({ color:0xB4BBBD, roughness:0.9 });
+const matNucleo  = new THREE.MeshStandardMaterial({ color:0xA5ADB0, roughness:0.9 });
+
+const pisosGrupo = [], cajas = [];
+
+for (let piso = 1; piso <= 10; piso++){
+  const g = new THREE.Group();
+  g.position.y = (piso - 1) * PASO;
+  g.userData = { offset:0, objetivo:0 };
+
+  const losa = new THREE.Mesh(geoLosa, matLosa);
+  losa.position.y = -LOSA/2;
+  losa.castShadow = losa.receiveShadow = true;
+  g.add(losa);
+
+  const nucleo = new THREE.Mesh(geoNucleo, matNucleo);
+  nucleo.position.y = ALTO/2;
+  nucleo.castShadow = true;
+  g.add(nucleo);
+
+  UNIDADES.filter(u => u.piso === piso).forEach(u => {
+    const color = new THREE.Color(ESTADOS[u.estado].color);
+    const caja = new THREE.Mesh(geoUnidad, new THREE.MeshStandardMaterial({
+      color, roughness:0.45, metalness:0.05, transparent:true,
+      opacity: u.estado === 'disponible' ? 0.94 : 0.55,
+    }));
+    caja.position.set(u.col * SEP_X, ALTO/2, u.frente * SEP_Z);
+    caja.castShadow = caja.receiveShadow = true;
+    caja.userData = { unidad:u, colorBase:color.clone(), activa:true };
+    g.add(caja);
+    cajas.push(caja);
+
+    const borde = new THREE.LineSegments(bordesGeo,
+      new THREE.LineBasicMaterial({ color:0x1A2124, transparent:true, opacity:0.26 }));
+    borde.position.copy(caja.position);
+    caja.userData.borde = borde;
+    g.add(borde);
+  });
+
+  torre.add(g);
+  pisosGrupo.push(g);
+}
+const ALTURA = 10 * PASO;
+
+/* ============================================================
+   4. CÁMARA
+   ============================================================ */
+
+const objetivo = new THREE.Vector3(0, ALTURA * 0.45, 0);
+let radio = 96, theta = 0.7, phi = 1.15, arrastrando = false, ultimo = {x:0,y:0}, tocado = false;
+
+function ubicarCamara(){
+  phi = Math.max(0.18, Math.min(Math.PI/2 + 0.16, phi));
+  camara.position.set(
+    objetivo.x + radio * Math.sin(phi) * Math.sin(theta),
+    objetivo.y + radio * Math.cos(phi),
+    objetivo.z + radio * Math.sin(phi) * Math.cos(theta)
+  );
+  camara.lookAt(objetivo);
+}
+ubicarCamara();
+
+const lienzo = render.domElement;
+lienzo.style.cursor = 'grab';
+lienzo.addEventListener('pointerdown', e => {
+  arrastrando = true; tocado = true;
+  ultimo = { x:e.clientX, y:e.clientY };
+  lienzo.setPointerCapture(e.pointerId);
+});
+lienzo.addEventListener('pointerup', e => { arrastrando = false; lienzo.releasePointerCapture(e.pointerId); });
+lienzo.addEventListener('pointermove', e => {
+  const dx = e.clientX - ultimo.x, dy = e.clientY - ultimo.y;
+  ultimo = { x:e.clientX, y:e.clientY };
+  if (arrastrando){ theta -= dx * 0.005; phi -= dy * 0.004; ubicarCamara(); }
+  raton.x =  (e.clientX / innerWidth)  * 2 - 1;
+  raton.y = -(e.clientY / innerHeight) * 2 + 1;
+  posRaton = { x:e.clientX, y:e.clientY };
+});
+lienzo.addEventListener('wheel', e => {
+  e.preventDefault(); tocado = true;
+  radio = Math.max(34, Math.min(190, radio + e.deltaY * 0.09));
+  ubicarCamara();
+}, { passive:false });
+
+/* ============================================================
+   5. INTERACCIÓN
+   ============================================================ */
+
+const rayo = new THREE.Raycaster();
+const raton = new THREE.Vector2(-2,-2);
+let posRaton = {x:0,y:0}, sobre = null, elegida = null, separado = false, pisoAislado = null;
+let fDorms = new Set([1,2]), fEstado = new Set(Object.keys(ESTADOS));
+
+const tooltip = document.getElementById('tooltip');
+const panel = document.getElementById('panel');
+
+const pasa = u => fDorms.has(u.dorms) && fEstado.has(u.estado) &&
+                  (pisoAislado === null || u.piso === pisoAislado);
+
+function aplicar(){
+  cajas.forEach(c => {
+    const u = c.userData.unidad, ok = pasa(u);
+    c.userData.activa = ok;
+    c.material.opacity = ok ? (u.estado === 'disponible' ? 0.94 : 0.55) : 0.06;
+    c.material.color.copy(ok ? c.userData.colorBase : new THREE.Color(0x98A1A4));
+    c.castShadow = ok;
+    c.userData.borde.material.opacity = ok ? 0.26 : 0.04;
+  });
+  if (elegida && !pasa(elegida)) cerrar();
+}
+
+function chip(cont, texto, color, alTocar){
+  const b = document.createElement('button');
+  b.className = 'chip';
+  b.setAttribute('aria-pressed','true');
+  b.innerHTML = (color ? '<span class="punto" style="background:'+color+'"></span>' : '') + texto;
+  b.addEventListener('click', () => {
+    const on = b.getAttribute('aria-pressed') !== 'true';
+    b.setAttribute('aria-pressed', on);
+    alTocar(on); aplicar();
+  });
+  cont.appendChild(b);
+}
+[1,2].forEach(d => chip(document.getElementById('f-dorms'), d + (d===1?' dormitorio':' dormitorios'), null,
+  on => on ? fDorms.add(d) : fDorms.delete(d)));
+Object.entries(ESTADOS).forEach(([k,e]) => chip(document.getElementById('f-estado'), e.nombre, e.color,
+  on => on ? fEstado.add(k) : fEstado.delete(k)));
+
+const btnSep = document.getElementById('separar');
+btnSep.addEventListener('click', () => {
+  separado = !separado;
+  btnSep.setAttribute('aria-pressed', separado);
+  pisosGrupo.forEach((g,i) => g.userData.objetivo = separado ? i * 2.5 : 0);
+});
+
+const riel = document.getElementById('pisos');
+for (let p = 1; p <= 10; p++){
+  const b = document.createElement('button');
+  b.textContent = p;
+  b.setAttribute('aria-pressed','false');
+  b.addEventListener('click', () => {
+    pisoAislado = pisoAislado === p ? null : p;
+    [...riel.children].forEach((el,i) => el.setAttribute('aria-pressed', pisoAislado === i+1));
+    aplicar();
+  });
+  riel.appendChild(b);
+}
+
+function abrir(u){
+  elegida = u;
+  const e = ESTADOS[u.estado];
+  document.getElementById('p-unidad').textContent     = u.id;
+  document.getElementById('p-estado-txt').textContent = e.nombre;
+  document.getElementById('p-color').style.background = e.color;
+  document.getElementById('p-piso').textContent       = 'Piso ' + u.piso;
+  document.getElementById('p-dorms').textContent      = u.dorms;
+  document.getElementById('p-m2').textContent         = u.m2 + ' m²';
+  document.getElementById('p-orient').textContent     = u.orient;
+  document.getElementById('p-precio').textContent     = 'USD ' + u.precio.toLocaleString('es-UY');
+  document.getElementById('p-fuente').textContent     = u.estimado
+    ? 'Precio y superficie estimados — falta el dato real.'
+    : 'Precio y superficie publicados en el aviso.';
+  panel.classList.add('abierto');
+}
+function cerrar(){ elegida = null; panel.classList.remove('abierto'); }
+document.getElementById('cerrar').addEventListener('click', cerrar);
+addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+lienzo.addEventListener('click', () => sobre ? abrir(sobre.userData.unidad) : cerrar());
+
+aplicar();
+
+/* ============================================================
+   6. BUCLE
+   ============================================================ */
+
+function animar(){
+  requestAnimationFrame(animar);
+  if (!tocado){ theta += 0.0013; ubicarCamara(); }
+
+  pisosGrupo.forEach((g,i) => {
+    const d = g.userData;
+    d.offset += (d.objetivo - d.offset) * 0.11;
+    g.position.y = i * PASO + d.offset;
+  });
+
+  rayo.setFromCamera(raton, camara);
+  const golpes = rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
+  const nuevo = golpes.length ? golpes[0].object : null;
+  if (nuevo !== sobre){
+    if (sobre) sobre.material.emissive.setHex(0x000000);
+    sobre = nuevo;
+    lienzo.style.cursor = sobre ? 'pointer' : 'grab';
+    if (sobre){
+      sobre.material.emissive.copy(sobre.userData.colorBase).multiplyScalar(0.4);
+      const u = sobre.userData.unidad;
+      tooltip.textContent = u.id + ' · ' + u.dorms + ' dorm · ' + u.m2 + ' m²';
+      tooltip.style.opacity = 1;
+    } else tooltip.style.opacity = 0;
+  }
+  if (sobre){ tooltip.style.left = posRaton.x+'px'; tooltip.style.top = posRaton.y+'px'; }
+
+  render.render(escena, camara);
+}
+animar();
+
+addEventListener('resize', () => {
+  camara.aspect = innerWidth/innerHeight;
+  camara.updateProjectionMatrix();
+  render.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
