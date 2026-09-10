@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ROSSO by Block · panel interno</title>
+<style>
+  :root{
+    --fondo:#DEE2E4; --tinta:#1A2124; --suave:#5D686C; --linea:rgba(26,33,36,.14);
+    --papel:#fff; --verde:#2F7A68; --gris:#9AA2A5; --ambar:#C08429;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fondo);color:var(--tinta);
+    font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5}
+  header{padding:22px 24px 0}
+  h1{font-size:20px;font-weight:650;letter-spacing:-.02em;margin:0 0 4px}
+  .sub{color:var(--suave);font-size:13px;margin:0}
+  #banner{
+    margin:16px 24px 0;padding:12px 15px;border-radius:5px;background:var(--papel);
+    border:1px solid var(--linea);border-left:3px solid var(--ambar);font-size:13px;max-width:760px;
+  }
+  main{padding:20px 24px 40px;max-width:960px}
+  .tabs{display:flex;gap:6px;margin:20px 0 16px}
+  .tab{padding:8px 14px;border-radius:4px;border:1px solid var(--linea);background:var(--papel);
+    color:var(--suave);cursor:pointer;font-size:13px}
+  .tab[aria-selected="true"]{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+  section[hidden]{display:none}
+  .tabla-envoltorio{overflow-x:auto;background:var(--papel);border-radius:6px;border:1px solid var(--linea)}
+  table{width:100%;border-collapse:collapse;min-width:640px}
+  th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--linea);font-size:13px;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  th{color:var(--suave);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .estado{display:inline-flex;align-items:center;gap:6px}
+  .punto{width:8px;height:8px;border-radius:2px;flex:none}
+  button.accion{padding:6px 12px;border-radius:4px;border:1px solid var(--linea);background:none;
+    cursor:pointer;font-size:12.5px;color:var(--suave)}
+  button.accion:hover{color:var(--tinta);border-color:rgba(26,33,36,.34)}
+  button.accion:disabled{opacity:.5;cursor:default}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
+  .tarjeta-stat{background:var(--papel);border:1px solid var(--linea);border-radius:6px;padding:16px}
+  .tarjeta-stat h3{margin:0 0 12px;font-size:12.5px;color:var(--suave);font-weight:600;
+    text-transform:uppercase;letter-spacing:.03em}
+  .barra-fila{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px}
+  .barra-fila .etq{width:120px;flex:none;color:var(--suave);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .barra-fondo{flex:1;height:8px;background:var(--linea);border-radius:4px;overflow:hidden}
+  .barra{height:100%;background:var(--verde)}
+  .barra-fila .val{width:24px;text-align:right;font-variant-numeric:tabular-nums}
+  #cargando-unidades,#cargando-demanda{padding:30px 0;color:var(--suave)}
+  @media (max-width:700px){ main{padding:16px} #banner{margin-left:16px;margin-right:16px} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ROSSO by Block · panel interno</h1>
+  <p class="sub">Simulacro del panel de administración — así vería el vendedor el estado de sus unidades.</p>
+</header>
+
+<div id="banner">
+  <b>Prototipo interno, sin login.</b> No compartas este link. Cualquiera que lo tenga
+  puede dar de baja unidades y ver las estadísticas. Antes de entregarlo a un cliente real
+  hay que agregar autenticación (Supabase Auth) para que solo su equipo pueda editar.
+</div>
+
+<main>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="unidades" type="button">Unidades</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="demanda" type="button">Demanda</button>
+  </div>
+
+  <section id="panel-unidades">
+    <div id="cargando-unidades">Cargando unidades…</div>
+    <div class="tabla-envoltorio">
+      <table id="tabla-unidades" hidden>
+        <thead>
+          <tr>
+            <th>Unidad</th><th>Piso</th><th>Dorms</th><th class="num">m²</th>
+            <th>Orientación</th><th class="num">Precio</th><th>Estado</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="filas-unidades"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="panel-demanda" hidden>
+    <div id="cargando-demanda">Cargando estadísticas…</div>
+    <div id="stats" hidden>
+      <div class="stats-grid">
+        <div class="tarjeta-stat"><h3>Por tipología</h3><div id="stat-dorms"></div></div>
+        <div class="tarjeta-stat"><h3>Por franja de piso</h3><div id="stat-piso"></div></div>
+        <div class="tarjeta-stat"><h3>Por orientación</h3><div id="stat-orient"></div></div>
+      </div>
+      <div class="tarjeta-stat">
+        <h3>Unidades más consultadas</h3>
+        <div class="tabla-envoltorio">
+          <table>
+            <thead><tr><th>Unidad</th><th>Piso</th><th>Dorms</th><th>Orientación</th><th class="num">Consultas</th></tr></thead>
+            <tbody id="filas-top"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase-config.js"></script>
+<script>
+const ESTADOS = {
+  disponible: { nombre:'Disponible', color:'#2F7A68' },
+  sin_dato:   { nombre:'Sin estado público', color:'#9AA2A5' },
+};
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+  document.getElementById('panel-unidades').hidden = t.dataset.tab !== 'unidades';
+  document.getElementById('panel-demanda').hidden = t.dataset.tab !== 'demanda';
+  if (t.dataset.tab === 'demanda') cargarDemanda();
+}));
+
+async function cargarUnidades(){
+  const { data, error } = await sb.from('units').select('*').order('id');
+  if (error){
+    document.getElementById('cargando-unidades').textContent =
+      'No se pudo conectar con Supabase: ' + error.message;
+    return;
+  }
+  pintarUnidades(data);
+}
+
+function pintarUnidades(unidades){
+  const tbody = document.getElementById('filas-unidades');
+  tbody.innerHTML = '';
+  unidades.forEach(u => {
+    const e = ESTADOS[u.estado] || ESTADOS.sin_dato;
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + u.id + '</td>' +
+      '<td>' + u.piso + '</td>' +
+      '<td>' + u.dorms + '</td>' +
+      '<td class="num">' + u.m2 + '</td>' +
+      '<td>' + u.orientacion + '</td>' +
+      '<td class="num">USD ' + Number(u.precio).toLocaleString('es-UY') + '</td>' +
+      '<td><span class="estado"><span class="punto" style="background:' + e.color + '"></span>' + e.nombre + '</span></td>' +
+      '<td></td>';
+    const btn = document.createElement('button');
+    btn.className = 'accion';
+    btn.type = 'button';
+    btn.textContent = u.estado === 'disponible' ? 'Dar de baja' : 'Publicar';
+    btn.addEventListener('click', () => cambiarEstado(u.id, u.estado, btn));
+    tr.lastElementChild.appendChild(btn);
+    tbody.appendChild(tr);
+  });
+  document.getElementById('cargando-unidades').hidden = true;
+  document.getElementById('tabla-unidades').hidden = false;
+}
+
+async function cambiarEstado(id, estadoActual, btn){
+  const nuevo = estadoActual === 'disponible' ? 'sin_dato' : 'disponible';
+  btn.disabled = true;
+  const { error } = await sb.from('units').update({ estado: nuevo }).eq('id', id);
+  if (error){ alert('No se pudo actualizar: ' + error.message); btn.disabled = false; return; }
+  cargarUnidades();
+}
+
+function barra(cont, filas){
+  if (!filas.length){ cont.innerHTML = '<p style="color:var(--suave);margin:0">Sin datos todavía.</p>'; return; }
+  const max = Math.max(...filas.map(f => f.val));
+  cont.innerHTML = filas.map(f =>
+    '<div class="barra-fila"><span class="etq">' + f.etq + '</span>' +
+    '<span class="barra-fondo"><span class="barra" style="width:' + (f.val / max * 100) + '%"></span></span>' +
+    '<span class="val">' + f.val + '</span></div>'
+  ).join('');
+}
+
+let demandaCargada = false;
+async function cargarDemanda(){
+  if (demandaCargada) return;
+  const [{ data: unidades, error: e1 }, { data: eventos, error: e2 }] = await Promise.all([
+    sb.from('units').select('*'),
+    sb.from('events').select('unit_id'),
+  ]);
+  if (e1 || e2){
+    document.getElementById('cargando-demanda').textContent = 'No se pudo cargar la demanda.';
+    return;
+  }
+  demandaCargada = true;
+
+  const unidadesPorId = Object.fromEntries(unidades.map(u => [u.id, u]));
+  const porUnidad = {};
+  eventos.forEach(ev => { porUnidad[ev.unit_id] = (porUnidad[ev.unit_id] || 0) + 1; });
+
+  const porDorms = {}, porFranja = {}, porOrient = {};
+  Object.entries(porUnidad).forEach(([id, n]) => {
+    const u = unidadesPorId[id];
+    if (!u) return;
+    const kd = u.dorms + (u.dorms === 1 ? ' dormitorio' : ' dormitorios');
+    porDorms[kd] = (porDorms[kd] || 0) + n;
+    const franja = u.piso <= 3 ? 'Pisos 1-3' : u.piso <= 7 ? 'Pisos 4-7' : 'Pisos 8-10';
+    porFranja[franja] = (porFranja[franja] || 0) + n;
+    porOrient[u.orientacion] = (porOrient[u.orientacion] || 0) + n;
+  });
+  const aFilas = obj => Object.entries(obj).map(([etq, val]) => ({ etq, val })).sort((a, b) => b.val - a.val);
+  barra(document.getElementById('stat-dorms'), aFilas(porDorms));
+  barra(document.getElementById('stat-piso'), aFilas(porFranja));
+  barra(document.getElementById('stat-orient'), aFilas(porOrient));
+
+  const top = Object.entries(porUnidad)
+    .map(([id, n]) => ({ u: unidadesPorId[id], n }))
+    .filter(r => r.u)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 10);
+  document.getElementById('filas-top').innerHTML = top.length
+    ? top.map(r =>
+        '<tr><td>' + r.u.id + '</td><td>' + r.u.piso + '</td><td>' + r.u.dorms + '</td>' +
+        '<td>' + r.u.orientacion + '</td><td class="num">' + r.n + '</td></tr>'
+      ).join('')
+    : '<tr><td colspan="5">Todavía no hay consultas registradas.</td></tr>';
+
+  document.getElementById('cargando-demanda').hidden = true;
+  document.getElementById('stats').hidden = false;
+}
+
+cargarUnidades();
+</script>
+</body>
+</html>

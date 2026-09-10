@@ -111,10 +111,7 @@
 <header id="cabezal">
   <h1>ROSSO by Block</h1>
   <p class="sub">Ana Monterroso de Lavalleja 2166, Cordón · 10 pisos · 78 unidades · entrega marzo 2028</p>
-  <div id="aviso">
-    <b>12 de 78 unidades</b> tienen estado publicado hoy. Las otras 66 aparecen en gris:
-    nadie sabe si están disponibles.
-  </div>
+  <div id="aviso">Cargando estado de las unidades…</div>
 </header>
 
 <a id="cota" href="https://armadoporcota.vercel.app/">
@@ -160,9 +157,12 @@
 </aside>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase-config.js"></script>
 <script>
 /* ============================================================
-   1. DATOS — reconstruidos de avisos públicos
+   1. DATOS — vienen de Supabase (tabla `units`), no hardcodeados.
+   El estado se edita desde admin.html; acá solo se lee.
    ============================================================ */
 
 const ESTADOS = {
@@ -170,42 +170,36 @@ const ESTADOS = {
   sin_dato:   { nombre:'Sin estado público', color:'#9AA2A5' },
 };
 
-// Planta tipo: 8 unidades. 4 al frente (Lavalleja) y 4 al contrafrente.
-// Las de 1 dormitorio usan superficies y precios publicados.
-const PLANTA = [
-  { pos:1, col:-1.5, frente:-1, dorms:2, m2:92, orient:'Esquina Paullier', precio:196500, estimado:true  },
-  { pos:2, col:-0.5, frente:-1, dorms:1, m2:60, orient:'Frente',           precio:138904, estimado:false },
-  { pos:3, col: 0.5, frente:-1, dorms:1, m2:64, orient:'Frente',           precio:139874, estimado:false },
-  { pos:4, col: 1.5, frente:-1, dorms:2, m2:88, orient:'Frente',           precio:188400, estimado:true  },
-  { pos:5, col:-1.5, frente: 1, dorms:1, m2:78, orient:'Contrafrente',     precio:155976, estimado:false },
-  { pos:6, col:-0.5, frente: 1, dorms:1, m2:47, orient:'Contrafrente',     precio:136673, estimado:false },
-  { pos:7, col: 0.5, frente: 1, dorms:1, m2:48, orient:'Contrafrente',     precio:136673, estimado:false },
-  { pos:8, col: 1.5, frente: 1, dorms:1, m2:51, orient:'Contrafrente',     precio:128340, estimado:false },
-];
+async function cargarUnidades(){
+  const { data, error } = await sb.from('units').select('*').order('id');
+  if (error || !data){
+    console.error('No se pudo conectar con Supabase', error);
+    return null;
+  }
+  return data.map(r => ({
+    id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
+    dorms: r.dorms, m2: Number(r.m2), orient: r.orientacion, precio: Number(r.precio),
+    estimado: r.estimado, estado: r.estado,
+  }));
+}
 
-// Piso 10: seis penthouses con terrazas grandes.
-const PENTHOUSE = [
-  { pos:1, col:-1.5, frente:-1, dorms:2, m2:187, orient:'Esquina, terraza', precio:227106, estimado:false },
-  { pos:2, col:-0.5, frente:-1, dorms:2, m2:140, orient:'Frente, terraza',  precio:214000, estimado:true  },
-  { pos:3, col: 0.5, frente:-1, dorms:2, m2:132, orient:'Frente, terraza',  precio:209000, estimado:true  },
-  { pos:4, col:-1.5, frente: 1, dorms:2, m2:126, orient:'Contrafrente',     precio:198000, estimado:true  },
-  { pos:5, col:-0.5, frente: 1, dorms:1, m2: 95, orient:'Contrafrente',     precio:172000, estimado:true  },
-  { pos:6, col: 0.5, frente: 1, dorms:1, m2: 88, orient:'Contrafrente',     precio:166000, estimado:true  },
-];
-
-// Las 12 unidades con aviso publicado hoy.
-const PUBLICADAS = [204, 306, 402, 503, 508, 605, 703, 707, 806, 902, 1001, 1005];
-
-const UNIDADES = [];
-for (let piso = 1; piso <= 10; piso++){
-  (piso === 10 ? PENTHOUSE : PLANTA).forEach(t => {
-    const id = piso === 10 ? 1000 + t.pos : piso * 100 + t.pos;
-    UNIDADES.push(Object.assign({}, t, {
-      id, piso,
-      estado: PUBLICADAS.includes(id) ? 'disponible' : 'sin_dato',
-    }));
+// Deja constancia de que alguien abrió esta unidad — alimenta las
+// estadísticas de demanda del panel interno. No bloquea la demo si falla.
+function registrarEvento(unitId){
+  sb.from('events').insert({ unit_id: unitId, tipo:'click' }).then(({ error }) => {
+    if (error) console.warn('No se pudo registrar el evento', error);
   });
 }
+
+// Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
+// adentro de iniciar() porque necesita esperar a que lleguen las
+// unidades desde Supabase antes de construir nada.
+function iniciar(UNIDADES){
+
+const publicadas = UNIDADES.filter(u => u.estado === 'disponible').length;
+document.getElementById('aviso').innerHTML =
+  '<b>' + publicadas + ' de ' + UNIDADES.length + ' unidades</b> tienen estado publicado hoy. ' +
+  'Las otras ' + (UNIDADES.length - publicadas) + ' aparecen en gris: nadie sabe si están disponibles.';
 
 /* ============================================================
    2. ESCENA
@@ -468,7 +462,7 @@ function enfocar(u){
 }
 
 // URL pública de la demo. Se usa para los links por unidad.
-const BASE = 'https://armadoporcota.vercel.app/rosso-by-block.html';
+const BASE = 'https://armadoporcota.vercel.app/';
 
 function linkDe(u){
   const propia = location.protocol.startsWith('http')
@@ -483,6 +477,7 @@ function marcarURL(consulta){
 }
 
 function abrir(u, mover){
+  registrarEvento(u.id);
   elegida = u;
   if (mover) enfocar(u);
   const e = ESTADOS[u.estado];
@@ -579,6 +574,18 @@ addEventListener('resize', () => {
   camara.updateProjectionMatrix();
   render.setSize(innerWidth, innerHeight);
 });
+
+} // fin de iniciar()
+
+(async () => {
+  const UNIDADES = await cargarUnidades();
+  if (!UNIDADES){
+    document.getElementById('aviso').innerHTML =
+      '<b>No se pudo cargar el estado de las unidades.</b> Revisá la conexión y recargá la página.';
+    return;
+  }
+  iniciar(UNIDADES);
+})();
 </script>
 </body>
 </html>

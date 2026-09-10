@@ -9,13 +9,21 @@ building's unit availability, built with Three.js. There is no bundler, package.
 test suite, or linter — everything (HTML, CSS, JS, and the unit/floor data) lives in one
 HTML file loaded via a CDN `<script>` tag (`three.js r128`).
 
-**Current file: `index.html.html`.** This is very likely a mistake, not intentional — the
-project's own git history (`5952e5b Rename rosso-by-block.html to index.html so Vercel
-serves it at root`) shows it was deliberately named `index.html` so Vercel serves it at
-the site root, and the most recent commit (`1661bef Change every things`) renamed it to
-`index.html.html` and deleted `README.md`. Renamed like this, Vercel will not serve it at
-`/`. Flag this to the user / rename it back to `index.html` before deploying, unless they
-say the double extension is intentional.
+The file was briefly renamed to `index.html.html` (which would have broken Vercel's
+root-serving) and has been renamed back to `index.html`.
+
+## Data: Supabase, not hardcoded
+
+Unit data (`units` table) and demand tracking (`events` table) live in Supabase now —
+see `supabase-schema.sql` for the schema/RLS/seed and `supabase-config.js` for the client
+credentials (fill in `SUPABASE_URL` / `SUPABASE_ANON_KEY` after creating the project).
+`index.html` fetches `units` on load and only builds the Three.js scene once that
+resolves (see `cargarUnidades()` / `iniciar()` in the script). There is still no
+automatic sync from any spreadsheet — state changes go through `admin.html`, a
+login-less internal prototype where someone on the Cota side toggles a unit's `estado`
+and can see which units/typologies/floors get the most clicks (logged via
+`registrarEvento()` every time `abrir(u)` runs). `admin.html` needs Supabase Auth added
+before it's shown to a real client — right now anyone with the link can edit state.
 
 ## Running / testing
 
@@ -30,16 +38,15 @@ The script is organized top-to-bottom in numbered comment sections
 (`1. DATOS`, `2. ESCENA`, `3. TORRE`, `4. CÁMARA`, `5. INTERACCIÓN`, `6. BUCLE`). The
 important thing to understand is the data flow between them:
 
-1. **Data (`DATOS`)** — `PLANTA` and `PENTHOUSE` are per-floor unit *templates*
-   (8 units for typical floors, 6 for the top/penthouse floor), each describing position
-   on the floor plate (`col`, `frente`), bedroom count, m², orientation, and price.
-   `PUBLICADAS` is the hardcoded list of unit IDs that have a public listing today. A
-   loop builds the flat `UNIDADES` array (one entry per real unit across all floors) by
-   stamping out the templates per floor and computing each unit's `id` as
-   `piso*100 + pos` (or `1000+pos` for the penthouse floor), then setting
-   `estado: 'disponible' | 'sin_dato'` based on whether the id is in `PUBLICADAS`.
-   **This is the one section that encodes this specific building** — floor count, units
-   per floor, layout, prices, and which units are "live" all come from here.
+1. **Data (`DATOS`)** — `cargarUnidades()` fetches the flat `UNIDADES` array (one row per
+   real unit, `id`/`piso`/`pos`/`col`/`frente`/`dorms`/`m2`/`orientacion`/`precio`/
+   `estimado`/`estado`) from the Supabase `units` table. `id` is `piso*100 + pos` (or
+   `1000+pos` for the penthouse floor) — that math lives in the seed data in
+   `supabase-schema.sql`, not in this file anymore. Everything from `2. ESCENA` onward is
+   wrapped in `iniciar(UNIDADES)`, called only after the fetch resolves.
+   **This table is what encodes this specific building's units** — layout, prices, and
+   which are "live" (`estado`) all come from Supabase now, editable via `admin.html`
+   without redeploying.
 
 2. **Scene/Tower (`ESCENA`, `TORRE`)** — builds the Three.js scene once from constants
    (`ANCHO`/`PROF`/`ALTO` = unit box dimensions, `PASO` = floor-to-floor height, `SEP_X`/
@@ -73,18 +80,19 @@ building-specific parts to change are:
 
 - **Header text**: `<h1>`, the address/floor-count/unit-count/delivery-date subtitle in
   `.sub`, and the "`X de Y unidades` tienen estado publicado" copy in `#aviso`.
-- **`PLANTA` / `PENTHOUSE`** — the per-floor unit templates (count, position, bedrooms,
-  m², orientation, price, `estimado` flag). If the new building doesn't have a distinct
-  penthouse floor, the `piso === 10 ? PENTHOUSE : PLANTA` conditional and the `for` loop's
-  floor count (`piso <= 10`) both need to change together.
-  Note the id math (`piso*100 + pos`, `1000 + pos`) is coupled to `pos` being 1-8 for
-  regular floors — don't let template `pos` collide across floors.
-  Update `MAX floor count` (`piso <= 10`) and `ALTURA = 10 * PASO` if the floor count
-  changes.
-- **`PUBLICADAS`** — which unit IDs currently show as available; this is manually curated
-  from public listings, not fetched live.
-  This is documented for the reader in the last `<p class="nota">` in the panel and in
-  the `#aviso` box — both mention this is a static demo, not a live feed.
+- **The `units` seed data in `supabase-schema.sql`** — one row per unit (position,
+  bedrooms, m², orientation, price, `estimado` flag, `estado`). For a new building,
+  write a new seed (see the generator approach used to build this one: a small script
+  building the flat unit list, then emitting `insert` values) rather than hand-typing 70+
+  rows. The `for (let piso = 1; piso <= 10; piso++)` loop and `ALTURA = 10 * PASO` in
+  `index.html` still need to match the new building's floor count — that part of the loop
+  (iterating floors, picking which units belong to which) stays in the front-end even
+  though the unit data itself now comes from Supabase.
+- **Which units show as `disponible`** — set per-row in `units.estado`, edited from
+  `admin.html`, not hardcoded. Still manually curated from public listings for this demo,
+  just no longer redeploy-to-change. The last `<p class="nota">` in the panel and the
+  `#aviso` box still describe this as a demo, not a live feed from the client's own
+  systems.
 - **`WHATSAPP`** and **`BASE`** (the canonical deployed URL used for share links when the
   page is opened from a non-http context like `about:srcdoc`).
 - **Unit box proportions** (`ANCHO`, `PROF`, `ALTO`, spacing constants) if the new
