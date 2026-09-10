@@ -6,8 +6,8 @@
 <title>ROSSO by Block · disponibilidad navegable</title>
 <style>
   :root{
-    --fondo:#DEE2E4; --tinta:#1A2124; --suave:#5D686C; --linea:rgba(26,33,36,.14);
-    --papel:rgba(255,255,255,.86); --verde:#2F7A68; --gris:#9AA2A5; --ambar:#C08429;
+    --fondo:#DEE2E4; --tinta:#1A2124; --suave:#546065; --linea:rgba(26,33,36,.14);
+    --papel:rgba(255,255,255,.86); --verde:#2F7A68; --gris:#646C6E; --ambar:#C08429;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;overflow:hidden;background:var(--fondo);color:var(--tinta)}
@@ -80,7 +80,6 @@
   #piso-info b{color:var(--tinta);font-size:16px;font-weight:650;display:block;margin-bottom:5px;
     letter-spacing:-.01em}
   #piso-info span{display:block}
-  @media (max-width:860px){ #piso-info{display:none} }
 
   #panel{position:fixed;top:0;right:0;height:100%;width:330px;z-index:12;background:rgba(255,255,255,.94);
     backdrop-filter:blur(12px);border-left:1px solid var(--linea);padding:26px 26px 22px;
@@ -117,10 +116,36 @@
   canvas{touch-action:none}
 
   @media (max-width:860px){
-    #pisos,#cota{display:none}
+    #cota{display:none}
     #cabezal{max-width:none;padding:16px 18px}
     #cabezal h1{font-size:19px}
     #filtros{left:18px;right:18px;max-width:none;bottom:16px}
+
+    /* Riel de pisos: en desktop es una columna fija a la derecha; en mobile
+       no hay lugar para eso, así que pasa a ser una tira horizontal con
+       scroll dentro del propio header. */
+    #pisos{
+      position:static;top:auto;right:auto;transform:none;
+      flex-direction:row;align-items:center;gap:6px;
+      margin-top:12px;padding-bottom:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    }
+    #pisos button{
+      width:auto;height:32px;padding:0 12px;flex:none;
+      border:1px solid var(--linea);border-radius:4px;background:var(--papel);
+    }
+    #pisos button[aria-pressed="true"]{
+      color:#fff;background:var(--tinta);border-color:var(--tinta);border-right-color:var(--tinta);
+    }
+    #pisos .pisos-etiqueta{display:none}
+    #pisos .pisos-todos{height:32px;padding:0 12px;white-space:nowrap}
+
+    /* Tarjeta de info del piso: en desktop flota al lado del riel; acá
+       aparece en flujo normal, debajo de la tira, solo si hay piso elegido. */
+    #piso-info{display:none}
+    #piso-info.visible{
+      display:block;position:static;transform:none;opacity:1;max-width:none;
+      margin-top:10px;padding:10px 13px;
+    }
     /* el panel no tapa el edificio: sube desde abajo */
     #panel{
       width:100%;height:auto;max-height:74vh;top:auto;bottom:0;overflow-y:auto;
@@ -144,6 +169,8 @@
   <h1>ROSSO by Block</h1>
   <p class="sub">Ana Monterroso de Lavalleja 2166, Cordón · 10 pisos · 78 unidades · entrega marzo 2028</p>
   <div id="aviso">Cargando estado de las unidades…</div>
+  <nav id="pisos" aria-label="Pisos"></nav>
+  <div id="piso-info" aria-live="polite"></div>
 </header>
 
 <a id="cota" href="https://armadoporcota.vercel.app/">
@@ -194,9 +221,6 @@
   <button id="separar" aria-pressed="false">Separar pisos</button>
 </div>
 
-<nav id="pisos" aria-label="Pisos"></nav>
-<div id="piso-info" aria-live="polite"></div>
-
 <aside id="panel" aria-live="polite">
   <button id="cerrar" aria-label="Cerrar">×</button>
   <p id="p-unidad">—</p>
@@ -232,7 +256,7 @@
 
 const ESTADOS = {
   disponible: { nombre:'Disponible', color:'#2F7A68' },
-  sin_dato:   { nombre:'Sin estado público', color:'#9AA2A5' },
+  sin_dato:   { nombre:'Sin estado público', color:'#646C6E' },
 };
 
 async function cargarUnidades(){
@@ -426,7 +450,7 @@ for (let piso = 1; piso <= 10; piso++){
     const color = new THREE.Color(ESTADOS[u.estado].color);
     const caja = new THREE.Mesh(geoUnidad, new THREE.MeshStandardMaterial({
       color, roughness:0.45, metalness:0.05, transparent:true,
-      opacity: u.estado === 'disponible' ? 0.94 : 0.55,
+      opacity: u.estado === 'disponible' ? 0.94 : 0.72,
     }));
     caja.position.set(u.col * SEP_X, ALTO/2, u.frente * SEP_Z);
     caja.castShadow = caja.receiveShadow = true;
@@ -548,7 +572,7 @@ function aplicar(){
   cajas.forEach(c => {
     const u = c.userData.unidad, ok = pasa(u);
     c.userData.activa = ok;
-    c.material.opacity = ok ? (u.estado === 'disponible' ? 0.94 : 0.55) : 0.06;
+    c.material.opacity = ok ? (u.estado === 'disponible' ? 0.94 : 0.72) : 0.06;
     c.material.color.copy(ok ? c.userData.colorBase : new THREE.Color(0x98A1A4));
     c.castShadow = ok;
     c.userData.borde.material.opacity = ok ? 0.26 : 0.04;
@@ -578,6 +602,15 @@ btnSep.addEventListener('click', () => {
   separado = !separado;
   btnSep.setAttribute('aria-pressed', separado);
   pisosGrupo.forEach((g,i) => g.userData.objetivo = separado ? i * 2.5 : 0);
+  // Al explotar la torre gana altura: sin esto la cámara general queda
+  // encuadrada para la torre compacta y los pisos de arriba se cortan.
+  if (pisoAislado === null){
+    tocado = true;
+    const extra = separado ? (pisosGrupo.length - 1) * 2.5 : 0;
+    objetivo.y = objetivoGeneral.y + extra / 2;
+    radio = radioGeneral + extra * 0.85;
+    ubicarCamara();
+  }
 });
 
 const riel = document.getElementById('pisos');
@@ -736,6 +769,7 @@ function marcarURL(consulta){
 function abrir(u, mover){
   registrarEvento(u.id);
   elegida = u;
+  tooltip.style.opacity = 0; // en touch queda pegado en la última posición tocada
   if (mover) enfocar(u);
   const e = ESTADOS[u.estado];
   document.getElementById('p-unidad').textContent     = u.id;
@@ -808,7 +842,7 @@ function animar(){
     sobre = nuevo;
     lienzo.style.cursor = sobre ? 'pointer' : 'grab';
     if (sobre){
-      sobre.material.emissive.copy(sobre.userData.colorBase).multiplyScalar(0.4);
+      sobre.material.emissive.setScalar(0.22);
       const u = sobre.userData.unidad;
       tooltip.textContent = u.id + ' · ' + u.dorms + ' dorm · ' + u.m2 + ' m²';
       tooltip.style.opacity = 1;
@@ -818,7 +852,7 @@ function animar(){
 
   cajas.forEach(c => {
     const sel = elegida && c.userData.unidad.id === elegida.id;
-    if (sel && c !== sobre) c.material.emissive.copy(c.userData.colorBase).multiplyScalar(0.55);
+    if (sel && c !== sobre) c.material.emissive.setScalar(0.34);
     else if (!sel && c !== sobre) c.material.emissive.setHex(0x000000);
   });
 
