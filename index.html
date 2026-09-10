@@ -30,6 +30,13 @@
   }
   #cota:hover{color:var(--tinta)}
 
+  #admin-link{
+    position:fixed;top:54px;right:24px;z-index:11;font-size:11.5px;color:var(--suave);
+    text-decoration:none;opacity:.55;
+  }
+  #admin-link:hover{opacity:1;color:var(--tinta)}
+  @media (max-width:860px){ #admin-link{display:none} }
+
   #filtros{position:fixed;left:24px;bottom:22px;z-index:10;max-width:330px}
   .grupo{margin-bottom:11px}
   .grupo p{margin:0 0 6px;font-size:12.5px;color:var(--suave)}
@@ -121,6 +128,8 @@
   </svg>
   Armado por Cota
 </a>
+
+<a id="admin-link" href="admin.html">Panel interno</a>
 
 <div id="tooltip"></div>
 

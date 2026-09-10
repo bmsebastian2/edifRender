@@ -19,11 +19,16 @@ see `supabase-schema.sql` for the schema/RLS/seed and `supabase-config.js` for t
 credentials (fill in `SUPABASE_URL` / `SUPABASE_ANON_KEY` after creating the project).
 `index.html` fetches `units` on load and only builds the Three.js scene once that
 resolves (see `cargarUnidades()` / `iniciar()` in the script). There is still no
-automatic sync from any spreadsheet — state changes go through `admin.html`, a
-login-less internal prototype where someone on the Cota side toggles a unit's `estado`
-and can see which units/typologies/floors get the most clicks (logged via
-`registrarEvento()` every time `abrir(u)` runs). `admin.html` needs Supabase Auth added
-before it's shown to a real client — right now anyone with the link can edit state.
+automatic sync from any spreadsheet — state changes go through `admin.html`, an
+internal prototype where someone on the Cota side toggles a unit's `estado` and can see
+which units/typologies/floors get the most clicks (logged via `registrarEvento()` every
+time `abrir(u)` runs). `admin.html` now gates on Supabase Auth
+(`sb.auth.signInWithPassword` / `getSession`) before showing anything — users are created
+manually in the Supabase dashboard (Authentication → Users), there's no self-signup.
+Postgres-level grants restrict `UPDATE` on `units.estado` to the `authenticated` role
+(see `supabase-schema.sql`; `supabase-migration-auth.sql` has the one-time migration for
+an existing project that predates this). `index.html` links to `admin.html` via the small
+"Panel interno" link near the Cota logo.
 
 ## Running / testing
 

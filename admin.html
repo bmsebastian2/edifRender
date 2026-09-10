@@ -48,19 +48,49 @@
   .barra-fila .val{width:24px;text-align:right;font-variant-numeric:tabular-nums}
   #cargando-unidades,#cargando-demanda{padding:30px 0;color:var(--suave)}
   @media (max-width:700px){ main{padding:16px} #banner{margin-left:16px;margin-right:16px} }
+
+  #login-envoltorio{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  #login-caja{background:var(--papel);border:1px solid var(--linea);border-radius:8px;padding:28px;width:100%;max-width:320px}
+  #login-caja h1{font-size:17px;margin:0 0 4px}
+  #login-caja p{margin:0 0 18px;color:var(--suave);font-size:13px}
+  #login-caja label{display:block;font-size:12.5px;color:var(--suave);margin:0 0 5px}
+  #login-caja input{width:100%;padding:9px 10px;border:1px solid var(--linea);border-radius:4px;
+    font:inherit;margin-bottom:14px;background:#fff;color:var(--tinta)}
+  #login-caja button{width:100%;padding:10px;border:none;border-radius:4px;background:var(--tinta);
+    color:#fff;font:inherit;cursor:pointer}
+  #login-caja button:disabled{opacity:.6;cursor:default}
+  #login-error{color:#B3413A;font-size:12.5px;margin:-6px 0 14px;display:none}
+  #app-envoltorio{display:none}
+  #salir{position:fixed;top:18px;right:22px;font-size:12.5px;color:var(--suave);background:none;
+    border:1px solid var(--linea);border-radius:4px;padding:6px 11px;cursor:pointer}
+  #salir:hover{color:var(--tinta)}
 </style>
 </head>
 <body>
 
+<div id="login-envoltorio">
+  <form id="login-caja">
+    <h1>ROSSO by Block · panel interno</h1>
+    <p>Ingresá con tu cuenta para editar el estado de las unidades.</p>
+    <label for="login-email">Email</label>
+    <input id="login-email" type="email" autocomplete="username" required>
+    <label for="login-pass">Contraseña</label>
+    <input id="login-pass" type="password" autocomplete="current-password" required>
+    <p id="login-error"></p>
+    <button type="submit">Entrar</button>
+  </form>
+</div>
+
+<div id="app-envoltorio">
+<button id="salir" type="button">Salir</button>
 <header>
   <h1>ROSSO by Block · panel interno</h1>
-  <p class="sub">Simulacro del panel de administración — así vería el vendedor el estado de sus unidades.</p>
+  <p class="sub">Así vería el vendedor el estado de sus unidades.</p>
 </header>
 
 <div id="banner">
-  <b>Prototipo interno, sin login.</b> No compartas este link. Cualquiera que lo tenga
-  puede dar de baja unidades y ver las estadísticas. Antes de entregarlo a un cliente real
-  hay que agregar autenticación (Supabase Auth) para que solo su equipo pueda editar.
+  <b>Acceso restringido.</b> Solo cuentas creadas para el equipo pueden editar el estado
+  de las unidades; el resto de la app sigue siendo de solo lectura para el público.
 </div>
 
 <main>
@@ -104,6 +134,7 @@
     </div>
   </section>
 </main>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="supabase-config.js"></script>
@@ -112,6 +143,45 @@ const ESTADOS = {
   disponible: { nombre:'Disponible', color:'#2F7A68' },
   sin_dato:   { nombre:'Sin estado público', color:'#9AA2A5' },
 };
+
+async function mostrarApp(){
+  document.getElementById('login-envoltorio').style.display = 'none';
+  document.getElementById('app-envoltorio').style.display = 'block';
+  cargarUnidades();
+}
+
+function mostrarLogin(){
+  document.getElementById('app-envoltorio').style.display = 'none';
+  document.getElementById('login-envoltorio').style.display = 'flex';
+}
+
+document.getElementById('login-caja').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const btn = ev.target.querySelector('button');
+  const errorEl = document.getElementById('login-error');
+  errorEl.style.display = 'none';
+  btn.disabled = true;
+  const { error } = await sb.auth.signInWithPassword({
+    email: document.getElementById('login-email').value,
+    password: document.getElementById('login-pass').value,
+  });
+  btn.disabled = false;
+  if (error){
+    errorEl.textContent = 'No se pudo entrar: ' + error.message;
+    errorEl.style.display = 'block';
+    return;
+  }
+  mostrarApp();
+});
+
+document.getElementById('salir').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  mostrarLogin();
+});
+
+sb.auth.getSession().then(({ data }) => {
+  if (data.session) mostrarApp(); else mostrarLogin();
+});
 
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
@@ -223,7 +293,6 @@ async function cargarDemanda(){
   document.getElementById('stats').hidden = false;
 }
 
-cargarUnidades();
 </script>
 </body>
 </html>

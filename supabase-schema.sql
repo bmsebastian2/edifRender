@@ -43,15 +43,17 @@ alter table events enable row level security;
 create policy "units_select_publico" on units
   for select using (true);
 
--- admin.html no tiene login todavía (es un simulacro), así que actualiza
--- con la misma anon key que usa el público. Para no dejar la puerta abierta
--- a que cualquiera reescriba precios desde la consola del navegador, el
--- permiso de UPDATE se limita a la columna `estado` a nivel de Postgres
--- (no alcanza con la policy: hace falta el REVOKE/GRANT de abajo).
+-- admin.html pide login (Supabase Auth) antes de dejar tocar nada: solo un
+-- usuario autenticado (creado a mano en Authentication → Users) puede
+-- actualizar `estado`. El público (anon) solo puede leer. Para no dejar la
+-- puerta abierta a que alguien reescriba precios desde la consola del
+-- navegador, el permiso de UPDATE se limita además a esa sola columna a
+-- nivel de Postgres (no alcanza con la policy: hace falta el REVOKE/GRANT
+-- de abajo).
 create policy "units_update_estado" on units
-  for update using (true) with check (true);
+  for update using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 revoke update on units from anon, authenticated;
-grant update (estado) on units to anon, authenticated;
+grant update (estado) on units to authenticated;
 
 -- Cualquiera puede loggear que abrió una unidad, y el panel puede leer
 -- los eventos para armar las estadísticas. Sin login, esto es visible
