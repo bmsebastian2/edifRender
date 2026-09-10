@@ -37,6 +37,17 @@
   #admin-link:hover{opacity:1;color:var(--tinta)}
   @media (max-width:860px){ #admin-link{display:none} }
 
+  #redes{position:fixed;top:76px;right:24px;z-index:11;display:flex;gap:10px}
+  #redes a,#redes button{
+    display:flex;align-items:center;justify-content:center;width:26px;height:26px;
+    border:none;background:none;padding:0;cursor:pointer;color:var(--suave);opacity:.55;
+    transition:opacity .15s,color .15s;
+  }
+  #redes a:hover,#redes button:hover{opacity:1;color:var(--tinta)}
+  #redes svg{width:16px;height:16px}
+  #redes a[hidden]{display:none}
+  @media (max-width:860px){ #redes{display:none} }
+
   #filtros{position:fixed;left:24px;bottom:22px;z-index:10;max-width:330px}
   .grupo{margin-bottom:11px}
   .grupo p{margin:0 0 6px;font-size:12.5px;color:var(--suave)}
@@ -145,6 +156,36 @@
 
 <a id="admin-link" href="admin.html">Panel interno</a>
 
+<div id="redes">
+  <a id="red-instagram" href="#" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5"/>
+      <circle cx="12" cy="12" r="4.2"/>
+      <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/>
+    </svg>
+  </a>
+  <a id="red-youtube" href="#" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+      <rect x="2.5" y="5.5" width="19" height="13" rx="4"/>
+      <path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"/>
+    </svg>
+  </a>
+  <a id="red-web" href="#" target="_blank" rel="noopener" aria-label="Sitio web" title="Sitio web" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M3 12h18M12 3c2.6 2.6 4 5.7 4 9s-1.4 6.4-4 9c-2.6-2.6-4-5.7-4-9s1.4-6.4 4-9z"/>
+    </svg>
+  </a>
+  <button id="red-compartir" type="button" aria-label="Compartir" title="Compartir">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+      <circle cx="18" cy="5" r="2.6"/>
+      <circle cx="6" cy="12" r="2.6"/>
+      <circle cx="18" cy="19" r="2.6"/>
+      <path d="M8.3 10.7l7.4-4.1M8.3 13.3l7.4 4.1"/>
+    </svg>
+  </button>
+</div>
+
 <div id="tooltip"></div>
 
 <div id="filtros">
@@ -214,6 +255,38 @@ function registrarEvento(unitId){
     if (error) console.warn('No se pudo registrar el evento', error);
   });
 }
+
+// URL pública de la demo. Se usa como fallback para compartir y en los
+// links por unidad, para cuando la página se sirve desde about:srcdoc.
+const BASE = 'https://armadoporcota.vercel.app/';
+
+// Instagram / YouTube / sitio web se editan desde la pestaña "Redes" de
+// admin.html (tabla `settings`, fila única). Corre en paralelo a la carga
+// de unidades — no depende de que el edificio 3D llegue a construirse.
+async function cargarRedes(){
+  const { data, error } = await sb.from('settings').select('*').eq('id', 1).single();
+  if (error || !data) return;
+  for (const [id, url] of [['red-instagram', data.instagram], ['red-youtube', data.youtube], ['red-web', data.sitio_web]]) {
+    if (!url) continue;
+    const a = document.getElementById(id);
+    a.href = url;
+    a.hidden = false;
+  }
+}
+cargarRedes();
+
+const btnCompartir = document.getElementById('red-compartir');
+btnCompartir.addEventListener('click', async () => {
+  const url = location.protocol.startsWith('http') ? location.href : BASE;
+  if (navigator.share) {
+    try { await navigator.share({ title: document.title, url }); } catch { /* cancelado */ }
+    return;
+  }
+  try { await navigator.clipboard.writeText(url); }
+  catch { return; }
+  btnCompartir.title = 'Link copiado';
+  setTimeout(() => btnCompartir.title = 'Compartir', 1800);
+});
 
 // Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
 // adentro de iniciar() porque necesita esperar a que lleguen las
@@ -647,9 +720,6 @@ function enfocar(u){
   tocado = true;
   ubicarCamara();
 }
-
-// URL pública de la demo. Se usa para los links por unidad.
-const BASE = 'https://armadoporcota.vercel.app/';
 
 function linkDe(u){
   const propia = location.protocol.startsWith('http')

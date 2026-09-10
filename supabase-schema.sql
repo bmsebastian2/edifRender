@@ -35,8 +35,20 @@ create table events (
 );
 create index events_unit_id_idx on events (unit_id);
 
+-- Fila única de configuración del sitio (redes sociales, etc.), editable
+-- desde la pestaña "Redes" de admin.html. Los campos vacíos ('') hacen que
+-- index.html oculte ese ícono en vez de mostrar un link roto.
+create table settings (
+  id         integer primary key default 1,
+  instagram  text not null default '',
+  youtube    text not null default '',
+  sitio_web  text not null default '',
+  constraint settings_fila_unica check (id = 1)
+);
+
 alter table units enable row level security;
 alter table events enable row level security;
+alter table settings enable row level security;
 
 -- Lectura pública de unidades: la necesita tanto index.html (el edificio)
 -- como admin.html (el panel).
@@ -63,6 +75,12 @@ create policy "events_insert_publico" on events
   for insert with check (true);
 create policy "events_select_publico" on events
   for select using (true);
+
+-- Igual que units: lectura pública, edición solo para el equipo logueado.
+create policy "settings_select_publico" on settings
+  for select using (true);
+create policy "settings_update_auth" on settings
+  for update using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 -- Seed: los mismos 78 registros que hoy están hardcodeados en el HTML
 -- (PLANTA + PENTHOUSE + PUBLICADAS), para no perder el estado de la demo.
@@ -146,3 +164,5 @@ insert into units (id, piso, pos, col, frente, dorms, m2, orientacion, precio, e
 (1005, 10, 5, -0.5, 1, 1, 95, 'Contrafrente', 172000, true, 'disponible'),
 (1006, 10, 6, 0.5, 1, 1, 88, 'Contrafrente', 166000, true, 'sin_dato');
 -- total: 78 filas, 12 en 'disponible' (las mismas que PUBLICADAS tenía).
+
+insert into settings (id) values (1);

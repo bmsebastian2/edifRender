@@ -64,6 +64,15 @@
   #salir{position:fixed;top:18px;right:22px;font-size:12.5px;color:var(--suave);background:none;
     border:1px solid var(--linea);border-radius:4px;padding:6px 11px;cursor:pointer}
   #salir:hover{color:var(--tinta)}
+
+  #form-redes{background:var(--papel);border:1px solid var(--linea);border-radius:6px;padding:20px;max-width:420px}
+  #form-redes label{display:block;font-size:12.5px;color:var(--suave);margin:0 0 5px}
+  #form-redes input{width:100%;padding:9px 10px;border:1px solid var(--linea);border-radius:4px;
+    font:inherit;margin-bottom:14px;background:#fff;color:var(--tinta)}
+  #form-redes button{padding:9px 16px;border:none;border-radius:4px;background:var(--tinta);
+    color:#fff;font:inherit;cursor:pointer}
+  #form-redes button:disabled{opacity:.6;cursor:default}
+  #redes-guardado{font-size:12.5px;color:var(--verde);margin:0 0 14px;display:none}
 </style>
 </head>
 <body>
@@ -97,6 +106,7 @@
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-tab="unidades" type="button">Unidades</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="demanda" type="button">Demanda</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="redes" type="button">Redes</button>
   </div>
 
   <section id="panel-unidades">
@@ -132,6 +142,23 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <section id="panel-redes" hidden>
+    <form id="form-redes">
+      <p class="sub" style="margin:0 0 16px">
+        Íconos que aparecen arriba a la derecha en la página del edificio.
+        Dejá un campo vacío para que ese ícono no se muestre.
+      </p>
+      <p id="redes-guardado">Guardado.</p>
+      <label for="redes-instagram">Instagram</label>
+      <input id="redes-instagram" type="url" placeholder="https://instagram.com/...">
+      <label for="redes-youtube">YouTube</label>
+      <input id="redes-youtube" type="url" placeholder="https://youtube.com/...">
+      <label for="redes-web">Sitio web</label>
+      <input id="redes-web" type="url" placeholder="https://...">
+      <button type="submit">Guardar</button>
+    </form>
   </section>
 </main>
 </div>
@@ -187,7 +214,9 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
   document.getElementById('panel-unidades').hidden = t.dataset.tab !== 'unidades';
   document.getElementById('panel-demanda').hidden = t.dataset.tab !== 'demanda';
+  document.getElementById('panel-redes').hidden = t.dataset.tab !== 'redes';
   if (t.dataset.tab === 'demanda') cargarDemanda();
+  if (t.dataset.tab === 'redes') cargarRedes();
 }));
 
 async function cargarUnidades(){
@@ -292,6 +321,34 @@ async function cargarDemanda(){
   document.getElementById('cargando-demanda').hidden = true;
   document.getElementById('stats').hidden = false;
 }
+
+let redesCargadas = false;
+async function cargarRedes(){
+  if (redesCargadas) return;
+  const { data, error } = await sb.from('settings').select('*').eq('id', 1).single();
+  if (error){ alert('No se pudo cargar la configuración: ' + error.message); return; }
+  redesCargadas = true;
+  document.getElementById('redes-instagram').value = data.instagram || '';
+  document.getElementById('redes-youtube').value = data.youtube || '';
+  document.getElementById('redes-web').value = data.sitio_web || '';
+}
+
+document.getElementById('form-redes').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const btn = ev.target.querySelector('button');
+  const aviso = document.getElementById('redes-guardado');
+  aviso.style.display = 'none';
+  btn.disabled = true;
+  const { error } = await sb.from('settings').update({
+    instagram: document.getElementById('redes-instagram').value.trim(),
+    youtube: document.getElementById('redes-youtube').value.trim(),
+    sitio_web: document.getElementById('redes-web').value.trim(),
+  }).eq('id', 1);
+  btn.disabled = false;
+  if (error){ alert('No se pudo guardar: ' + error.message); return; }
+  aviso.style.display = 'block';
+  setTimeout(() => aviso.style.display = 'none', 2500);
+});
 
 </script>
 </body>
