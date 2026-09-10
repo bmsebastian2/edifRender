@@ -56,6 +56,20 @@
     font-size:12.5px;font-variant-numeric:tabular-nums;border-right:2px solid transparent;transition:color .15s,border-color .15s}
   #pisos button:hover{color:var(--tinta)}
   #pisos button[aria-pressed="true"]{color:var(--tinta);font-weight:650;border-right-color:var(--tinta)}
+  #pisos .pisos-etiqueta{font-size:10.5px;letter-spacing:.08em;color:var(--suave);text-align:right;
+    padding:0 8px 6px;margin-bottom:4px;border-bottom:1px solid var(--linea);pointer-events:none}
+  #pisos .pisos-todos{font-size:9.5px;letter-spacing:.02em;font-weight:650;height:auto;
+    white-space:nowrap;padding:2px 0 8px;margin-top:2px}
+
+  #piso-info{position:fixed;right:70px;top:50%;transform:translateY(-50%) translateX(6px);z-index:10;
+    max-width:210px;padding:13px 15px;border-radius:5px;background:var(--papel);
+    border:1px solid var(--linea);border-right:3px solid var(--tinta);font-size:12.5px;
+    color:var(--suave);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
+  #piso-info.visible{opacity:1;transform:translateY(-50%) translateX(0)}
+  #piso-info b{color:var(--tinta);font-size:16px;font-weight:650;display:block;margin-bottom:5px;
+    letter-spacing:-.01em}
+  #piso-info span{display:block}
+  @media (max-width:860px){ #piso-info{display:none} }
 
   #panel{position:fixed;top:0;right:0;height:100%;width:330px;z-index:12;background:rgba(255,255,255,.94);
     backdrop-filter:blur(12px);border-left:1px solid var(--linea);padding:26px 26px 22px;
@@ -140,6 +154,7 @@
 </div>
 
 <nav id="pisos" aria-label="Pisos"></nav>
+<div id="piso-info" aria-live="polite"></div>
 
 <aside id="panel" aria-live="polite">
   <button id="cerrar" aria-label="Cerrar">×</button>
@@ -246,6 +261,39 @@ base.position.y = -0.6;
 base.receiveShadow = true;
 escena.add(base);
 
+// Calle: franja de asfalto frente al edificio (lado "frente", ver CALLE_FRENTE
+// más abajo) con línea de carril discontinua, para que quede claro a simple
+// vista que ese lado da a una vía vehicular y no es un lado cualquiera.
+const ANCHO_CALLE = 8, LARGO_CALLE = 44, VEREDA = 2;
+const BORDE_FRENTE = -(SEP_Z + PROF / 2);
+const Z_CALLE = BORDE_FRENTE - VEREDA - ANCHO_CALLE / 2;
+
+const calle = new THREE.Mesh(
+  new THREE.PlaneGeometry(LARGO_CALLE, ANCHO_CALLE),
+  new THREE.MeshStandardMaterial({ color:0x686F72, roughness:0.95 })
+);
+calle.rotation.x = -Math.PI / 2;
+calle.position.set(0, 0.02, Z_CALLE);
+calle.receiveShadow = true;
+escena.add(calle);
+
+const cordon = new THREE.Mesh(
+  new THREE.PlaneGeometry(LARGO_CALLE, 0.25),
+  new THREE.MeshStandardMaterial({ color:0xF2F3F4, roughness:0.8 })
+);
+cordon.rotation.x = -Math.PI / 2;
+cordon.position.set(0, 0.021, BORDE_FRENTE - VEREDA);
+escena.add(cordon);
+
+const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
+const matGuion = new THREE.MeshStandardMaterial({ color:0xEDEFEF, roughness:0.6 });
+for (let x = -LARGO_CALLE / 2 + 2; x < LARGO_CALLE / 2 - 2; x += 2.8){
+  const guion = new THREE.Mesh(geoGuion, matGuion);
+  guion.rotation.x = -Math.PI / 2;
+  guion.position.set(x, 0.03, Z_CALLE);
+  escena.add(guion);
+}
+
 /* ============================================================
    3. TORRE
    ============================================================ */
@@ -262,9 +310,33 @@ const matNucleo  = new THREE.MeshStandardMaterial({ color:0xA5ADB0, roughness:0.
 
 const pisosGrupo = [], cajas = [];
 
+// Planta baja: nivel de ingreso, debajo del piso 1. Todavía no está
+// definido cómo se divide (local, hall, cocheras...), así que por ahora
+// es solo un volumen — pero el edificio no puede arrancar directo en el
+// piso 1 como si no hubiera PB.
+const geoPB = new THREE.BoxGeometry(SEP_X*4 + 0.5, ALTO, SEP_Z*2 + PROF + 0.5);
+const matPB = new THREE.MeshStandardMaterial({ color:0xC7CBCC, roughness:0.9, transparent:true, opacity:0.55 });
+
+const pb = new THREE.Group();
+pb.position.y = 0;
+pb.userData = { offset:0, objetivo:0 };
+
+const losaPB = new THREE.Mesh(geoLosa, matLosa);
+losaPB.position.y = -LOSA/2;
+losaPB.castShadow = losaPB.receiveShadow = true;
+pb.add(losaPB);
+
+const volumenPB = new THREE.Mesh(geoPB, matPB);
+volumenPB.position.y = ALTO/2;
+volumenPB.receiveShadow = true;
+pb.add(volumenPB);
+
+torre.add(pb);
+pisosGrupo.push(pb);
+
 for (let piso = 1; piso <= 10; piso++){
   const g = new THREE.Group();
-  g.position.y = (piso - 1) * PASO;
+  g.position.y = piso * PASO;
   g.userData = { offset:0, objetivo:0 };
 
   const losa = new THREE.Mesh(geoLosa, matLosa);
@@ -299,7 +371,50 @@ for (let piso = 1; piso <= 10; piso++){
   torre.add(g);
   pisosGrupo.push(g);
 }
-const ALTURA = 10 * PASO;
+const ALTURA = 11 * PASO; // 10 pisos + PB
+
+// Cartel de calle: nombre de la vía, parado junto a la vereda como un cartel
+// real. Es un sprite (siempre mirando a cámara) para que se pueda leer desde
+// cualquier ángulo de órbita.
+function crearCartelCalle(texto){
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  const fuente = '600 44px Inter, "Helvetica Neue", Arial, sans-serif';
+  ctx.font = fuente;
+  const anchoTexto = ctx.measureText(texto).width;
+  cv.width = anchoTexto + 90;
+  cv.height = 84;
+  ctx.font = fuente;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  const r = cv.height / 2;
+  ctx.fillStyle = 'rgba(26,33,36,.88)';
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.arcTo(cv.width, 0, cv.width, r, r);
+  ctx.arcTo(cv.width, cv.height, cv.width - r, cv.height, r);
+  ctx.arcTo(0, cv.height, 0, r, r);
+  ctx.arcTo(0, 0, r, 0, r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(texto, cv.width / 2, cv.height / 2 + 2);
+
+  const tex = new THREE.CanvasTexture(cv);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map:tex, transparent:true, depthWrite:false, depthTest:true, sizeAttenuation:true,
+  }));
+  const escalaPx = 0.026;
+  sprite.scale.set(cv.width * escalaPx, cv.height * escalaPx, 1);
+  return sprite;
+}
+
+// Parado junto a la calle, como un cartel de nomenclátor real, para que se
+// lea como el nombre de la vía y no como una etiqueta del edificio.
+const CALLE_FRENTE = 'Ana Monterroso de Lavalleja';
+const cartelCalle = crearCartelCalle(CALLE_FRENTE);
+cartelCalle.position.set(LARGO_CALLE / 2 - 9, 1.7, BORDE_FRENTE - VEREDA);
+escena.add(cartelCalle);
 
 /* ============================================================
    4. CÁMARA
@@ -393,17 +508,80 @@ btnSep.addEventListener('click', () => {
 });
 
 const riel = document.getElementById('pisos');
+const infoPiso = document.getElementById('piso-info');
+const objetivoGeneral = objetivo.clone(), radioGeneral = radio, phiGeneral = phi;
+const botonesPiso = [];
+
+// Ubica la cámara a la altura del piso elegido (o vuelve a la vista general del edificio).
+function enfocarPiso(p){
+  tocado = true;
+  if (p === null){ objetivo.copy(objetivoGeneral); radio = radioGeneral; phi = phiGeneral; }
+  else { objetivo.set(0, p * PASO + ALTO / 2, 0); radio = 72; phi = 1.28; }
+  ubicarCamara();
+}
+
+function actualizarInfoPiso(){
+  if (pisoAislado === null){ infoPiso.classList.remove('visible'); return; }
+  if (pisoAislado === 0){
+    infoPiso.innerHTML = '<b>Planta baja</b><span>Ingreso al edificio · aún sin definir</span>';
+    infoPiso.classList.add('visible');
+    return;
+  }
+  const enPiso = UNIDADES.filter(u => u.piso === pisoAislado);
+  const disponibles = enPiso.filter(u => u.estado === 'disponible').length;
+  infoPiso.innerHTML =
+    '<b>Piso ' + pisoAislado + '</b>' +
+    '<span>' + (pisoAislado - 1) + ' piso' + (pisoAislado - 1 === 1 ? '' : 's') + ' por debajo · ' +
+      (10 - pisoAislado) + ' por encima</span>' +
+    '<span>' + enPiso.length + ' unidad' + (enPiso.length === 1 ? '' : 'es') +
+      (disponibles ? ' · ' + disponibles + ' disponible' + (disponibles === 1 ? '' : 's') : '') + '</span>';
+  infoPiso.classList.add('visible');
+}
+
+function actualizarRielPisos(){
+  botonesPiso.forEach((el,i) => el.setAttribute('aria-pressed', pisoAislado === i+1));
+  btnPB.setAttribute('aria-pressed', pisoAislado === 0);
+  btnTodos.setAttribute('aria-pressed', pisoAislado === null);
+  actualizarInfoPiso();
+}
+const btnPB = document.createElement('button');
+btnPB.textContent = 'PB';
+btnPB.setAttribute('aria-pressed','false');
+btnPB.addEventListener('click', () => {
+  pisoAislado = pisoAislado === 0 ? null : 0;
+  actualizarRielPisos();
+  enfocarPiso(pisoAislado);
+  aplicar();
+});
+riel.appendChild(btnPB);
 for (let p = 1; p <= 10; p++){
   const b = document.createElement('button');
   b.textContent = p;
   b.setAttribute('aria-pressed','false');
   b.addEventListener('click', () => {
     pisoAislado = pisoAislado === p ? null : p;
-    [...riel.children].forEach((el,i) => el.setAttribute('aria-pressed', pisoAislado === i+1));
+    actualizarRielPisos();
+    enfocarPiso(pisoAislado);
     aplicar();
   });
+  botonesPiso.push(b);
   riel.appendChild(b);
 }
+const btnTodos = document.createElement('button');
+btnTodos.className = 'pisos-todos';
+btnTodos.textContent = 'TODOS';
+btnTodos.setAttribute('aria-pressed','true');
+btnTodos.addEventListener('click', () => {
+  pisoAislado = null;
+  actualizarRielPisos();
+  enfocarPiso(null);
+  aplicar();
+});
+riel.appendChild(btnTodos);
+const etiquetaPisos = document.createElement('span');
+etiquetaPisos.className = 'pisos-etiqueta';
+etiquetaPisos.textContent = 'PISO';
+riel.appendChild(etiquetaPisos);
 
 /* ============================================================
    Planta esquemática. Se dibuja desde los datos de la tipología:
@@ -440,9 +618,9 @@ function plantaSVG(u){
     const trazo   = s.fuera ? 'stroke-dasharray="2 1.6"' : '';
     const chico   = s.w < 24 || s.h < 11;
     return '<rect x="'+s.x+'" y="'+s.y.toFixed(1)+'" width="'+s.w+'" height="'+s.h.toFixed(1)+'"'+
-           ' fill="'+relleno+'" stroke="#1A2124" stroke-width="1.1" '+trazo+'/>'+
-           '<text x="'+(s.x+s.w/2)+'" y="'+(s.y+s.h/2+1.1).toFixed(1)+'" text-anchor="middle"'+
-           ' font-size="'+(chico?2.6:3.2)+'" fill="#5D686C">'+s.nom+'</text>';
+           ' fill="'+relleno+'" stroke="#1A2124" stroke-width="1.3" '+trazo+'/>'+
+           '<text x="'+(s.x+s.w/2)+'" y="'+(s.y+s.h/2+1.3).toFixed(1)+'" text-anchor="middle"'+
+           ' font-size="'+(chico?3.4:4)+'" font-weight="600" fill="#1A2124">'+s.nom+'</text>';
   }).join('');
 
   // aberturas sobre la fachada y marca de puerta de entrada
@@ -450,7 +628,7 @@ function plantaSVG(u){
                 '<line x1="60" y1="4" x2="82" y2="4" stroke="#fff" stroke-width="2.4"/>'+
                 '<line x1="86" y1="66" x2="94" y2="66" stroke="#2F7A68" stroke-width="2.4"/>';
 
-  const rotulo = '<text x="50" y="2.6" text-anchor="middle" font-size="2.8" fill="#9AA2A5"'+
+  const rotulo = '<text x="50" y="2.8" text-anchor="middle" font-size="3.2" font-weight="600" fill="#5D686C"'+
                  ' letter-spacing=".4">'+u.orient.toUpperCase()+'</text>';
 
   return '<svg viewBox="0 -1 100 72" xmlns="http://www.w3.org/2000/svg" role="img"'+
@@ -462,7 +640,7 @@ const WHATSAPP = '59891856500';
 
 // Lleva la cámara frente a la unidad, a la altura de su piso.
 function enfocar(u){
-  objetivo.set(0, (u.piso - 1) * PASO + ALTO / 2, 0);
+  objetivo.set(0, u.piso * PASO + ALTO / 2, 0);
   theta = (u.frente < 0 ? Math.PI : 0) - u.col * 0.16;
   phi = 1.32;
   radio = 62;
