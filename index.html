@@ -256,6 +256,8 @@
 
 const ESTADOS = {
   disponible: { nombre:'Disponible', color:'#2F7A68' },
+  reservado:  { nombre:'Reservada', color:'#C08429' },
+  vendido:    { nombre:'Vendida', color:'#B3413A' },
   sin_dato:   { nombre:'Sin estado público', color:'#646C6E' },
 };
 
@@ -317,7 +319,7 @@ btnCompartir.addEventListener('click', async () => {
 // unidades desde Supabase antes de construir nada.
 function iniciar(UNIDADES){
 
-const publicadas = UNIDADES.filter(u => u.estado === 'disponible').length;
+const publicadas = UNIDADES.filter(u => u.estado !== 'sin_dato').length;
 document.getElementById('aviso').innerHTML =
   '<b>' + publicadas + ' de ' + UNIDADES.length + ' unidades</b> tienen estado publicado hoy. ' +
   'Las otras ' + (UNIDADES.length - publicadas) + ' aparecen en gris: nadie sabe si están disponibles.';

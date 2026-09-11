@@ -22,7 +22,8 @@ create table units (
   orientacion  text not null,
   precio       numeric not null,
   estimado     boolean not null default false,
-  estado       text not null default 'sin_dato' check (estado in ('disponible', 'sin_dato'))
+  estado       text not null default 'sin_dato'
+               check (estado in ('disponible', 'reservado', 'vendido', 'sin_dato'))
 );
 
 -- Un evento por cada vez que alguien abre el panel de una unidad.
