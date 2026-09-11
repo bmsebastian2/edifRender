@@ -48,6 +48,15 @@
   #redes a[hidden]{display:none}
   @media (max-width:860px){ #redes{display:none} }
 
+  #compartir-aviso{
+    position:fixed;top:110px;right:24px;z-index:12;
+    background:var(--tinta);color:#fff;font-size:12.5px;line-height:1;
+    padding:8px 12px;border-radius:4px;white-space:nowrap;
+    opacity:0;transform:translateY(-6px);pointer-events:none;
+    transition:opacity .18s ease,transform .18s ease;
+  }
+  #compartir-aviso.visible{opacity:1;transform:translateY(0)}
+
   #filtros{position:fixed;left:24px;bottom:22px;z-index:10;max-width:330px}
   .grupo{margin-bottom:11px}
   .grupo p{margin:0 0 6px;font-size:12.5px;color:var(--suave)}
@@ -218,6 +227,8 @@
   </button>
 </div>
 
+<div id="compartir-aviso" role="status" aria-live="polite">Link copiado</div>
+
 <div id="tooltip"></div>
 
 <div id="filtros">
@@ -329,16 +340,25 @@ async function cargarRedes(){
 cargarRedes();
 
 const btnCompartir = document.getElementById('red-compartir');
+const avisoCompartir = document.getElementById('compartir-aviso');
+let avisoCompartirTimeout;
+function mostrarAvisoCompartir(texto){
+  avisoCompartir.textContent = texto;
+  avisoCompartir.classList.add('visible');
+  clearTimeout(avisoCompartirTimeout);
+  avisoCompartirTimeout = setTimeout(() => avisoCompartir.classList.remove('visible'), 1800);
+}
 btnCompartir.addEventListener('click', async () => {
   const url = location.protocol.startsWith('http') ? location.href : BASE;
-  if (navigator.share) {
-    try { await navigator.share({ title: document.title, url }); } catch { /* cancelado */ }
-    return;
+  // El share nativo del SO (navigator.share) es poco confiable en desktop
+  // (en Windows la hoja de "Compartir" puede fallar sin apps registradas),
+  // así que copiamos el link directamente en vez de depender de él.
+  try {
+    await navigator.clipboard.writeText(url);
+    mostrarAvisoCompartir('Link copiado');
+  } catch {
+    mostrarAvisoCompartir('No se pudo copiar el link');
   }
-  try { await navigator.clipboard.writeText(url); }
-  catch { return; }
-  btnCompartir.title = 'Link copiado';
-  setTimeout(() => btnCompartir.title = 'Compartir', 1800);
 });
 
 // Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
