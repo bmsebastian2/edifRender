@@ -23,7 +23,9 @@ create table units (
   precio       numeric not null,
   estimado     boolean not null default false,
   estado       text not null default 'sin_dato'
-               check (estado in ('disponible', 'reservado', 'vendido', 'sin_dato'))
+               check (estado in ('disponible', 'reservado', 'vendido', 'sin_dato')),
+  m2_terraza      numeric,           -- desglose opcional; m2 sigue siendo la superficie total
+  cochera_precio  numeric            -- USD de la cochera opcional, cuando se conoce
 );
 
 -- Un evento por cada vez que alguien abre el panel de una unidad.
@@ -58,15 +60,15 @@ create policy "units_select_publico" on units
 
 -- admin.html pide login (Supabase Auth) antes de dejar tocar nada: solo un
 -- usuario autenticado (creado a mano en Authentication → Users) puede
--- actualizar `estado`. El público (anon) solo puede leer. Para no dejar la
--- puerta abierta a que alguien reescriba precios desde la consola del
--- navegador, el permiso de UPDATE se limita además a esa sola columna a
--- nivel de Postgres (no alcanza con la policy: hace falta el REVOKE/GRANT
--- de abajo).
+-- actualizar `estado`, `m2_terraza` y `cochera_precio`. El público (anon)
+-- solo puede leer. Para no dejar la puerta abierta a que alguien reescriba
+-- precio/m2/orientación desde la consola del navegador, el permiso de
+-- UPDATE se limita además a esas columnas a nivel de Postgres (no alcanza
+-- con la policy: hace falta el REVOKE/GRANT de abajo).
 create policy "units_update_estado" on units
   for update using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 revoke update on units from anon, authenticated;
-grant update (estado) on units to authenticated;
+grant update (estado, m2_terraza, cochera_precio) on units to authenticated;
 
 -- Cualquiera puede loggear que abrió una unidad, y el panel puede leer
 -- los eventos para armar las estadísticas. Sin login, esto es visible
@@ -164,6 +166,47 @@ insert into units (id, piso, pos, col, frente, dorms, m2, orientacion, precio, e
 (1004, 10, 4, -1.5, 1, 2, 126, 'Contrafrente', 198000, true, 'sin_dato'),
 (1005, 10, 5, -0.5, 1, 1, 95, 'Contrafrente', 172000, true, 'disponible'),
 (1006, 10, 6, 0.5, 1, 1, 88, 'Contrafrente', 166000, true, 'sin_dato');
--- total: 78 filas, 12 en 'disponible' (las mismas que PUBLICADAS tenía).
+-- total: 78 filas, 29 en 'disponible' tras las correcciones de abajo
+-- (12 originales + 17 nuevas con datos reales de ingar).
+
+-- Dato real encontrado en el aviso público de la 107 (justoaca.com,
+-- setiembre 2026): 40,24 m² cubiertos + 7,53 m² de terraza (antes
+-- redondeábamos a 48 m² sin desglose), cochera opcional a USD 19.500,
+-- y la unidad figura reservada.
+update units set m2 = 47.77, m2_terraza = 7.53, cochera_precio = 19500, estado = 'reservado'
+  where id = 107;
+
+-- Datos reales de 20 unidades publicadas en ingar.com.uy (setiembre 2026):
+-- superficie total, m2_terraza = superficie total - superficie cubierta, y
+-- precio del aviso. En 5 de estas 20 (104, 108, 208, 308, 1002) la cantidad
+-- de dormitorios que teníamos (sintética) estaba invertida contra el dato
+-- real, y en el piso 10 (1001, 1002) la superficie estimada era más del
+-- doble de la real — se corrigen acá también, no solo el precio.
+update units as u set
+  dorms = v.dorms, m2 = v.m2, m2_terraza = v.m2_terraza, precio = v.precio,
+  estado = 'disponible', estimado = false
+from (values
+  (101,  2, 83.3, 17.6, 251600),
+  (102,  1, 59.4, 17.1, 160800),
+  (103,  1, 50.5, 11.0, 143200),
+  (104,  1, 50.5, 11.0, 144200),
+  (105,  1, 55.5, 14.7, 140900),
+  (106,  1, 55.5, 15.0, 140900),
+  (108,  2, 93.4, 26.9, 198300),
+  (201,  2, 83.3, 17.6, 167900),
+  (208,  2, 91.2, 24.7, 183600),
+  (301,  2, 83.3, 17.6, 169000),
+  (306,  1, 55.5, 15.0, 150000),
+  (308,  2, 91.2, 24.7, 184700),
+  (501,  2, 83.3, 17.6, 171200),
+  (601,  2, 83.3, 17.6, 172400),
+  (701,  2, 83.3, 17.6, 173600),
+  (801,  2, 83.3, 17.6, 175100),
+  (901,  2, 83.3, 17.6, 175700),
+  (902,  1, 59.4, 17.1, 149900),
+  (1001, 2, 85.1, 19.4, 176200),
+  (1002, 1, 60.5, 18.2, 150900)
+) as v(id, dorms, m2, m2_terraza, precio)
+where u.id = v.id;
 
 insert into settings (id) values (1);

@@ -36,6 +36,9 @@
   select.select-estado{padding:6px 8px;border-radius:4px;border:1px solid var(--linea);background:#fff;
     cursor:pointer;font-size:12.5px;color:var(--tinta)}
   select.select-estado:disabled{opacity:.5;cursor:default}
+  input.input-campo{width:78px;padding:6px 8px;border-radius:4px;border:1px solid var(--linea);
+    background:#fff;font:inherit;font-size:12.5px;color:var(--tinta)}
+  input.input-campo:disabled{opacity:.5;cursor:default}
   .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
   .tarjeta-stat{background:var(--papel);border:1px solid var(--linea);border-radius:6px;padding:16px}
   .tarjeta-stat h3{margin:0 0 12px;font-size:12.5px;color:var(--suave);font-weight:600;
@@ -115,7 +118,8 @@
         <thead>
           <tr>
             <th>Unidad</th><th>Piso</th><th>Dorms</th><th class="num">m²</th>
-            <th>Orientación</th><th class="num">Precio</th><th>Estado</th><th></th>
+            <th class="num">Terraza</th><th>Orientación</th><th class="num">Precio</th>
+            <th class="num">Cochera</th><th>Estado</th><th></th>
           </tr>
         </thead>
         <tbody id="filas-unidades"></tbody>
@@ -241,10 +245,33 @@ function pintarUnidades(unidades){
       '<td>' + u.piso + '</td>' +
       '<td>' + u.dorms + '</td>' +
       '<td class="num">' + u.m2 + '</td>' +
+      '<td class="num"></td>' +
       '<td>' + u.orientacion + '</td>' +
       '<td class="num">USD ' + Number(u.precio).toLocaleString('es-UY') + '</td>' +
+      '<td class="num"></td>' +
       '<td><span class="estado"><span class="punto" style="background:' + e.color + '"></span>' + e.nombre + '</span></td>' +
       '<td></td>';
+
+    const terrazaTd = tr.children[4];
+    const terrazaInput = document.createElement('input');
+    terrazaInput.type = 'number'; terrazaInput.step = '0.01'; terrazaInput.min = '0';
+    terrazaInput.className = 'input-campo';
+    terrazaInput.placeholder = '—';
+    terrazaInput.value = u.m2_terraza != null ? u.m2_terraza : '';
+    terrazaInput.addEventListener('change', () =>
+      guardarCampo(u.id, 'm2_terraza', terrazaInput.value, terrazaInput));
+    terrazaTd.appendChild(terrazaInput);
+
+    const cocheraTd = tr.children[7];
+    const cocheraInput = document.createElement('input');
+    cocheraInput.type = 'number'; cocheraInput.step = '1'; cocheraInput.min = '0';
+    cocheraInput.className = 'input-campo';
+    cocheraInput.placeholder = '—';
+    cocheraInput.value = u.cochera_precio != null ? u.cochera_precio : '';
+    cocheraInput.addEventListener('change', () =>
+      guardarCampo(u.id, 'cochera_precio', cocheraInput.value, cocheraInput));
+    cocheraTd.appendChild(cocheraInput);
+
     const select = document.createElement('select');
     select.className = 'select-estado';
     Object.entries(ESTADOS).forEach(([k, e]) => {
@@ -267,6 +294,15 @@ async function cambiarEstado(id, nuevoEstado, select){
   const { error } = await sb.from('units').update({ estado: nuevoEstado }).eq('id', id);
   if (error){ alert('No se pudo actualizar: ' + error.message); select.disabled = false; return; }
   cargarUnidades();
+}
+
+// Guarda m2_terraza o cochera_precio al salir del campo. Vacío = null (sin dato).
+async function guardarCampo(id, campo, valorCrudo, input){
+  const valor = valorCrudo.trim() === '' ? null : Number(valorCrudo);
+  input.disabled = true;
+  const { error } = await sb.from('units').update({ [campo]: valor }).eq('id', id);
+  input.disabled = false;
+  if (error){ alert('No se pudo actualizar: ' + error.message); return; }
 }
 
 function barra(cont, filas){

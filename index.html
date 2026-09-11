@@ -83,7 +83,7 @@
 
   #panel{position:fixed;top:0;right:0;height:100%;width:330px;z-index:12;background:rgba(255,255,255,.94);
     backdrop-filter:blur(12px);border-left:1px solid var(--linea);padding:26px 26px 22px;
-    display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.22,.61,.36,1)}
+    display:flex;flex-direction:column;overflow-y:auto;transform:translateX(100%);transition:transform .3s cubic-bezier(.22,.61,.36,1)}
   #panel.abierto{transform:none}
   #cerrar{position:absolute;top:18px;right:18px;width:28px;height:28px;border:1px solid var(--linea);
     background:none;border-radius:50%;color:var(--suave);cursor:pointer;line-height:1}
@@ -109,6 +109,11 @@
   .bton-s:hover{color:var(--tinta);border-color:rgba(26,33,36,.34)}
   .bton:focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
   .nota{margin-top:auto;padding-top:16px;border-top:1px solid var(--linea);color:var(--suave);font-size:12px;line-height:1.55}
+  #p-edificio{margin-top:18px;padding-top:16px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--suave);line-height:1.55}
+  #p-edificio .p-edificio-tit{margin:0 0 8px;font-weight:600;color:var(--tinta);font-size:12.5px}
+  #p-edificio ul{margin:0 0 10px;padding-left:18px}
+  #p-edificio li{margin-bottom:3px}
+  #p-edificio p{margin:0}
 
   #tooltip{position:fixed;z-index:14;pointer-events:none;opacity:0;transform:translate(-50%,calc(-100% - 12px));
     padding:5px 10px;border-radius:4px;background:var(--tinta);color:#fff;font-size:12.5px;white-space:nowrap;transition:opacity .12s}
@@ -167,7 +172,7 @@
 
 <header id="cabezal">
   <h1>ROSSO by Block</h1>
-  <p class="sub">Ana Monterroso de Lavalleja 2166, Cordón · 10 pisos · 78 unidades · entrega marzo 2028</p>
+  <p class="sub">Ana Monterroso de Lavalleja 2162, Cordón · 10 pisos · 78 unidades · entrega marzo 2028</p>
   <div id="aviso">Cargando estado de las unidades…</div>
   <nav id="pisos" aria-label="Pisos"></nav>
   <div id="piso-info" aria-live="polite"></div>
@@ -230,7 +235,9 @@
     <dt>Piso</dt><dd id="p-piso"></dd>
     <dt>Dormitorios</dt><dd id="p-dorms"></dd>
     <dt>Superficie total</dt><dd id="p-m2"></dd>
+    <dt id="p-terraza-dt" hidden>Terraza</dt><dd id="p-terraza-dd" hidden></dd>
     <dt>Orientación</dt><dd id="p-orient"></dd>
+    <dt id="p-cochera-dt" hidden>Cochera</dt><dd id="p-cochera-dd" hidden></dd>
   </dl>
   <p id="p-precio"></p>
   <p id="p-fuente"></p>
@@ -238,6 +245,24 @@
     <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">Consultar por esta unidad</a>
     <button class="bton bton-s" id="p-copiar">Copiar link de esta unidad</button>
   </div>
+  <div id="p-edificio">
+    <p class="p-edificio-tit">Amenities del edificio</p>
+    <ul>
+      <li>SUM con parrillero y barbacoa abierta</li>
+      <li>Gimnasio con espacio para yoga</li>
+      <li>Terraza pergolada en el piso 10 con vista al skyline</li>
+      <li>Racks para bicicletas y lavandería con app</li>
+      <li>WiFi gratuito en áreas comunes</li>
+      <li>Infraestructura para vehículos eléctricos</li>
+      <li>CCTV y cerradura electrónica</li>
+    </ul>
+    <p>
+      Amparado por la Ley de Vivienda Promovida (18.795): exonera ITP, IVA e Impuesto al
+      Patrimonio (10 años), y hasta 100% de IRPF/IRAE (10 años). Desarrolla Block Desarrollos ·
+      39 cocheras en el edificio · a pasos de Tres Cruces, Parque Batlle y 18 de Julio.
+    </p>
+  </div>
+
   <p class="nota">
     Demostración armada con datos públicos de avisos (setiembre 2026). La planta es un
     esquema de proporciones, no el plano del proyecto. Con la planta acotada y la planilla
@@ -271,6 +296,8 @@ async function cargarUnidades(){
     id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
     dorms: r.dorms, m2: Number(r.m2), orient: r.orientacion, precio: Number(r.precio),
     estimado: r.estimado, estado: r.estado,
+    m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
+    cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
   }));
 }
 
@@ -783,6 +810,16 @@ function abrir(u, mover){
   document.getElementById('p-m2').textContent         = u.m2 + ' m²';
   document.getElementById('p-orient').textContent     = u.orient;
   document.getElementById('p-precio').textContent     = 'USD ' + u.precio.toLocaleString('es-UY');
+
+  const terrazaDt = document.getElementById('p-terraza-dt');
+  const terrazaDd = document.getElementById('p-terraza-dd');
+  terrazaDt.hidden = terrazaDd.hidden = !u.m2Terraza;
+  if (u.m2Terraza) terrazaDd.textContent = u.m2Terraza + ' m²';
+
+  const cocheraDt = document.getElementById('p-cochera-dt');
+  const cocheraDd = document.getElementById('p-cochera-dd');
+  cocheraDt.hidden = cocheraDd.hidden = !u.cocheraPrecio;
+  if (u.cocheraPrecio) cocheraDd.textContent = 'USD ' + u.cocheraPrecio.toLocaleString('es-UY') + ' (opcional)';
   document.getElementById('p-fuente').textContent     = u.estimado
     ? 'Precio y superficie estimados — falta el dato real.'
     : 'Precio y superficie publicados en el aviso.';
