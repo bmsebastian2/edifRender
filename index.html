@@ -24,6 +24,12 @@
   }
   #aviso b{font-weight:600}
 
+  /* Envoltorio puramente de layout: en desktop no debe existir como caja
+     (cota/redes siguen siendo position:fixed, independientes entre sí),
+     en mobile pasa a ser la fila que los alinea dentro del flujo del
+     header (ver media query de abajo). */
+  #cabezal-utilidades{display:contents}
+
   #cota{
     position:fixed;top:22px;right:24px;z-index:11;display:flex;align-items:center;gap:8px;
     font-size:13px;color:var(--suave);text-decoration:none;
@@ -46,7 +52,6 @@
   #redes a:hover,#redes button:hover{opacity:1;color:var(--tinta)}
   #redes svg{width:16px;height:16px}
   #redes a[hidden]{display:none}
-  @media (max-width:860px){ #redes{display:none} }
 
   #compartir-aviso{
     position:fixed;top:110px;right:24px;z-index:12;
@@ -171,7 +176,6 @@
   canvas{touch-action:none}
 
   @media (max-width:860px){
-    #cota{display:none}
     #cabezal{max-width:none;padding:16px 18px}
     #cabezal h1{font-size:19px}
     #filtros{left:18px;right:18px;max-width:none;bottom:16px}
@@ -236,6 +240,32 @@
       display:block;position:static;transform:none;opacity:1;max-width:none;
       margin-top:10px;padding:10px 13px;
     }
+
+    /* En desktop cota/redes flotan fijos arriba a la derecha, sobre cielo
+       vacío del canvas; en mobile esa misma esquina cae encima del techo
+       del edificio. El edificio es lo importante acá, así que esta fila
+       baja al flujo normal pero se mantiene lo más chica posible: sin caja
+       ni fondo (una caja opaca tapaba demasiado techo), solo íconos con
+       sombra propia para tener contraste sobre cualquier tono de la torre,
+       y sin el texto "Armado por Cota" (el ícono solo ya identifica la
+       marca). admin-link no entra acá a propósito: es un link interno, no
+       hace falta en el header público de mobile. */
+    #cabezal-utilidades{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-top:8px;
+    }
+    #cota,#redes{position:static;top:auto;right:auto}
+    #cota .cota-txt{display:none}
+    #cota svg,#redes svg{
+      filter:drop-shadow(0 0 2px rgba(255,255,255,.95)) drop-shadow(0 1px 2px rgba(0,0,0,.4));
+    }
+    #redes a,#redes button{opacity:1;color:var(--tinta)}
+    #compartir-aviso{
+      left:50%;right:auto;top:auto;bottom:calc(18px + env(safe-area-inset-bottom));
+      transform:translate(-50%,6px);
+    }
+    #compartir-aviso.visible{transform:translate(-50%,0)}
+
     /* el panel no tapa el edificio: sube desde abajo */
     #panel{
       width:100%;height:auto;max-height:74vh;top:auto;bottom:0;overflow-y:auto;
@@ -266,6 +296,49 @@
     </svg>
   </button>
   <div id="piso-info" aria-live="polite"></div>
+
+  <!-- Envoltorio solo de layout (display:contents en desktop, ver CSS):
+       cota/redes siguen siendo position:fixed en desktop igual que antes;
+       en mobile esta fila los baja al flujo normal del header. -->
+  <div id="cabezal-utilidades">
+    <a id="cota" href="https://armadoporcotauy.vercel.app/">
+      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M4 13h12" stroke="#2F7A68" stroke-width="1.7"/>
+        <path d="M10 5l3.4 5.6H6.6L10 5z" fill="#2F7A68"/>
+      </svg>
+      <span class="cota-txt">Armado por Cota</span>
+    </a>
+
+    <div id="redes">
+      <a id="red-instagram" href="#" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="5"/>
+          <circle cx="12" cy="12" r="4.2"/>
+          <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/>
+        </svg>
+      </a>
+      <a id="red-youtube" href="#" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <rect x="2.5" y="5.5" width="19" height="13" rx="4"/>
+          <path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"/>
+        </svg>
+      </a>
+      <a id="red-web" href="#" target="_blank" rel="noopener" aria-label="Sitio web" title="Sitio web" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M3 12h18M12 3c2.6 2.6 4 5.7 4 9s-1.4 6.4-4 9c-2.6-2.6-4-5.7-4-9s1.4-6.4 4-9z"/>
+        </svg>
+      </a>
+      <button id="red-compartir" type="button" aria-label="Compartir" title="Compartir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <circle cx="18" cy="5" r="2.6"/>
+          <circle cx="6" cy="12" r="2.6"/>
+          <circle cx="18" cy="19" r="2.6"/>
+          <path d="M8.3 10.7l7.4-4.1M8.3 13.3l7.4 4.1"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 </header>
 
 <!-- Fuera de #cabezal a propósito: si quedara adentro, su z-index quedaría
@@ -275,45 +348,7 @@
 <div id="pisos-backdrop"></div>
 <nav id="pisos" aria-label="Pisos"></nav>
 
-<a id="cota" href="https://armadoporcotauy.vercel.app/">
-  <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
-    <path d="M4 13h12" stroke="#2F7A68" stroke-width="1.7"/>
-    <path d="M10 5l3.4 5.6H6.6L10 5z" fill="#2F7A68"/>
-  </svg>
-  Armado por Cota
-</a>
-
 <a id="admin-link" href="admin.html">Panel interno</a>
-
-<div id="redes">
-  <a id="red-instagram" href="#" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram" hidden>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="5"/>
-      <circle cx="12" cy="12" r="4.2"/>
-      <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/>
-    </svg>
-  </a>
-  <a id="red-youtube" href="#" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube" hidden>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-      <rect x="2.5" y="5.5" width="19" height="13" rx="4"/>
-      <path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"/>
-    </svg>
-  </a>
-  <a id="red-web" href="#" target="_blank" rel="noopener" aria-label="Sitio web" title="Sitio web" hidden>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-      <circle cx="12" cy="12" r="9"/>
-      <path d="M3 12h18M12 3c2.6 2.6 4 5.7 4 9s-1.4 6.4-4 9c-2.6-2.6-4-5.7-4-9s1.4-6.4 4-9z"/>
-    </svg>
-  </a>
-  <button id="red-compartir" type="button" aria-label="Compartir" title="Compartir">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-      <circle cx="18" cy="5" r="2.6"/>
-      <circle cx="6" cy="12" r="2.6"/>
-      <circle cx="18" cy="19" r="2.6"/>
-      <path d="M8.3 10.7l7.4-4.1M8.3 13.3l7.4 4.1"/>
-    </svg>
-  </button>
-</div>
 
 <div id="compartir-aviso" role="status" aria-live="polite">Link copiado</div>
 
