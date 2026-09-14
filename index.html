@@ -71,15 +71,25 @@
   #separar{margin-top:2px;padding:8px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--linea);background:var(--papel);color:var(--suave)}
   #separar[aria-pressed="true"]{color:#fff;background:var(--tinta);border-color:var(--tinta)}
 
-  #pisos{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:10;display:flex;flex-direction:column-reverse;gap:2px}
-  #pisos button{width:36px;height:24px;border:none;background:none;cursor:pointer;color:var(--suave);
+  /* Riel de pisos: columna fija a la derecha. Con muchos pisos no entra
+     entero en alto de viewport, así que se cap-ea la altura y el resto
+     scrollea — "PISO" + TODOS quedan pegados arriba y PB pegado abajo,
+     como los extremos fijos de un panel de ascensor. */
+  #pisos{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:10;display:flex;flex-direction:column-reverse;gap:2px;
+    max-height:min(62vh,540px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+  #pisos::-webkit-scrollbar{display:none}
+  #pisos button{width:36px;height:24px;border:none;background:none;cursor:pointer;color:var(--suave);flex:none;
     font-size:12.5px;font-variant-numeric:tabular-nums;border-right:2px solid transparent;transition:color .15s,border-color .15s}
   #pisos button:hover{color:var(--tinta)}
   #pisos button[aria-pressed="true"]{color:var(--tinta);font-weight:650;border-right-color:var(--tinta)}
+  #pisos .pisos-fijo{position:sticky;top:0;z-index:2;background:var(--fondo);flex:none;display:flex;flex-direction:column}
   #pisos .pisos-etiqueta{font-size:10.5px;letter-spacing:.08em;color:var(--suave);text-align:right;
     padding:0 8px 6px;margin-bottom:4px;border-bottom:1px solid var(--linea);pointer-events:none}
   #pisos .pisos-todos{font-size:9.5px;letter-spacing:.02em;font-weight:650;height:auto;
     white-space:nowrap;padding:2px 0 8px;margin-top:2px}
+  #pisos .pisos-pb{position:sticky;bottom:0;z-index:2;background:var(--fondo)}
+  #pisos-backdrop{display:none}
+  #pisos-trigger{display:none}
 
   #piso-info{position:fixed;right:70px;top:50%;transform:translateY(-50%) translateX(6px);z-index:10;
     max-width:210px;padding:13px 15px;border-radius:5px;background:var(--papel);
@@ -136,25 +146,60 @@
     #filtros{left:18px;right:18px;max-width:none;bottom:16px}
 
     /* Riel de pisos: en desktop es una columna fija a la derecha; en mobile
-       no hay lugar para eso, así que pasa a ser una tira horizontal con
-       scroll dentro del propio header. */
-    #pisos{
-      position:static;top:auto;right:auto;transform:none;
-      flex-direction:row;align-items:center;gap:6px;
-      margin-top:12px;padding-bottom:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+       no hay ancho para eso (y una tira horizontal no escala si el edificio
+       tiene muchos pisos), así que pasa a ser una hoja que sube desde abajo,
+       como el panel de botones de un ascensor: se abre con un botón
+       compacto en el header y no depende del ancho de pantalla. */
+    #pisos-trigger{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      width:100%;margin-top:12px;padding:10px 13px;border-radius:5px;
+      border:1px solid var(--linea);background:var(--papel);color:var(--tinta);
+      font-size:13px;font-weight:600;cursor:pointer;
     }
+    #pisos-trigger .chev{transition:transform .2s ease;color:var(--suave);flex:none}
+    #pisos-trigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
+
+    #pisos-backdrop{
+      display:block;position:fixed;inset:0;z-index:19;background:rgba(26,33,36,.35);
+      opacity:0;pointer-events:none;transition:opacity .2s ease;
+    }
+    #pisos-backdrop.visible{opacity:1;pointer-events:auto}
+
+    #pisos{
+      position:fixed;top:auto;right:0;bottom:0;left:0;transform:translateY(100%);
+      z-index:20;max-height:min(64vh,480px);
+      display:grid;grid-template-columns:repeat(5,1fr);gap:8px;
+      background:#fff;border-top:1px solid var(--linea);border-radius:14px 14px 0 0;
+      box-shadow:0 -10px 30px rgba(20,26,28,.16);
+      padding:20px 16px calc(18px + env(safe-area-inset-bottom));
+      overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+      transition:transform .28s cubic-bezier(.22,.61,.36,1);
+    }
+    #pisos.abierto{transform:translateY(0)}
+    #pisos::before{
+      content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);
+      width:36px;height:4px;border-radius:2px;background:var(--linea);
+    }
+    #pisos .pisos-fijo{
+      grid-column:1/-1;order:-1;position:static;background:none;
+      display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+      padding:6px 2px 10px;margin-bottom:2px;border-bottom:1px solid var(--linea);
+    }
+    #pisos .pisos-etiqueta{display:block;padding:0;margin:0;border:none;font-size:11px}
+    #pisos .pisos-todos{height:34px;padding:0 12px;white-space:nowrap;margin:0;border:1px solid var(--linea);
+      border-radius:4px;background:var(--papel)}
     #pisos button{
-      width:auto;height:32px;padding:0 12px;flex:none;
-      border:1px solid var(--linea);border-radius:4px;background:var(--papel);
+      width:auto;height:40px;padding:0 6px;flex:none;
+      border:1px solid var(--linea);border-radius:6px;background:var(--papel);
     }
     #pisos button[aria-pressed="true"]{
       color:#fff;background:var(--tinta);border-color:var(--tinta);border-right-color:var(--tinta);
     }
-    #pisos .pisos-etiqueta{display:none}
-    #pisos .pisos-todos{height:32px;padding:0 12px;white-space:nowrap}
+    #pisos .pisos-pb{position:static;grid-column:span 1}
 
     /* Tarjeta de info del piso: en desktop flota al lado del riel; acá
-       aparece en flujo normal, debajo de la tira, solo si hay piso elegido. */
+       aparece en flujo normal debajo del botón que abre la hoja, solo si
+       hay piso elegido. */
     #piso-info{display:none}
     #piso-info.visible{
       display:block;position:static;transform:none;opacity:1;max-width:none;
@@ -183,9 +228,21 @@
   <h1>ROSSO by Block</h1>
   <p class="sub">Ana Monterroso de Lavalleja 2162, Cordón · 10 pisos · 78 unidades · entrega marzo 2028</p>
   <div id="aviso">Cargando estado de las unidades…</div>
-  <nav id="pisos" aria-label="Pisos"></nav>
+  <button id="pisos-trigger" type="button" aria-expanded="false" aria-controls="pisos">
+    <span class="pt-label">Todos los pisos</span>
+    <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
   <div id="piso-info" aria-live="polite"></div>
 </header>
+
+<!-- Fuera de #cabezal a propósito: si quedara adentro, su z-index quedaría
+     acotado al stacking context del header (que compite en la raíz con
+     #filtros al mismo z-index) y #filtros terminaría pintando encima pase
+     lo que pase con el z-index interno del riel. -->
+<div id="pisos-backdrop"></div>
+<nav id="pisos" aria-label="Pisos"></nav>
 
 <a id="cota" href="https://armadoporcotauy.vercel.app/">
   <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
@@ -693,13 +750,39 @@ function actualizarInfoPiso(){
   infoPiso.classList.add('visible');
 }
 
+// En mobile el riel es una hoja que se abre desde un botón del header
+// (ver #pisos-trigger); en desktop esos dos elementos quedan ocultos y sin
+// efecto. cerrarHoja() es un no-op inofensivo en desktop.
+const pisosTrigger = document.getElementById('pisos-trigger');
+const pisosTriggerLabel = pisosTrigger.querySelector('.pt-label');
+const pisosBackdrop = document.getElementById('pisos-backdrop');
+
+function abrirHoja(){
+  riel.classList.add('abierto');
+  pisosBackdrop.classList.add('visible');
+  pisosTrigger.setAttribute('aria-expanded','true');
+}
+function cerrarHoja(){
+  riel.classList.remove('abierto');
+  pisosBackdrop.classList.remove('visible');
+  pisosTrigger.setAttribute('aria-expanded','false');
+}
+pisosTrigger.addEventListener('click', () => {
+  riel.classList.contains('abierto') ? cerrarHoja() : abrirHoja();
+});
+pisosBackdrop.addEventListener('click', cerrarHoja);
+
 function actualizarRielPisos(){
   botonesPiso.forEach((el,i) => el.setAttribute('aria-pressed', pisoAislado === i+1));
   btnPB.setAttribute('aria-pressed', pisoAislado === 0);
   btnTodos.setAttribute('aria-pressed', pisoAislado === null);
+  pisosTriggerLabel.textContent =
+    pisoAislado === null ? 'Todos los pisos' : pisoAislado === 0 ? 'Planta baja' : 'Piso ' + pisoAislado;
   actualizarInfoPiso();
+  cerrarHoja();
 }
 const btnPB = document.createElement('button');
+btnPB.className = 'pisos-pb';
 btnPB.textContent = 'PB';
 btnPB.setAttribute('aria-pressed','false');
 btnPB.addEventListener('click', () => {
@@ -722,6 +805,14 @@ for (let p = 1; p <= 10; p++){
   botonesPiso.push(b);
   riel.appendChild(b);
 }
+// "PISO" + TODOS van agrupados: en desktop es el bloque fijo (sticky) de
+// arriba del riel; en mobile es la fila de cabecera de la hoja.
+const fijoPisos = document.createElement('div');
+fijoPisos.className = 'pisos-fijo';
+const etiquetaPisos = document.createElement('span');
+etiquetaPisos.className = 'pisos-etiqueta';
+etiquetaPisos.textContent = 'PISO';
+fijoPisos.appendChild(etiquetaPisos);
 const btnTodos = document.createElement('button');
 btnTodos.className = 'pisos-todos';
 btnTodos.textContent = 'TODOS';
@@ -732,11 +823,8 @@ btnTodos.addEventListener('click', () => {
   enfocarPiso(null);
   aplicar();
 });
-riel.appendChild(btnTodos);
-const etiquetaPisos = document.createElement('span');
-etiquetaPisos.className = 'pisos-etiqueta';
-etiquetaPisos.textContent = 'PISO';
-riel.appendChild(etiquetaPisos);
+fijoPisos.appendChild(btnTodos);
+riel.appendChild(fijoPisos);
 
 /* ============================================================
    Planta esquemática. Se dibuja desde los datos de la tipología:
