@@ -256,8 +256,8 @@
 <body>
 
 <header id="cabezal">
-  <h1>ROSSO by Block</h1>
-  <p class="sub">Ana Monterroso de Lavalleja 2162, Cordón · 10 pisos · 78 unidades · entrega marzo 2028</p>
+  <h1 id="h1-proyecto">ROSSO by Block</h1>
+  <p class="sub" id="sub-proyecto">Ana Monterroso de Lavalleja 2162, Cordón · 10 pisos · 78 unidades · entrega marzo 2028</p>
   <div id="aviso">Cargando estado de las unidades…</div>
   <button id="pisos-trigger" type="button" aria-expanded="false" aria-controls="pisos">
     <span class="pt-label">Todos los pisos</span>
@@ -334,7 +334,7 @@
       <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
     </div>
     <div class="p-tira-wrap" aria-hidden="true">
-      <span class="p-tira-tope">10</span>
+      <span class="p-tira-tope" id="p-tira-tope">10</span>
       <div class="p-tira" id="p-tira"></div>
       <span class="p-tira-base">PB</span>
     </div>
@@ -368,20 +368,8 @@
   </div>
   <div id="p-edificio">
     <p class="p-edificio-tit">Amenities del edificio</p>
-    <ul>
-      <li>SUM con parrillero y barbacoa abierta</li>
-      <li>Gimnasio con espacio para yoga</li>
-      <li>Terraza pergolada en el piso 10 con vista al skyline</li>
-      <li>Racks para bicicletas y lavandería con app</li>
-      <li>WiFi gratuito en áreas comunes</li>
-      <li>Infraestructura para vehículos eléctricos</li>
-      <li>CCTV y cerradura electrónica</li>
-    </ul>
-    <p>
-      Amparado por la Ley de Vivienda Promovida (18.795): exonera ITP, IVA e Impuesto al
-      Patrimonio (10 años), y hasta 100% de IRPF/IRAE (10 años). Desarrolla Block Desarrollos ·
-      39 cocheras en el edificio · a pasos de Tres Cruces, Parque Batlle y 18 de Julio.
-    </p>
+    <ul id="p-amenities"></ul>
+    <p id="p-legal" hidden></p>
   </div>
 
   <p class="nota">
@@ -396,8 +384,9 @@
 <script src="supabase-config.js"></script>
 <script>
 /* ============================================================
-   1. DATOS — vienen de Supabase (tabla `units`), no hardcodeados.
-   El estado se edita desde admin.html; acá solo se lee.
+   1. DATOS — vienen de Supabase (tablas `public_units`/`public_projects`/
+   `public_settings`/`public_amenities`, filtradas por proyecto). El estado
+   se edita desde admin.html; acá solo se lee.
    ============================================================ */
 
 const ESTADOS = {
@@ -407,25 +396,79 @@ const ESTADOS = {
   sin_dato:   { nombre:'Sin estado público', color:'#646C6E' },
 };
 
-async function cargarUnidades(){
-  const { data, error } = await sb.from('units').select('*').order('id');
-  if (error || !data){
-    console.error('No se pudo conectar con Supabase', error);
-    return null;
-  }
-  return data.map(r => ({
-    id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
-    dorms: r.dorms, m2: Number(r.m2), orient: r.orientacion, precio: Number(r.precio),
-    estimado: r.estimado, estado: r.estado,
-    m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
-    cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
-  }));
+// Qué edificio mostrar: primero un path bonito (/rosso, vía un rewrite de
+// Vercel que todavía no existe pero deja la puerta abierta), después
+// ?p=<slug>, y si no hay ninguno de los dos, ROSSO — así el link que ya
+// está en manos del cliente (sin querystring) no se rompe.
+const DEFAULT_SLUG = 'rosso';
+function resolverSlug(){
+  const porPath = location.pathname.replace(/^\/|\/$/g, '');
+  if (porPath && porPath.toLowerCase() !== 'index.html') return porPath;
+  const porQuery = new URLSearchParams(location.search).get('p');
+  return porQuery || DEFAULT_SLUG;
+}
+const SLUG = resolverSlug();
+document.getElementById('admin-link').href = 'admin.html?p=' + encodeURIComponent(SLUG);
+
+async function cargarProyecto(){
+  const { data: proyecto, error: eProyecto } = await sb
+    .from('public_projects').select('*').eq('slug', SLUG).maybeSingle();
+  if (eProyecto || !proyecto) return { error:'no-encontrado' };
+
+  const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }] = await Promise.all([
+    sb.from('public_units').select('*').eq('project_id', proyecto.id).order('id'),
+    sb.from('public_settings').select('*').eq('project_id', proyecto.id).maybeSingle(),
+    sb.from('public_amenities').select('*').eq('project_id', proyecto.id).order('orden'),
+  ]);
+  if (eUnidades || !unidades) return { error:'sin-datos' };
+
+  return {
+    proyecto,
+    settings: settings || { instagram:'', youtube:'', sitio_web:'', whatsapp:'', textos:{} },
+    amenities: amenities || [],
+    unidades: unidades.map(r => ({
+      id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
+      dorms: r.dorms, m2: Number(r.m2), orient: r.orientacion, precio: Number(r.precio),
+      estimado: r.estimado, estado: r.estado,
+      m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
+      cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
+    })),
+  };
+}
+
+function formatearPrecio(valor, moneda, locale){
+  return new Intl.NumberFormat(locale, { style:'currency', currency:moneda, maximumFractionDigits:0 }).format(valor);
+}
+
+// Sesión anónima persistida en este navegador — sin esto no se puede
+// distinguir un visitante de treinta clics de treinta visitantes distintos.
+// origen (?src=) queda pegado a la sesión desde el primer touch (atribución
+// de la primera visita, no de la última).
+function obtenerSesion(){
+  try {
+    let s = localStorage.getItem('cota_sesion');
+    if (!s){ s = crypto.randomUUID(); localStorage.setItem('cota_sesion', s); }
+    return s;
+  } catch { return crypto.randomUUID(); }
+}
+function obtenerOrigen(){
+  try {
+    const porURL = new URLSearchParams(location.search).get('src');
+    if (porURL){
+      const limpio = porURL.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+      if (limpio) localStorage.setItem('cota_origen', limpio);
+    }
+    return localStorage.getItem('cota_origen') || null;
+  } catch { return null; }
 }
 
 // Deja constancia de que alguien abrió esta unidad — alimenta las
 // estadísticas de demanda del panel interno. No bloquea la demo si falla.
-function registrarEvento(unitId){
-  sb.from('events').insert({ unit_id: unitId, tipo:'click' }).then(({ error }) => {
+function registrarEvento(projectId, unitId){
+  sb.from('events').insert({
+    project_id: projectId, unit_id: unitId, tipo:'click',
+    sesion: obtenerSesion(), origen: obtenerOrigen(),
+  }).then(({ error }) => {
     if (error) console.warn('No se pudo registrar el evento', error);
   });
 }
@@ -434,20 +477,29 @@ function registrarEvento(unitId){
 // links por unidad, para cuando la página se sirve desde about:srcdoc.
 const BASE = 'https://armadoporcota.vercel.app/';
 
-// Instagram / YouTube / sitio web se editan desde la pestaña "Redes" de
-// admin.html (tabla `settings`, fila única). Corre en paralelo a la carga
-// de unidades — no depende de que el edificio 3D llegue a construirse.
-async function cargarRedes(){
-  const { data, error } = await sb.from('settings').select('*').eq('id', 1).single();
-  if (error || !data) return;
-  for (const [id, url] of [['red-instagram', data.instagram], ['red-youtube', data.youtube], ['red-web', data.sitio_web]]) {
+function pintarRedes(settings){
+  for (const [id, url] of [['red-instagram', settings.instagram], ['red-youtube', settings.youtube], ['red-web', settings.sitio_web]]) {
     if (!url) continue;
     const a = document.getElementById(id);
     a.href = url;
     a.hidden = false;
   }
 }
-cargarRedes();
+
+function pintarAmenities(lista){
+  document.getElementById('p-amenities').innerHTML = lista.map(a => '<li>' + a.texto + '</li>').join('');
+}
+
+function pintarLegal(textos){
+  if (!textos || !textos.legal) return;
+  const el = document.getElementById('p-legal');
+  el.textContent = textos.legal;
+  el.hidden = false;
+}
+
+function mostrarErrorProyecto(msg){
+  document.getElementById('cabezal').innerHTML = '<h1>No disponible</h1><p class="sub">' + msg + '</p>';
+}
 
 const btnCompartir = document.getElementById('red-compartir');
 const avisoCompartir = document.getElementById('compartir-aviso');
@@ -472,21 +524,40 @@ btnCompartir.addEventListener('click', async () => {
 });
 
 // Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
-// adentro de iniciar() porque necesita esperar a que lleguen las
-// unidades desde Supabase antes de construir nada.
-function iniciar(UNIDADES){
+// adentro de iniciar() porque necesita esperar a que lleguen el proyecto y
+// las unidades desde Supabase antes de construir nada.
+function iniciar(proyecto, settingsRow, UNIDADES){
 
-const publicadas = UNIDADES.filter(u => u.estado !== 'sin_dato').length;
-document.getElementById('aviso').innerHTML =
-  '<b>' + publicadas + ' de ' + UNIDADES.length + ' unidades</b> tienen estado publicado hoy. ' +
-  'Las otras ' + (UNIDADES.length - publicadas) + ' aparecen en gris: nadie sabe si están disponibles.';
+document.getElementById('h1-proyecto').textContent = proyecto.nombre;
+document.getElementById('sub-proyecto').textContent =
+  [proyecto.direccion, proyecto.ciudad].filter(Boolean).join(', ') + ' · ' + proyecto.pisos + ' pisos · ' +
+  UNIDADES.length + ' unidades' + (proyecto.entrega ? ' · entrega ' + proyecto.entrega : '');
+
+if (proyecto.muestra_totales){
+  const publicadas = UNIDADES.filter(u => u.estado !== 'sin_dato').length;
+  document.getElementById('aviso').innerHTML =
+    '<b>' + publicadas + ' de ' + UNIDADES.length + ' unidades</b> tienen estado publicado hoy. ' +
+    'Las otras ' + (UNIDADES.length - publicadas) + ' aparecen en gris: nadie sabe si están disponibles.';
+} else {
+  document.getElementById('aviso').hidden = true;
+}
+document.getElementById('p-tira-tope').textContent = proyecto.pisos;
 
 /* ============================================================
    2. ESCENA
    ============================================================ */
 
-const ANCHO = 5.4, PROF = 6.4, ALTO = 3, LOSA = 0.32, PASO = ALTO + LOSA;
-const SEP_X = ANCHO + 0.3, SEP_Z = (PROF + 2.0) / 2;
+// La forma de la placa es dato del proyecto (projects.geometria); si viene
+// vacío (edificio sin geometría propia cargada todavía) se usan los valores
+// de ROSSO como default, para no romper nada.
+const PISOS = proyecto.pisos;
+const geo = proyecto.geometria || {};
+const ANCHO = geo.ancho ?? 5.4, PROF = geo.prof ?? 6.4, ALTO = geo.alto ?? 3,
+      LOSA = geo.losa_espesor ?? 0.32, PASO = ALTO + LOSA;
+const SEP_X = geo.sep_x ?? (ANCHO + 0.3), SEP_Z = geo.sep_z ?? ((PROF + 2.0) / 2);
+const LOSA_ANCHO = geo.losa_ancho ?? (SEP_X * 4 + 0.5), LOSA_LARGO = geo.losa_largo ?? (SEP_Z * 2 + PROF + 0.5);
+const NUCLEO_ANCHO = geo.nucleo_ancho ?? (SEP_X * 2), NUCLEO_LARGO = geo.nucleo_largo ?? 1.7;
+const calleCfg = geo.calle || {};
 
 const escena = new THREE.Scene();
 escena.background = new THREE.Color(0xDEE2E4);
@@ -520,7 +591,7 @@ escena.add(base);
 // Calle: franja de asfalto frente al edificio (lado "frente", ver CALLE_FRENTE
 // más abajo) con línea de carril discontinua, para que quede claro a simple
 // vista que ese lado da a una vía vehicular y no es un lado cualquiera.
-const ANCHO_CALLE = 8, LARGO_CALLE = 44, VEREDA = 2;
+const ANCHO_CALLE = calleCfg.ancho ?? 8, LARGO_CALLE = calleCfg.largo ?? 44, VEREDA = calleCfg.vereda ?? 2;
 const BORDE_FRENTE = -(SEP_Z + PROF / 2);
 const Z_CALLE = BORDE_FRENTE - VEREDA - ANCHO_CALLE / 2;
 
@@ -559,8 +630,8 @@ escena.add(torre);
 
 const geoUnidad  = new THREE.BoxGeometry(ANCHO, ALTO, PROF);
 const bordesGeo  = new THREE.EdgesGeometry(geoUnidad);
-const geoLosa    = new THREE.BoxGeometry(SEP_X*4 + 0.5, LOSA, SEP_Z*2 + PROF + 0.5);
-const geoNucleo  = new THREE.BoxGeometry(SEP_X*2, ALTO, 1.7);
+const geoLosa    = new THREE.BoxGeometry(LOSA_ANCHO, LOSA, LOSA_LARGO);
+const geoNucleo  = new THREE.BoxGeometry(NUCLEO_ANCHO, ALTO, NUCLEO_LARGO);
 const matLosa    = new THREE.MeshStandardMaterial({ color:0xB4BBBD, roughness:0.9 });
 const matNucleo  = new THREE.MeshStandardMaterial({ color:0xA5ADB0, roughness:0.9 });
 
@@ -570,7 +641,7 @@ const pisosGrupo = [], cajas = [];
 // definido cómo se divide (local, hall, cocheras...), así que por ahora
 // es solo un volumen — pero el edificio no puede arrancar directo en el
 // piso 1 como si no hubiera PB.
-const geoPB = new THREE.BoxGeometry(SEP_X*4 + 0.5, ALTO, SEP_Z*2 + PROF + 0.5);
+const geoPB = new THREE.BoxGeometry(LOSA_ANCHO, ALTO, LOSA_LARGO);
 const matPB = new THREE.MeshStandardMaterial({ color:0xC7CBCC, roughness:0.9, transparent:true, opacity:0.55 });
 
 const pb = new THREE.Group();
@@ -590,7 +661,7 @@ pb.add(volumenPB);
 torre.add(pb);
 pisosGrupo.push(pb);
 
-for (let piso = 1; piso <= 10; piso++){
+for (let piso = 1; piso <= PISOS; piso++){
   const g = new THREE.Group();
   g.position.y = piso * PASO;
   g.userData = { offset:0, objetivo:0 };
@@ -627,7 +698,7 @@ for (let piso = 1; piso <= 10; piso++){
   torre.add(g);
   pisosGrupo.push(g);
 }
-const ALTURA = 11 * PASO; // 10 pisos + PB
+const ALTURA = (PISOS + 1) * PASO; // pisos + PB
 
 // Cartel de calle: nombre de la vía, parado junto a la vereda como un cartel
 // real. Es un sprite (siempre mirando a cámara) para que se pueda leer desde
@@ -667,7 +738,9 @@ function crearCartelCalle(texto){
 
 // Parado junto a la calle, como un cartel de nomenclátor real, para que se
 // lea como el nombre de la vía y no como una etiqueta del edificio.
-const CALLE_FRENTE = 'Ana Monterroso de Lavalleja';
+// geometria.calle_nombre permite fijarlo a mano; si no está, se aproxima
+// tomando la dirección hasta el primer número ("Bulevar 123, Barrio" → "Bulevar").
+const CALLE_FRENTE = geo.calle_nombre || (proyecto.direccion || '').replace(/\s*\d.*$/, '') || proyecto.nombre;
 const cartelCalle = crearCartelCalle(CALLE_FRENTE);
 cartelCalle.position.set(LARGO_CALLE / 2 - 9, 1.7, BORDE_FRENTE - VEREDA);
 escena.add(cartelCalle);
@@ -797,7 +870,7 @@ function actualizarInfoPiso(){
   infoPiso.innerHTML =
     '<b>Piso ' + pisoAislado + '</b>' +
     '<span>' + (pisoAislado - 1) + ' piso' + (pisoAislado - 1 === 1 ? '' : 's') + ' por debajo · ' +
-      (10 - pisoAislado) + ' por encima</span>' +
+      (PISOS - pisoAislado) + ' por encima</span>' +
     '<span>' + enPiso.length + ' unidad' + (enPiso.length === 1 ? '' : 'es') +
       (disponibles ? ' · ' + disponibles + ' disponible' + (disponibles === 1 ? '' : 's') : '') + '</span>';
   infoPiso.classList.add('visible');
@@ -845,7 +918,7 @@ btnPB.addEventListener('click', () => {
   aplicar();
 });
 riel.appendChild(btnPB);
-for (let p = 1; p <= 10; p++){
+for (let p = 1; p <= PISOS; p++){
   const b = document.createElement('button');
   b.textContent = p;
   b.setAttribute('aria-pressed','false');
@@ -938,15 +1011,13 @@ function plantaSVG(u){
 function actualizarTiraPiso(u){
   const cont = document.getElementById('p-tira');
   cont.innerHTML = '';
-  for (let p = 0; p <= 10; p++){
+  for (let p = 0; p <= PISOS; p++){
     const marca = document.createElement('i');
     marca.className = 'p-tira-marca' + (p === u.piso ? ' activa' : '');
     if (p === u.piso) marca.style.background = ESTADOS[u.estado].color;
     cont.appendChild(marca);
   }
 }
-
-const WHATSAPP = '59891856500';
 
 // Lleva la cámara frente a la unidad, a la altura de su piso.
 function enfocar(u){
@@ -962,7 +1033,7 @@ function linkDe(u){
   const propia = location.protocol.startsWith('http')
     ? location.origin + location.pathname
     : BASE;
-  return propia + '?u=' + u.id;
+  return propia + '?p=' + encodeURIComponent(proyecto.slug) + '&u=' + u.id;
 }
 
 // En previsualizaciones (about:srcdoc) el historial no se puede tocar.
@@ -970,8 +1041,15 @@ function marcarURL(consulta){
   try { history.replaceState(null, '', consulta); } catch (e) { /* sin historial */ }
 }
 
+// ?p=<slug> se preserva en la URL incluso al cerrar el panel — si no, un
+// edificio que no sea el default perdería su slug de la barra y una
+// recarga en ese momento resolvería al edificio equivocado.
+function queryProyecto(){
+  return proyecto.slug === DEFAULT_SLUG ? '' : 'p=' + encodeURIComponent(proyecto.slug);
+}
+
 function abrir(u, mover){
-  registrarEvento(u.id);
+  registrarEvento(proyecto.id, u.id);
   elegida = u;
   tooltip.style.opacity = 0; // en touch queda pegado en la última posición tocada
   if (mover) enfocar(u);
@@ -989,7 +1067,7 @@ function abrir(u, mover){
   document.getElementById('p-dorms').textContent      = u.dorms;
   document.getElementById('p-m2').textContent         = u.m2 + ' m²';
   document.getElementById('p-orient').textContent     = u.orient;
-  document.getElementById('p-precio').textContent     = 'USD ' + u.precio.toLocaleString('es-UY');
+  document.getElementById('p-precio').textContent     = formatearPrecio(u.precio, proyecto.moneda, proyecto.locale);
 
   const terrazaDt = document.getElementById('p-terraza-dt');
   const terrazaDd = document.getElementById('p-terraza-dd');
@@ -999,25 +1077,28 @@ function abrir(u, mover){
   const cocheraDt = document.getElementById('p-cochera-dt');
   const cocheraDd = document.getElementById('p-cochera-dd');
   cocheraDt.hidden = cocheraDd.hidden = !u.cocheraPrecio;
-  if (u.cocheraPrecio) cocheraDd.textContent = 'USD ' + u.cocheraPrecio.toLocaleString('es-UY') + ' (opcional)';
+  if (u.cocheraPrecio) cocheraDd.textContent = formatearPrecio(u.cocheraPrecio, proyecto.moneda, proyecto.locale) + ' (opcional)';
   const fuente = document.getElementById('p-fuente');
   fuente.textContent = u.estimado ? 'Dato estimado' : 'Dato publicado';
   fuente.className = 'p-tag ' + (u.estimado ? 'p-tag-estimado' : 'p-tag-real');
   fuente.title = u.estimado
     ? 'Precio y superficie estimados — falta el dato real.'
     : 'Precio y superficie publicados en el aviso.';
-  const texto = 'Hola, quiero consultar por la unidad ' + u.id + ' de ROSSO by Block (' +
+  const texto = 'Hola, quiero consultar por la unidad ' + u.id + ' de ' + proyecto.nombre + ' (' +
                 u.dorms + ' dormitorio' + (u.dorms > 1 ? 's' : '') + ', ' + u.m2 + ' m²). ' + linkDe(u);
-  document.getElementById('p-wa').href = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(texto);
+  document.getElementById('p-wa').href = settingsRow.whatsapp
+    ? 'https://wa.me/' + settingsRow.whatsapp + '?text=' + encodeURIComponent(texto)
+    : '#';
 
-  marcarURL('?u=' + u.id);
+  marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
   panel.classList.add('abierto');
 }
 
 function cerrar(){
   elegida = null;
   panel.classList.remove('abierto');
-  marcarURL(location.pathname);
+  const qp = queryProyecto();
+  marcarURL(location.pathname + (qp ? '?' + qp : ''));
 }
 
 const btnCopiar = document.getElementById('p-copiar');
@@ -1092,13 +1173,20 @@ addEventListener('resize', () => {
 } // fin de iniciar()
 
 (async () => {
-  const UNIDADES = await cargarUnidades();
-  if (!UNIDADES){
+  const resultado = await cargarProyecto();
+  if (resultado.error === 'no-encontrado'){
+    mostrarErrorProyecto('Este edificio no existe o todavía no está publicado.');
+    return;
+  }
+  if (resultado.error){
     document.getElementById('aviso').innerHTML =
       '<b>No se pudo cargar el estado de las unidades.</b> Revisá la conexión y recargá la página.';
     return;
   }
-  iniciar(UNIDADES);
+  pintarRedes(resultado.settings);
+  pintarAmenities(resultado.amenities);
+  pintarLegal(resultado.settings.textos);
+  iniciar(resultado.proyecto, resultado.settings, resultado.unidades);
 })();
 </script>
 </body>

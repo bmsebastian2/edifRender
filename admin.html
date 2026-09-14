@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ROSSO by Block · panel interno</title>
+<title id="titulo-doc">Panel interno</title>
 <style>
   :root{
     --fondo:#DEE2E4; --tinta:#1A2124; --suave:#5D686C; --linea:rgba(26,33,36,.14);
@@ -75,13 +75,34 @@
     color:#fff;font:inherit;cursor:pointer}
   #form-redes button:disabled{opacity:.6;cursor:default}
   #redes-guardado{font-size:12.5px;color:var(--verde);margin:0 0 14px;display:none}
+
+  #selector-envoltorio{margin:16px 24px 0}
+  #selector-envoltorio label{display:block;font-size:12.5px;color:var(--suave);margin:0 0 5px}
+  #select-proyecto{padding:8px 10px;border:1px solid var(--linea);border-radius:4px;font:inherit;
+    background:#fff;color:var(--tinta);min-width:220px}
+  #sin-acceso{margin:16px 24px 0;padding:14px 16px;background:var(--papel);border:1px solid var(--linea);
+    border-radius:6px;max-width:480px;font-size:13px}
+  .amenity-flechas{display:flex;gap:4px}
+  .amenity-flechas button{border:1px solid var(--linea);background:#fff;border-radius:4px;cursor:pointer;
+    width:24px;height:24px;color:var(--suave)}
+  .amenity-flechas button:disabled{opacity:.35;cursor:default}
+  .input-texto{width:100%;padding:7px 9px;border:1px solid var(--linea);border-radius:4px;
+    font:inherit;font-size:12.5px;background:#fff;color:var(--tinta)}
+  #form-amenity-nuevo{display:flex;gap:8px;margin-top:14px;max-width:520px}
+  #form-amenity-nuevo input{flex:1;padding:9px 10px;border:1px solid var(--linea);border-radius:4px;font:inherit}
+  #form-amenity-nuevo button{padding:9px 16px;border:none;border-radius:4px;background:var(--tinta);
+    color:#fff;font:inherit;cursor:pointer}
+  .btn-borrar{border:1px solid var(--linea);background:#fff;border-radius:4px;cursor:pointer;
+    padding:5px 9px;font-size:12px;color:var(--suave)}
+  .btn-borrar:hover{color:#B3413A;border-color:#B3413A}
+  .modificado{font-size:11.5px;color:var(--suave)}
 </style>
 </head>
 <body>
 
 <div id="login-envoltorio">
   <form id="login-caja">
-    <h1>ROSSO by Block · panel interno</h1>
+    <h1>Panel interno</h1>
     <p>Ingresá con tu cuenta para editar el estado de las unidades.</p>
     <label for="login-email">Email</label>
     <input id="login-email" type="email" autocomplete="username" required>
@@ -95,7 +116,7 @@
 <div id="app-envoltorio">
 <button id="salir" type="button">Salir</button>
 <header>
-  <h1>ROSSO by Block · panel interno</h1>
+  <h1 id="h1-app">Panel interno</h1>
   <p class="sub">Así vería el vendedor el estado de sus unidades.</p>
 </header>
 
@@ -104,10 +125,20 @@
   de las unidades; el resto de la app sigue siendo de solo lectura para el público.
 </div>
 
-<main>
+<div id="selector-envoltorio" hidden>
+  <label for="select-proyecto">Proyecto</label>
+  <select id="select-proyecto"></select>
+</div>
+
+<div id="sin-acceso" hidden>
+  Tu usuario no tiene acceso a ningún proyecto todavía. Contactá a la plataforma para que te asigne uno.
+</div>
+
+<main id="main-app" hidden>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-tab="unidades" type="button">Unidades</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="demanda" type="button">Demanda</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="amenities" type="button">Amenities</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="redes" type="button">Redes</button>
   </div>
 
@@ -119,7 +150,7 @@
           <tr>
             <th>Unidad</th><th>Piso</th><th>Dorms</th><th class="num">m²</th>
             <th class="num">Terraza</th><th>Orientación</th><th class="num">Precio</th>
-            <th class="num">Cochera</th><th>Estado</th><th></th>
+            <th class="num">Cochera</th><th>Estado</th><th>Modificado</th><th></th>
           </tr>
         </thead>
         <tbody id="filas-unidades"></tbody>
@@ -147,10 +178,23 @@
     </div>
   </section>
 
+  <section id="panel-amenities" hidden>
+    <div class="tabla-envoltorio">
+      <table>
+        <thead><tr><th></th><th>Texto</th><th>Activo</th><th></th></tr></thead>
+        <tbody id="filas-amenities"></tbody>
+      </table>
+    </div>
+    <form id="form-amenity-nuevo">
+      <input id="nuevo-amenity-texto" type="text" placeholder="Nueva amenity…">
+      <button type="submit">Agregar</button>
+    </form>
+  </section>
+
   <section id="panel-redes" hidden>
     <form id="form-redes">
       <p class="sub" style="margin:0 0 16px">
-        Íconos que aparecen arriba a la derecha en la página del edificio.
+        Íconos y contacto que aparecen en la página del edificio.
         Dejá un campo vacío para que ese ícono no se muestre.
       </p>
       <p id="redes-guardado">Guardado.</p>
@@ -160,6 +204,8 @@
       <input id="redes-youtube" type="url" placeholder="https://youtube.com/...">
       <label for="redes-web">Sitio web</label>
       <input id="redes-web" type="url" placeholder="https://...">
+      <label for="redes-whatsapp">WhatsApp de contacto (solo números, con código de país)</label>
+      <input id="redes-whatsapp" type="text" placeholder="59891234567">
       <button type="submit">Guardar</button>
     </form>
   </section>
@@ -176,10 +222,82 @@ const ESTADOS = {
   sin_dato:   { nombre:'Sin estado público', color:'#9AA2A5' },
 };
 
+let PROYECTO_ACTUAL = null;
+let MIEMBROS_ACTUALES = {};
+
+function formatearPrecio(valor, moneda, locale){
+  return new Intl.NumberFormat(locale, { style:'currency', currency:moneda, maximumFractionDigits:0 }).format(valor);
+}
+
 async function mostrarApp(){
   document.getElementById('login-envoltorio').style.display = 'none';
   document.getElementById('app-envoltorio').style.display = 'block';
-  cargarUnidades();
+  await elegirProyecto();
+}
+
+// Plataforma ve todos los proyectos con selector siempre visible; un
+// miembro normal ve solo los suyos — directo si tiene uno solo, con
+// selector si tiene más de uno (ej. un vendedor de dos edificios).
+async function elegirProyecto(){
+  const { data: esPlataforma } = await sb.rpc('es_admin_plataforma');
+  let proyectos = [];
+
+  if (esPlataforma){
+    const { data } = await sb.from('projects').select('*').order('nombre');
+    proyectos = data || [];
+  } else {
+    const { data: { user } } = await sb.auth.getUser();
+    const { data: memberships } = await sb.from('memberships').select('project_id').eq('user_id', user.id);
+    const ids = (memberships || []).map(m => m.project_id);
+    if (ids.length){
+      const { data } = await sb.from('projects').select('*').in('id', ids);
+      proyectos = data || [];
+    }
+  }
+
+  if (!proyectos.length){
+    document.getElementById('sin-acceso').hidden = false;
+    return;
+  }
+
+  if (!esPlataforma && proyectos.length === 1){
+    cargarProyectoActual(proyectos[0]);
+    return;
+  }
+
+  const select = document.getElementById('select-proyecto');
+  select.innerHTML = proyectos.map(p => '<option value="' + p.id + '">' + p.nombre + '</option>').join('');
+  document.getElementById('selector-envoltorio').hidden = false;
+  select.addEventListener('change', () => {
+    cargarProyectoActual(proyectos.find(p => p.id === select.value));
+  });
+
+  const porQuery = new URLSearchParams(location.search).get('p');
+  const preseleccion = porQuery && proyectos.find(p => p.slug === porQuery);
+  const inicial = preseleccion || proyectos[0];
+  select.value = inicial.id;
+  cargarProyectoActual(inicial);
+}
+
+async function cargarProyectoActual(p){
+  PROYECTO_ACTUAL = p;
+  document.getElementById('h1-app').textContent = p.nombre + ' · panel interno';
+  document.getElementById('titulo-doc').textContent = p.nombre + ' · panel interno';
+  document.getElementById('main-app').hidden = false;
+
+  const { data: miembros } = await sb.rpc('miembros_proyecto', { p_project_id: p.id });
+  MIEMBROS_ACTUALES = Object.fromEntries((miembros || []).map(m => [m.user_id, m]));
+
+  demandaCargada = false;
+  redesCargadas = false;
+  cargarTab(document.querySelector('.tab[aria-selected="true"]').dataset.tab);
+}
+
+function cargarTab(tab){
+  if (tab === 'unidades') cargarUnidades();
+  if (tab === 'demanda') cargarDemanda();
+  if (tab === 'amenities') cargarAmenities();
+  if (tab === 'redes') cargarRedes();
 }
 
 function mostrarLogin(){
@@ -219,13 +337,13 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
   document.getElementById('panel-unidades').hidden = t.dataset.tab !== 'unidades';
   document.getElementById('panel-demanda').hidden = t.dataset.tab !== 'demanda';
+  document.getElementById('panel-amenities').hidden = t.dataset.tab !== 'amenities';
   document.getElementById('panel-redes').hidden = t.dataset.tab !== 'redes';
-  if (t.dataset.tab === 'demanda') cargarDemanda();
-  if (t.dataset.tab === 'redes') cargarRedes();
+  cargarTab(t.dataset.tab);
 }));
 
 async function cargarUnidades(){
-  const { data, error } = await sb.from('units').select('*').order('id');
+  const { data, error } = await sb.from('units').select('*').eq('project_id', PROYECTO_ACTUAL.id).order('id');
   if (error){
     document.getElementById('cargando-unidades').textContent =
       'No se pudo conectar con Supabase: ' + error.message;
@@ -247,9 +365,10 @@ function pintarUnidades(unidades){
       '<td class="num">' + u.m2 + '</td>' +
       '<td class="num"></td>' +
       '<td>' + u.orientacion + '</td>' +
-      '<td class="num">USD ' + Number(u.precio).toLocaleString('es-UY') + '</td>' +
+      '<td class="num">' + formatearPrecio(u.precio, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale) + '</td>' +
       '<td class="num"></td>' +
       '<td><span class="estado"><span class="punto" style="background:' + e.color + '"></span>' + e.nombre + '</span></td>' +
+      '<td></td>' +
       '<td></td>';
 
     const terrazaTd = tr.children[4];
@@ -272,6 +391,18 @@ function pintarUnidades(unidades){
       guardarCampo(u.id, 'cochera_precio', cocheraInput.value, cocheraInput));
     cocheraTd.appendChild(cocheraInput);
 
+    const modTd = tr.children[9];
+    const miembro = MIEMBROS_ACTUALES[u.updated_by];
+    if (u.updated_by){
+      const quien = miembro ? miembro.email : u.updated_by;
+      const cuando = u.updated_at
+        ? new Date(u.updated_at).toLocaleString('es-UY', { dateStyle:'short', timeStyle:'short' })
+        : '';
+      modTd.innerHTML = quien + '<br><span class="modificado">' + cuando + '</span>';
+    } else {
+      modTd.textContent = '—';
+    }
+
     const select = document.createElement('select');
     select.className = 'select-estado';
     Object.entries(ESTADOS).forEach(([k, e]) => {
@@ -291,7 +422,8 @@ function pintarUnidades(unidades){
 
 async function cambiarEstado(id, nuevoEstado, select){
   select.disabled = true;
-  const { error } = await sb.from('units').update({ estado: nuevoEstado }).eq('id', id);
+  const { error } = await sb.from('units').update({ estado: nuevoEstado })
+    .eq('id', id).eq('project_id', PROYECTO_ACTUAL.id);
   if (error){ alert('No se pudo actualizar: ' + error.message); select.disabled = false; return; }
   cargarUnidades();
 }
@@ -300,7 +432,8 @@ async function cambiarEstado(id, nuevoEstado, select){
 async function guardarCampo(id, campo, valorCrudo, input){
   const valor = valorCrudo.trim() === '' ? null : Number(valorCrudo);
   input.disabled = true;
-  const { error } = await sb.from('units').update({ [campo]: valor }).eq('id', id);
+  const { error } = await sb.from('units').update({ [campo]: valor })
+    .eq('id', id).eq('project_id', PROYECTO_ACTUAL.id);
   input.disabled = false;
   if (error){ alert('No se pudo actualizar: ' + error.message); return; }
 }
@@ -319,8 +452,8 @@ let demandaCargada = false;
 async function cargarDemanda(){
   if (demandaCargada) return;
   const [{ data: unidades, error: e1 }, { data: eventos, error: e2 }] = await Promise.all([
-    sb.from('units').select('*'),
-    sb.from('events').select('unit_id'),
+    sb.from('units').select('*').eq('project_id', PROYECTO_ACTUAL.id),
+    sb.from('events').select('unit_id').eq('project_id', PROYECTO_ACTUAL.id),
   ]);
   if (e1 || e2){
     document.getElementById('cargando-demanda').textContent = 'No se pudo cargar la demanda.';
@@ -366,12 +499,13 @@ async function cargarDemanda(){
 let redesCargadas = false;
 async function cargarRedes(){
   if (redesCargadas) return;
-  const { data, error } = await sb.from('settings').select('*').eq('id', 1).single();
+  const { data, error } = await sb.from('settings').select('*').eq('project_id', PROYECTO_ACTUAL.id).maybeSingle();
   if (error){ alert('No se pudo cargar la configuración: ' + error.message); return; }
   redesCargadas = true;
-  document.getElementById('redes-instagram').value = data.instagram || '';
-  document.getElementById('redes-youtube').value = data.youtube || '';
-  document.getElementById('redes-web').value = data.sitio_web || '';
+  document.getElementById('redes-instagram').value = data?.instagram || '';
+  document.getElementById('redes-youtube').value = data?.youtube || '';
+  document.getElementById('redes-web').value = data?.sitio_web || '';
+  document.getElementById('redes-whatsapp').value = data?.whatsapp || '';
 }
 
 document.getElementById('form-redes').addEventListener('submit', async (ev) => {
@@ -384,11 +518,103 @@ document.getElementById('form-redes').addEventListener('submit', async (ev) => {
     instagram: document.getElementById('redes-instagram').value.trim(),
     youtube: document.getElementById('redes-youtube').value.trim(),
     sitio_web: document.getElementById('redes-web').value.trim(),
-  }).eq('id', 1);
+    whatsapp: document.getElementById('redes-whatsapp').value.trim(),
+  }).eq('project_id', PROYECTO_ACTUAL.id);
   btn.disabled = false;
   if (error){ alert('No se pudo guardar: ' + error.message); return; }
   aviso.style.display = 'block';
   setTimeout(() => aviso.style.display = 'none', 2500);
+});
+
+async function cargarAmenities(){
+  const { data, error } = await sb.from('amenities').select('*')
+    .eq('project_id', PROYECTO_ACTUAL.id).order('orden');
+  if (error){ alert('No se pudo cargar amenities: ' + error.message); return; }
+  pintarAmenities(data || []);
+}
+
+function pintarAmenities(lista){
+  const tbody = document.getElementById('filas-amenities');
+  tbody.innerHTML = '';
+  lista.forEach((a, i) => {
+    const tr = document.createElement('tr');
+
+    const tdFlechas = document.createElement('td');
+    tdFlechas.className = 'amenity-flechas';
+    const btnArriba = document.createElement('button');
+    btnArriba.type = 'button'; btnArriba.textContent = '↑'; btnArriba.disabled = i === 0;
+    btnArriba.addEventListener('click', () => moverAmenity(lista, i, -1));
+    const btnAbajo = document.createElement('button');
+    btnAbajo.type = 'button'; btnAbajo.textContent = '↓'; btnAbajo.disabled = i === lista.length - 1;
+    btnAbajo.addEventListener('click', () => moverAmenity(lista, i, 1));
+    tdFlechas.append(btnArriba, btnAbajo);
+    tr.appendChild(tdFlechas);
+
+    const tdTexto = document.createElement('td');
+    const inputTexto = document.createElement('input');
+    inputTexto.className = 'input-texto';
+    inputTexto.value = a.texto;
+    inputTexto.addEventListener('change', () => guardarAmenity(a.id, { texto: inputTexto.value.trim() }));
+    tdTexto.appendChild(inputTexto);
+    tr.appendChild(tdTexto);
+
+    const tdActivo = document.createElement('td');
+    const check = document.createElement('input');
+    check.type = 'checkbox'; check.checked = a.activo;
+    check.addEventListener('change', () => guardarAmenity(a.id, { activo: check.checked }));
+    tdActivo.appendChild(check);
+    tr.appendChild(tdActivo);
+
+    const tdBorrar = document.createElement('td');
+    const btnBorrar = document.createElement('button');
+    btnBorrar.type = 'button'; btnBorrar.className = 'btn-borrar'; btnBorrar.textContent = 'Eliminar';
+    btnBorrar.addEventListener('click', () => borrarAmenity(a.id));
+    tdBorrar.appendChild(btnBorrar);
+    tr.appendChild(tdBorrar);
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function guardarAmenity(id, cambios){
+  const { error } = await sb.from('amenities').update(cambios)
+    .eq('id', id).eq('project_id', PROYECTO_ACTUAL.id);
+  if (error){ alert('No se pudo guardar: ' + error.message); return; }
+}
+
+// Reordenar swapea el `orden` con el vecino — más simple que renumerar
+// toda la lista y suficiente para el tamaño de esta tabla (unas pocas filas).
+async function moverAmenity(lista, i, dir){
+  const actual = lista[i], otro = lista[i + dir];
+  if (!otro) return;
+  const { error: e1 } = await sb.from('amenities').update({ orden: otro.orden })
+    .eq('id', actual.id).eq('project_id', PROYECTO_ACTUAL.id);
+  const { error: e2 } = await sb.from('amenities').update({ orden: actual.orden })
+    .eq('id', otro.id).eq('project_id', PROYECTO_ACTUAL.id);
+  if (e1 || e2){ alert('No se pudo reordenar'); }
+  cargarAmenities();
+}
+
+async function borrarAmenity(id){
+  if (!confirm('¿Eliminar esta amenity?')) return;
+  const { error } = await sb.from('amenities').delete().eq('id', id).eq('project_id', PROYECTO_ACTUAL.id);
+  if (error){ alert('No se pudo eliminar: ' + error.message); return; }
+  cargarAmenities();
+}
+
+document.getElementById('form-amenity-nuevo').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const input = document.getElementById('nuevo-amenity-texto');
+  const texto = input.value.trim();
+  if (!texto) return;
+  const { data: existentes } = await sb.from('amenities').select('orden')
+    .eq('project_id', PROYECTO_ACTUAL.id).order('orden', { ascending:false }).limit(1);
+  const siguienteOrden = existentes && existentes.length ? existentes[0].orden + 1 : 1;
+  const { error } = await sb.from('amenities')
+    .insert({ project_id: PROYECTO_ACTUAL.id, texto, orden: siguienteOrden, activo: true });
+  if (error){ alert('No se pudo agregar: ' + error.message); return; }
+  input.value = '';
+  cargarAmenities();
 });
 
 </script>

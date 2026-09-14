@@ -1,8 +1,14 @@
 // Pegá acá la URL y la anon key de tu proyecto de Supabase
 // (Project Settings → API, en el dashboard de supabase.com).
 // La anon key es pública a propósito: los permisos reales los controla
-// Row Level Security en la base (ver supabase-schema.sql), no el secreto de esta key.
+// Row Level Security en la base (ver supabase-migration-multitenant.sql),
+// no el secreto de esta key.
 // Nunca pegues acá la service_role key.
+//
+// Esta base es multi-tenant: un mismo proyecto Supabase aloja varios
+// edificios de varios clientes. Este archivo NO identifica qué edificio se
+// muestra — eso lo resuelve index.html/admin.html por slug (?p=<slug> o el
+// path), no una URL/key por edificio.
 
 const SUPABASE_URL = "https://qfnmqcdtqilhbjddhcnh.supabase.co";
 const SUPABASE_ANON_KEY =
