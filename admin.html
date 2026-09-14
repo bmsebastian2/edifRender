@@ -30,6 +30,12 @@
   th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--linea);font-size:13px;white-space:nowrap}
   tbody tr:last-child td{border-bottom:none}
   th{color:var(--suave);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
+  /* La tabla de unidades tiene 78 filas: con overflow-x solo, la barra de
+     scroll horizontal quedaba al final de todas las filas. Altura acotada +
+     scroll propio + header pegajoso para que la barra y los títulos de
+     columna estén siempre a mano, sin bajar toda la tabla. */
+  #panel-unidades .tabla-envoltorio{max-height:70vh;overflow-y:auto}
+  #panel-unidades thead th{position:sticky;top:0;background:var(--papel);z-index:1}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
   .estado{display:inline-flex;align-items:center;gap:6px}
   .punto{width:8px;height:8px;border-radius:2px;flex:none}
