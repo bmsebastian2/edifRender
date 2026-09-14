@@ -95,6 +95,8 @@
   #pisos .pisos-pb{position:sticky;bottom:0;z-index:2;background:var(--fondo)}
   #pisos-backdrop{display:none}
   #pisos-trigger{display:none}
+  #filtros-backdrop{display:none}
+  #filtros-trigger{display:none}
 
   #piso-info{position:fixed;right:70px;top:50%;transform:translateY(-50%) translateX(6px);z-index:10;
     max-width:210px;padding:13px 15px;border-radius:5px;background:var(--papel);
@@ -178,8 +180,50 @@
   @media (max-width:860px){
     #cabezal{max-width:none;padding:16px 18px}
     #cabezal h1{font-size:19px}
-    #filtros{left:18px;right:18px;max-width:none;bottom:16px}
 
+    /* Filtros: en desktop es un panel siempre visible abajo a la izquierda;
+       en mobile eso significaba Tipología + Estado + "Separar pisos"
+       ocupando permanentemente un tercio de la pantalla y tapando el
+       edificio (que es lo importante acá). Mismo mecanismo que el riel de
+       pisos: colapsa a un botón compacto y se abre como hoja solo cuando
+       hace falta tocarlo. */
+    #filtros-trigger{
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      position:fixed;left:18px;right:18px;bottom:calc(16px + env(safe-area-inset-bottom));
+      z-index:10;padding:12px 16px;border-radius:8px;
+      border:1px solid var(--linea);background:var(--papel);color:var(--tinta);
+      font-size:13.5px;font-weight:600;cursor:pointer;
+      box-shadow:0 4px 14px rgba(20,26,28,.10);
+    }
+    #filtros-trigger .chev{transition:transform .2s ease;color:var(--suave);flex:none}
+    #filtros-trigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
+    .ft-badge{
+      display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;
+      padding:0 5px;border-radius:9px;background:var(--tinta);color:#fff;font-size:10.5px;font-weight:700;
+    }
+    .ft-badge[hidden]{display:none}
+    #panel.abierto ~ #filtros-trigger{display:none}
+
+    #filtros-backdrop{
+      display:block;position:fixed;inset:0;z-index:19;background:rgba(26,33,36,.35);
+      opacity:0;pointer-events:none;transition:opacity .2s ease;
+    }
+    #filtros-backdrop.visible{opacity:1;pointer-events:auto}
+
+    #filtros{
+      position:fixed;top:auto;right:0;bottom:0;left:0;transform:translateY(100%);
+      z-index:20;max-width:none;max-height:min(70vh,520px);
+      background:#fff;border-top:1px solid var(--linea);border-radius:14px 14px 0 0;
+      box-shadow:0 -10px 30px rgba(20,26,28,.16);
+      padding:22px 18px calc(18px + env(safe-area-inset-bottom));
+      overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+      transition:transform .28s cubic-bezier(.22,.61,.36,1);
+    }
+    #filtros.abierto{transform:translateY(0)}
+    #filtros::before{
+      content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);
+      width:36px;height:4px;border-radius:2px;background:var(--linea);
+    }
     /* Riel de pisos: en desktop es una columna fija a la derecha; en mobile
        no hay ancho para eso (y una tira horizontal no escala si el edificio
        tiene muchos pisos), así que pasa a ser una hoja que sube desde abajo,
@@ -353,6 +397,20 @@
 <div id="compartir-aviso" role="status" aria-live="polite">Link copiado</div>
 
 <div id="tooltip"></div>
+
+<!-- En mobile #filtros es una hoja que sube desde abajo (mismo mecanismo
+     que #pisos/#pisos-trigger: la data siempre estuvo ahí pero ocupaba
+     permanentemente un tercio de la pantalla, tapando el edificio). En
+     desktop #filtros-trigger/#filtros-backdrop quedan ocultos y sin
+     efecto, y #filtros se ve exactamente igual que siempre. -->
+<div id="filtros-backdrop"></div>
+<button id="filtros-trigger" type="button" aria-expanded="false" aria-controls="filtros">
+  <span>Filtros</span>
+  <span id="ft-badge" class="ft-badge" hidden></span>
+  <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+    <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
 
 <div id="filtros">
   <div class="grupo"><p>Tipología</p><div class="fila" id="f-dorms"></div></div>
@@ -623,7 +681,7 @@ base.position.y = -0.6;
 base.receiveShadow = true;
 escena.add(base);
 
-// Calle: franja de asfalto frente al edificio (lado "frente", ver CALLE_FRENTE
+// Calle: franja de asfalto frente al edificio (lado "frente", ver NOMBRE_CALLE
 // más abajo) con línea de carril discontinua, para que quede claro a simple
 // vista que ese lado da a una vía vehicular y no es un lado cualquiera.
 const ANCHO_CALLE = calleCfg.ancho ?? 8, LARGO_CALLE = calleCfg.largo ?? 44, VEREDA = calleCfg.vereda ?? 2;
@@ -735,16 +793,24 @@ for (let piso = 1; piso <= PISOS; piso++){
 }
 const ALTURA = (PISOS + 1) * PASO; // pisos + PB
 
-// Cartel de calle: nombre de la vía, parado junto a la vereda como un cartel
-// real. Es un sprite (siempre mirando a cámara) para que se pueda leer desde
-// cualquier ángulo de órbita.
+// Cartel de calle: nombre de la vía + ícono de ubicación, parado junto a la
+// vereda como un cartel real. Es un sprite (siempre mirando a cámara)
+// anclado a la posición de la calle en el mundo 3D a propósito: tiene que
+// quedar SIEMPRE sobre la carretera del frente, sin importar cómo se
+// oriente la cámara. Es clickeable (raycasting, ver BUCLE más abajo) y abre
+// Google Maps en esa dirección — el ícono en el cartel es la pista visual
+// de que se puede tocar.
+// geometria.calle_nombre permite fijar el nombre a mano; si no está, se
+// aproxima tomando la dirección hasta el primer número
+// ("Bulevar 123, Barrio" → "Bulevar").
 function crearCartelCalle(texto){
   const cv = document.createElement('canvas');
   const ctx = cv.getContext('2d');
   const fuente = '600 44px Inter, "Helvetica Neue", Arial, sans-serif';
   ctx.font = fuente;
   const anchoTexto = ctx.measureText(texto).width;
-  cv.width = anchoTexto + 90;
+  const iconoR = 15, iconoHueco = 24; // radio del pin + separación hasta el texto
+  cv.width = iconoR * 2 + iconoHueco + anchoTexto + 66;
   cv.height = 84;
   ctx.font = fuente;
   ctx.textBaseline = 'middle';
@@ -759,8 +825,28 @@ function crearCartelCalle(texto){
   ctx.arcTo(0, 0, r, 0, r);
   ctx.closePath();
   ctx.fill();
+
+  // Pin de ubicación (círculo + punta + agujero central "recortado" con
+  // destination-out, para que se vea hueco como un ícono de mapa real).
+  const cx = 24 + iconoR, cy = cv.height / 2;
   ctx.fillStyle = '#fff';
-  ctx.fillText(texto, cv.width / 2, cv.height / 2 + 2);
+  ctx.beginPath();
+  ctx.arc(cx, cy - iconoR * 0.15, iconoR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx - iconoR * 0.75, cy + iconoR * 0.55);
+  ctx.quadraticCurveTo(cx, cy + iconoR * 1.9, cx + iconoR * 0.75, cy + iconoR * 0.55);
+  ctx.closePath();
+  ctx.fill();
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.arc(cx, cy - iconoR * 0.15, iconoR * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = '#fff';
+  ctx.fillText(texto, cx + iconoR + iconoHueco + anchoTexto / 2, cv.height / 2 + 2);
 
   const tex = new THREE.CanvasTexture(cv);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -771,13 +857,11 @@ function crearCartelCalle(texto){
   return sprite;
 }
 
-// Parado junto a la calle, como un cartel de nomenclátor real, para que se
-// lea como el nombre de la vía y no como una etiqueta del edificio.
-// geometria.calle_nombre permite fijarlo a mano; si no está, se aproxima
-// tomando la dirección hasta el primer número ("Bulevar 123, Barrio" → "Bulevar").
-const CALLE_FRENTE = geo.calle_nombre || (proyecto.direccion || '').replace(/\s*\d.*$/, '') || proyecto.nombre;
-const cartelCalle = crearCartelCalle(CALLE_FRENTE);
-cartelCalle.position.set(LARGO_CALLE / 2 - 9, 1.7, BORDE_FRENTE - VEREDA);
+const NOMBRE_CALLE = geo.calle_nombre || (proyecto.direccion || '').replace(/\s*\d.*$/, '') || proyecto.nombre;
+const cartelCalle = crearCartelCalle(NOMBRE_CALLE);
+cartelCalle.position.set(LARGO_CALLE / 2 - 4, 1.7, BORDE_FRENTE - VEREDA);
+const consultaMapaCalle = [proyecto.direccion, proyecto.ciudad, proyecto.pais].filter(Boolean).join(', ') || NOMBRE_CALLE;
+cartelCalle.userData.mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(consultaMapaCalle);
 escena.add(cartelCalle);
 
 /* ============================================================
@@ -826,7 +910,7 @@ lienzo.addEventListener('wheel', e => {
 
 const rayo = new THREE.Raycaster();
 const raton = new THREE.Vector2(-2,-2);
-let posRaton = {x:0,y:0}, sobre = null, elegida = null, separado = false, pisoAislado = null;
+let posRaton = {x:0,y:0}, sobre = null, sobreCalle = false, elegida = null, separado = false, pisoAislado = null;
 let fDorms = new Set([1,2]), fEstado = new Set(Object.keys(ESTADOS));
 
 const tooltip = document.getElementById('tooltip');
@@ -845,6 +929,7 @@ function aplicar(){
     c.userData.borde.material.opacity = ok ? 0.26 : 0.04;
   });
   if (elegida && !pasa(elegida)) cerrar();
+  actualizarBadgeFiltros();
 }
 
 function chip(cont, texto, color, alTocar){
@@ -919,6 +1004,7 @@ const pisosTriggerLabel = pisosTrigger.querySelector('.pt-label');
 const pisosBackdrop = document.getElementById('pisos-backdrop');
 
 function abrirHoja(){
+  cerrarFiltros();
   riel.classList.add('abierto');
   pisosBackdrop.classList.add('visible');
   pisosTrigger.setAttribute('aria-expanded','true');
@@ -932,6 +1018,39 @@ pisosTrigger.addEventListener('click', () => {
   riel.classList.contains('abierto') ? cerrarHoja() : abrirHoja();
 });
 pisosBackdrop.addEventListener('click', cerrarHoja);
+
+// Mismo mecanismo de hoja que el riel de pisos, para Tipología/Estado/
+// Separar pisos: en desktop #filtros-trigger/#filtros-backdrop quedan
+// ocultos y estas funciones son no-ops inofensivos.
+const filtrosTrigger = document.getElementById('filtros-trigger');
+const filtrosBackdrop = document.getElementById('filtros-backdrop');
+const filtrosEl = document.getElementById('filtros');
+const ftBadge = document.getElementById('ft-badge');
+
+function abrirFiltros(){
+  cerrarHoja();
+  filtrosEl.classList.add('abierto');
+  filtrosBackdrop.classList.add('visible');
+  filtrosTrigger.setAttribute('aria-expanded','true');
+}
+function cerrarFiltros(){
+  filtrosEl.classList.remove('abierto');
+  filtrosBackdrop.classList.remove('visible');
+  filtrosTrigger.setAttribute('aria-expanded','false');
+}
+filtrosTrigger.addEventListener('click', () => {
+  filtrosEl.classList.contains('abierto') ? cerrarFiltros() : abrirFiltros();
+});
+filtrosBackdrop.addEventListener('click', cerrarFiltros);
+
+// Badge con la cantidad de opciones excluidas (todo prendido por default
+// = sin badge), para que se sepa desde afuera si hay un filtro activo sin
+// tener que abrir la hoja.
+function actualizarBadgeFiltros(){
+  const excluidos = (2 - fDorms.size) + (Object.keys(ESTADOS).length - fEstado.size);
+  ftBadge.textContent = excluidos;
+  ftBadge.hidden = excluidos === 0;
+}
 
 function actualizarRielPisos(){
   botonesPiso.forEach((el,i) => el.setAttribute('aria-pressed', pisoAislado === i+1));
@@ -1148,7 +1267,11 @@ btnCopiar.addEventListener('click', async () => {
 
 document.getElementById('cerrar').addEventListener('click', cerrar);
 addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
-lienzo.addEventListener('click', () => sobre ? abrir(sobre.userData.unidad) : cerrar());
+lienzo.addEventListener('click', () => {
+  if (sobre) abrir(sobre.userData.unidad);
+  else if (sobreCalle) window.open(cartelCalle.userData.mapsUrl, '_blank', 'noopener');
+  else cerrar();
+});
 
 aplicar();
 
@@ -1188,6 +1311,19 @@ function animar(){
     } else tooltip.style.opacity = 0;
   }
   if (sobre){ tooltip.style.left = posRaton.x+'px'; tooltip.style.top = posRaton.y+'px'; }
+
+  // Cartel de calle: mismo patrón de hover/tooltip que las unidades, pero
+  // sin emissive (es un sprite, no tiene material que resaltar) — solo
+  // cursor + tooltip para dejar claro que es clickeable.
+  const golpeCalle = sobre ? [] : rayo.intersectObject(cartelCalle, false);
+  const nuevoSobreCalle = golpeCalle.length > 0;
+  if (nuevoSobreCalle !== sobreCalle){
+    sobreCalle = nuevoSobreCalle;
+    if (!sobre) lienzo.style.cursor = sobreCalle ? 'pointer' : 'grab';
+    if (sobreCalle){ tooltip.textContent = 'Ver en Google Maps'; tooltip.style.opacity = 1; }
+    else if (!sobre) tooltip.style.opacity = 0;
+  }
+  if (sobreCalle){ tooltip.style.left = posRaton.x+'px'; tooltip.style.top = posRaton.y+'px'; }
 
   cajas.forEach(c => {
     const sel = elegida && c.userData.unidad.id === elegida.id;
