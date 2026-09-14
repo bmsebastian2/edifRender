@@ -106,16 +106,46 @@
   #panel.abierto{transform:none}
   #cerrar{position:absolute;top:18px;right:18px;width:28px;height:28px;border:1px solid var(--linea);
     background:none;border-radius:50%;color:var(--suave);cursor:pointer;line-height:1}
-  #p-unidad{font-size:34px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:0}
-  #p-estado{display:inline-flex;align-items:center;gap:7px;margin:6px 0 20px;font-size:13px;color:var(--suave)}
-  dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:10px 18px;font-size:13.5px}
-  dt{color:var(--suave);margin:0}
-  dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
-  #p-precio{font-size:20px;font-weight:600;margin:20px 0 4px;font-variant-numeric:tabular-nums}
-  #p-fuente{font-size:12px;color:var(--suave);margin:0}
-  .planta{background:#fff;border:1px solid var(--linea);border-radius:6px;padding:12px 12px 8px;margin-bottom:18px}
+  /* Cabecera del panel: número de unidad + estado a la izquierda, y una
+     "tira de elevación" a la derecha — el mismo lenguaje del riel de pisos
+     (panel de ascensor) trasladado acá, para que el número no flote solo:
+     siempre se lee en relación a dónde está esa unidad en la torre. */
+  .p-cabeza{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-top:26px}
+  .p-eyebrow{margin:0;font-size:11px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;color:var(--suave)}
+  #p-unidad{font-size:32px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0 0}
+  #p-estado{display:inline-flex;align-items:center;gap:6px;margin:10px 0 0;padding:5px 12px 5px 9px;
+    border-radius:20px;font-size:12.5px;font-weight:650;border:1px solid var(--linea);width:fit-content}
+  #p-estado .punto{border-radius:50%}
+
+  .p-tira-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex:none;padding-top:1px}
+  .p-tira-tope,.p-tira-base{font-size:8.5px;font-weight:650;letter-spacing:.03em;color:var(--suave)}
+  .p-tira{display:flex;flex-direction:column-reverse;align-items:flex-end;gap:3px}
+  .p-tira-marca{display:block;width:13px;height:5px;border-radius:1px;background:var(--linea)}
+  .p-tira-marca.activa{width:21px}
+
+  dl{margin:0;display:grid;grid-template-columns:auto 1fr;column-gap:18px;row-gap:0;font-size:13.5px}
+  dt{color:var(--suave);margin:0;padding:9px 0;border-bottom:1px solid var(--linea)}
+  dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:560;padding:9px 0;border-bottom:1px solid var(--linea)}
+
+  .p-precio-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin:18px 0 4px}
+  #p-precio{font-size:22px;font-weight:650;margin:0;font-variant-numeric:tabular-nums}
+  .p-tag{display:inline-flex;align-items:center;padding:4px 11px;border-radius:20px;font-size:11px;
+    font-weight:650;letter-spacing:.01em;border:1px solid var(--linea);color:var(--suave);background:var(--papel)}
+  .p-tag-real{color:var(--verde);border-color:rgba(47,122,104,.35);background:rgba(47,122,104,.09)}
+  .p-tag-estimado{color:var(--ambar);border-color:rgba(192,132,41,.35);background:rgba(192,132,41,.09)}
+
+  /* Fondo cuadriculado tipo papel milimetrado: la planta ya es un esquema
+     técnico (líneas punteadas para vanos, etc.), esto lo refuerza sin
+     agregar otro elemento nuevo. */
+  .planta{
+    background-color:#fff;
+    background-image:linear-gradient(rgba(26,33,36,.05) 1px,transparent 1px),
+                      linear-gradient(90deg,rgba(26,33,36,.05) 1px,transparent 1px);
+    background-size:9px 9px;
+    border:1px solid var(--linea);border-radius:6px;padding:12px 12px 8px;margin-bottom:18px;
+  }
   .planta svg{width:100%;height:auto;display:block}
-  .planta figcaption{font-size:11.5px;color:var(--suave);margin-top:7px;text-align:center}
+  .planta figcaption{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--suave);margin-top:8px;text-align:center}
   .acciones-panel{display:flex;flex-direction:column;gap:8px;margin-top:22px}
   .bton{
     display:flex;align-items:center;justify-content:center;gap:8px;
@@ -127,6 +157,7 @@
   .bton-s{border-color:var(--linea);background:none;color:var(--suave)}
   .bton-s:hover{color:var(--tinta);border-color:rgba(26,33,36,.34)}
   .bton:focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
+  .bton svg{flex:none}
   .nota{margin-top:auto;padding-top:16px;border-top:1px solid var(--linea);color:var(--suave);font-size:12px;line-height:1.55}
   #p-edificio{margin-top:18px;padding-top:16px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--suave);line-height:1.55}
   #p-edificio .p-edificio-tit{margin:0 0 8px;font-weight:600;color:var(--tinta);font-size:12.5px}
@@ -296,22 +327,44 @@
 
 <aside id="panel" aria-live="polite">
   <button id="cerrar" aria-label="Cerrar">×</button>
-  <p id="p-unidad">—</p>
-  <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
+  <div class="p-cabeza">
+    <div>
+      <p class="p-eyebrow" id="p-eyebrow">Piso —</p>
+      <p id="p-unidad">—</p>
+      <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
+    </div>
+    <div class="p-tira-wrap" aria-hidden="true">
+      <span class="p-tira-tope">10</span>
+      <div class="p-tira" id="p-tira"></div>
+      <span class="p-tira-base">PB</span>
+    </div>
+  </div>
   <figure class="planta" id="p-planta"></figure>
   <dl>
-    <dt>Piso</dt><dd id="p-piso"></dd>
     <dt>Dormitorios</dt><dd id="p-dorms"></dd>
     <dt>Superficie total</dt><dd id="p-m2"></dd>
     <dt id="p-terraza-dt" hidden>Terraza</dt><dd id="p-terraza-dd" hidden></dd>
     <dt>Orientación</dt><dd id="p-orient"></dd>
     <dt id="p-cochera-dt" hidden>Cochera</dt><dd id="p-cochera-dd" hidden></dd>
   </dl>
-  <p id="p-precio"></p>
-  <p id="p-fuente"></p>
+  <div class="p-precio-wrap">
+    <p id="p-precio"></p>
+    <span id="p-fuente" class="p-tag"></span>
+  </div>
   <div class="acciones-panel">
-    <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">Consultar por esta unidad</a>
-    <button class="bton bton-s" id="p-copiar">Copiar link de esta unidad</button>
+    <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+      </svg>
+      <span class="bton-txt">Consultar por esta unidad</span>
+    </a>
+    <button class="bton bton-s" id="p-copiar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="9" y="9" width="13" height="13" rx="2"/>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+      <span class="bton-txt">Copiar link de esta unidad</span>
+    </button>
   </div>
   <div id="p-edificio">
     <p class="p-edificio-tit">Amenities del edificio</p>
@@ -879,6 +932,20 @@ function plantaSVG(u){
          '<figcaption>Esquema de proporciones · '+u.m2+' m² totales</figcaption>';
 }
 
+// Tira de elevación junto al número de unidad: 11 marcas (PB + pisos 1–10),
+// la del piso de la unidad elegida se destaca con el color de su estado.
+// Mismo lenguaje visual que el riel de pisos (panel de ascensor).
+function actualizarTiraPiso(u){
+  const cont = document.getElementById('p-tira');
+  cont.innerHTML = '';
+  for (let p = 0; p <= 10; p++){
+    const marca = document.createElement('i');
+    marca.className = 'p-tira-marca' + (p === u.piso ? ' activa' : '');
+    if (p === u.piso) marca.style.background = ESTADOS[u.estado].color;
+    cont.appendChild(marca);
+  }
+}
+
 const WHATSAPP = '59891856500';
 
 // Lleva la cámara frente a la unidad, a la altura de su piso.
@@ -909,11 +976,16 @@ function abrir(u, mover){
   tooltip.style.opacity = 0; // en touch queda pegado en la última posición tocada
   if (mover) enfocar(u);
   const e = ESTADOS[u.estado];
+  document.getElementById('p-eyebrow').textContent    = 'Piso ' + u.piso;
   document.getElementById('p-unidad').textContent     = u.id;
   document.getElementById('p-estado-txt').textContent = e.nombre;
   document.getElementById('p-color').style.background = e.color;
+  const pEstado = document.getElementById('p-estado');
+  pEstado.style.background   = e.color + '1A';
+  pEstado.style.borderColor  = e.color + '4D';
+  pEstado.style.color        = e.color;
+  actualizarTiraPiso(u);
   document.getElementById('p-planta').innerHTML   = plantaSVG(u);
-  document.getElementById('p-piso').textContent   = 'Piso ' + u.piso;
   document.getElementById('p-dorms').textContent      = u.dorms;
   document.getElementById('p-m2').textContent         = u.m2 + ' m²';
   document.getElementById('p-orient').textContent     = u.orient;
@@ -928,7 +1000,10 @@ function abrir(u, mover){
   const cocheraDd = document.getElementById('p-cochera-dd');
   cocheraDt.hidden = cocheraDd.hidden = !u.cocheraPrecio;
   if (u.cocheraPrecio) cocheraDd.textContent = 'USD ' + u.cocheraPrecio.toLocaleString('es-UY') + ' (opcional)';
-  document.getElementById('p-fuente').textContent     = u.estimado
+  const fuente = document.getElementById('p-fuente');
+  fuente.textContent = u.estimado ? 'Dato estimado' : 'Dato publicado';
+  fuente.className = 'p-tag ' + (u.estimado ? 'p-tag-estimado' : 'p-tag-real');
+  fuente.title = u.estimado
     ? 'Precio y superficie estimados — falta el dato real.'
     : 'Precio y superficie publicados en el aviso.';
   const texto = 'Hola, quiero consultar por la unidad ' + u.id + ' de ROSSO by Block (' +
@@ -946,12 +1021,13 @@ function cerrar(){
 }
 
 const btnCopiar = document.getElementById('p-copiar');
+const btnCopiarTxt = btnCopiar.querySelector('.bton-txt');
 btnCopiar.addEventListener('click', async () => {
   if (!elegida) return;
   try { await navigator.clipboard.writeText(linkDe(elegida)); }
   catch { return; }
-  btnCopiar.textContent = 'Link copiado';
-  setTimeout(() => btnCopiar.textContent = 'Copiar link de esta unidad', 1800);
+  btnCopiarTxt.textContent = 'Link copiado';
+  setTimeout(() => btnCopiarTxt.textContent = 'Copiar link de esta unidad', 1800);
 });
 
 document.getElementById('cerrar').addEventListener('click', cerrar);
