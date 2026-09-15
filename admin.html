@@ -111,8 +111,42 @@
     color:#fff;cursor:pointer;font-size:13px}
   .btn-subir:hover{opacity:.9}
   .btn-subir[aria-disabled="true"]{opacity:.6;pointer-events:none}
-  #imagen-subiendo{margin-left:10px;font-size:12.5px;color:var(--suave)}
-  #sin-imagenes{color:var(--suave);margin:0 0 16px}
+  .subiendo{margin-left:10px;font-size:12.5px;color:var(--suave)}
+  .sin-imagenes{color:var(--suave);margin:0 0 16px;font-size:12.5px}
+
+  /* Tipologías: cada tarjeta agrupa datos + dos galerías (planta/renders). */
+  .tarjeta-tipologia{background:var(--papel);border:1px solid var(--linea);border-radius:6px;
+    padding:16px;margin-bottom:14px}
+  .tipologia-cabeza{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px}
+  .tipologia-cabeza input{padding:7px 9px;border:1px solid var(--linea);border-radius:4px;
+    font:inherit;font-size:12.5px;background:#fff;color:var(--tinta)}
+  .tipologia-cabeza input.tipologia-nombre{flex:1;min-width:160px;font-weight:600}
+  .tipologia-cabeza input.tipologia-num{width:70px}
+  .tipologia-cabeza input.tipologia-orient{width:110px}
+  .tipologia-unidades{margin:0 0 14px;font-size:12px;color:var(--suave)}
+  .tipologia-media{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:640px){ .tipologia-media{grid-template-columns:1fr} }
+  .tipologia-media h4{margin:0 0 8px;font-size:11.5px;color:var(--suave);font-weight:600;
+    text-transform:uppercase;letter-spacing:.03em}
+  .dropzone{border:1.5px dashed var(--linea);border-radius:6px;padding:10px;text-align:center;
+    color:var(--suave);font-size:12px;margin-bottom:10px}
+  .dropzone.dropzone-activa{border-color:var(--verde);background:rgba(47,122,104,.06);color:var(--verde)}
+  .form-tipologia-nueva{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+  .form-tipologia-nueva input{padding:9px 10px;border:1px solid var(--linea);border-radius:4px;font:inherit}
+  .form-tipologia-nueva input.campo-nombre{flex:1;min-width:180px}
+  .form-tipologia-nueva input.campo-num{width:90px}
+  .form-tipologia-nueva button{padding:9px 16px;border:none;border-radius:4px;background:var(--tinta);
+    color:#fff;font:inherit;cursor:pointer}
+
+  .barra-lote{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--papel);border:1px solid var(--linea);border-radius:6px;padding:10px 12px;margin-bottom:12px}
+  .barra-lote-acciones{display:flex;align-items:center;gap:8px}
+  .barra-lote select{padding:7px 9px;border:1px solid var(--linea);border-radius:4px;font:inherit;
+    font-size:12.5px;background:#fff;color:var(--tinta)}
+  .barra-lote button{padding:7px 12px;border:none;border-radius:4px;background:var(--tinta);
+    color:#fff;font:inherit;font-size:12.5px;cursor:pointer}
+  .barra-lote button:disabled{opacity:.5;cursor:default}
+  .col-check{width:28px}
 </style>
 </head>
 <body>
@@ -156,19 +190,28 @@
     <button class="tab" role="tab" aria-selected="true" data-tab="unidades" type="button">Unidades</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="demanda" type="button">Demanda</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="amenities" type="button">Amenities</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="tipologias" type="button">Tipologías</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="imagenes" type="button">Imágenes</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="redes" type="button">Redes</button>
   </div>
 
   <section id="panel-unidades">
     <div id="cargando-unidades">Cargando unidades…</div>
+    <div id="barra-lote" class="barra-lote" hidden>
+      <span id="tipologias-sin-asignar" class="sub"></span>
+      <div class="barra-lote-acciones">
+        <select id="select-tipologia-lote"><option value="">Elegir tipología…</option><option value="__ninguna__">Quitar tipología</option></select>
+        <button id="btn-asignar-lote" type="button" disabled>Asignar a seleccionadas (<span id="conteo-seleccion">0</span>)</button>
+      </div>
+    </div>
     <div class="tabla-envoltorio">
       <table id="tabla-unidades" hidden>
         <thead>
           <tr>
+            <th class="col-check"><input type="checkbox" id="check-todas" aria-label="Seleccionar todas"></th>
             <th>Unidad</th><th>Piso</th><th>Dorms</th><th class="num">m²</th>
             <th class="num">Terraza</th><th>Orientación</th><th class="num">Precio</th>
-            <th class="num">Cochera</th><th>Estado</th><th>Modificado</th><th></th>
+            <th class="num">Cochera</th><th>Tipología</th><th>Estado</th><th>Modificado</th><th></th>
           </tr>
         </thead>
         <tbody id="filas-unidades"></tbody>
@@ -209,15 +252,33 @@
     </form>
   </section>
 
+  <section id="panel-tipologias" hidden>
+    <p class="sub" style="margin:0 0 16px">
+      Cada tipología agrupa las unidades que comparten la misma distribución. Subí acá la planta
+      real (y renders, si tenés) — se muestran en el panel público de cada unidad asignada a esa
+      tipología. Asigná las unidades a cada tipología desde la pestaña Unidades.
+    </p>
+    <div id="cargando-tipologias">Cargando tipologías…</div>
+    <div id="lista-tipologias"></div>
+    <form id="form-tipologia-nueva" class="form-tipologia-nueva" hidden>
+      <input id="nueva-tipologia-nombre" class="campo-nombre" type="text" placeholder="Nombre (ej. Monoambiente A)" required>
+      <input id="nueva-tipologia-dorms" class="campo-num" type="number" min="0" step="1" placeholder="Dorms" required>
+      <input id="nueva-tipologia-m2" class="campo-num" type="number" min="0" step="0.01" placeholder="m²" required>
+      <input id="nueva-tipologia-orient" class="campo-num" type="text" placeholder="Orientación" style="width:120px">
+      <button type="submit">Crear tipología</button>
+    </form>
+  </section>
+
   <section id="panel-imagenes" hidden>
     <p class="sub" style="margin:0 0 16px">
       Fotos o renders del edificio que se muestran en la galería pública ("Ver renders" en la
       página del proyecto). El orden acá es el mismo con el que aparecen ahí.
     </p>
+    <div id="dropzone-imagenes" class="dropzone">Arrastrá una o más imágenes acá, o subilas con el botón de abajo.</div>
     <div id="grid-imagenes" class="grid-imagenes"></div>
     <label id="btn-subir-imagen" class="btn-subir" for="input-imagen">Subir imagen…</label>
-    <input id="input-imagen" type="file" accept="image/*" hidden>
-    <span id="imagen-subiendo" hidden>Subiendo…</span>
+    <input id="input-imagen" type="file" accept="image/*" multiple hidden>
+    <span id="imagen-subiendo" class="subiendo" hidden>Subiendo…</span>
     <p id="imagenes-contador" class="sub" style="margin:10px 0 0"></p>
   </section>
 
@@ -254,6 +315,8 @@ const ESTADOS = {
 
 let PROYECTO_ACTUAL = null;
 let MIEMBROS_ACTUALES = {};
+let TIPOLOGIAS_ACTUALES = [];
+let UNIDADES_ACTUALES = [];
 
 function formatearPrecio(valor, moneda, locale){
   return new Intl.NumberFormat(locale, { style:'currency', currency:moneda, maximumFractionDigits:0 }).format(valor);
@@ -320,6 +383,7 @@ async function cargarProyectoActual(p){
 
   demandaCargada = false;
   redesCargadas = false;
+  TIPOLOGIAS_ACTUALES = [];
   cargarTab(document.querySelector('.tab[aria-selected="true"]').dataset.tab);
 }
 
@@ -327,6 +391,7 @@ function cargarTab(tab){
   if (tab === 'unidades') cargarUnidades();
   if (tab === 'demanda') cargarDemanda();
   if (tab === 'amenities') cargarAmenities();
+  if (tab === 'tipologias') cargarTipologias();
   if (tab === 'imagenes') cargarImagenes();
   if (tab === 'redes') cargarRedes();
 }
@@ -369,28 +434,57 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.getElementById('panel-unidades').hidden = t.dataset.tab !== 'unidades';
   document.getElementById('panel-demanda').hidden = t.dataset.tab !== 'demanda';
   document.getElementById('panel-amenities').hidden = t.dataset.tab !== 'amenities';
+  document.getElementById('panel-tipologias').hidden = t.dataset.tab !== 'tipologias';
   document.getElementById('panel-imagenes').hidden = t.dataset.tab !== 'imagenes';
   document.getElementById('panel-redes').hidden = t.dataset.tab !== 'redes';
   cargarTab(t.dataset.tab);
 }));
 
 async function cargarUnidades(){
-  const { data, error } = await sb.from('units').select('*').eq('project_id', PROYECTO_ACTUAL.id).order('id');
+  const [{ data, error }, tipologias] = await Promise.all([
+    sb.from('units').select('*').eq('project_id', PROYECTO_ACTUAL.id).order('id'),
+    obtenerTipologias(),
+  ]);
   if (error){
     document.getElementById('cargando-unidades').textContent =
       'No se pudo conectar con Supabase: ' + error.message;
     return;
   }
+  UNIDADES_ACTUALES = data;
+  llenarSelectorTipologiaLote(tipologias);
   pintarUnidades(data);
+}
+
+// Cachea las tipologías del proyecto — las usan tanto la tabla de unidades
+// (columna Tipología + selector de asignación por lote) como la pestaña
+// Tipologías. `forzar` evita servir la caché cuando se acaba de crear/borrar
+// una tipología en la otra pestaña.
+async function obtenerTipologias(forzar){
+  if (TIPOLOGIAS_ACTUALES.length && !forzar) return TIPOLOGIAS_ACTUALES;
+  const { data, error } = await sb.from('typologies').select('*')
+    .eq('project_id', PROYECTO_ACTUAL.id).order('nombre');
+  if (error){ alert('No se pudieron cargar las tipologías: ' + error.message); return []; }
+  TIPOLOGIAS_ACTUALES = data || [];
+  return TIPOLOGIAS_ACTUALES;
+}
+
+function llenarSelectorTipologiaLote(tipologias){
+  const select = document.getElementById('select-tipologia-lote');
+  const valorPrevio = select.value;
+  select.innerHTML = '<option value="">Elegir tipología…</option><option value="__ninguna__">Quitar tipología</option>' +
+    tipologias.map(t => '<option value="' + t.id + '">' + t.nombre + '</option>').join('');
+  select.value = valorPrevio;
 }
 
 function pintarUnidades(unidades){
   const tbody = document.getElementById('filas-unidades');
   tbody.innerHTML = '';
+  const tipologiasPorId = Object.fromEntries(TIPOLOGIAS_ACTUALES.map(t => [t.id, t]));
   unidades.forEach(u => {
     const e = ESTADOS[u.estado] || ESTADOS.sin_dato;
     const tr = document.createElement('tr');
     tr.innerHTML =
+      '<td class="col-check"></td>' +
       '<td>' + u.id + '</td>' +
       '<td>' + u.piso + '</td>' +
       '<td>' + u.dorms + '</td>' +
@@ -399,11 +493,18 @@ function pintarUnidades(unidades){
       '<td>' + u.orientacion + '</td>' +
       '<td class="num">' + formatearPrecio(u.precio, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale) + '</td>' +
       '<td class="num"></td>' +
+      '<td></td>' +
       '<td><span class="estado"><span class="punto" style="background:' + e.color + '"></span>' + e.nombre + '</span></td>' +
       '<td></td>' +
       '<td></td>';
 
-    const terrazaTd = tr.children[4];
+    const checkTd = tr.children[0];
+    const check = document.createElement('input');
+    check.type = 'checkbox'; check.className = 'check-unidad'; check.dataset.unidadId = u.id;
+    check.addEventListener('change', actualizarBarraLote);
+    checkTd.appendChild(check);
+
+    const terrazaTd = tr.children[5];
     const terrazaInput = document.createElement('input');
     terrazaInput.type = 'number'; terrazaInput.step = '0.01'; terrazaInput.min = '0';
     terrazaInput.className = 'input-campo';
@@ -413,7 +514,7 @@ function pintarUnidades(unidades){
       guardarCampo(u.id, 'm2_terraza', terrazaInput.value, terrazaInput));
     terrazaTd.appendChild(terrazaInput);
 
-    const cocheraTd = tr.children[7];
+    const cocheraTd = tr.children[8];
     const cocheraInput = document.createElement('input');
     cocheraInput.type = 'number'; cocheraInput.step = '1'; cocheraInput.min = '0';
     cocheraInput.className = 'input-campo';
@@ -423,7 +524,12 @@ function pintarUnidades(unidades){
       guardarCampo(u.id, 'cochera_precio', cocheraInput.value, cocheraInput));
     cocheraTd.appendChild(cocheraInput);
 
-    const modTd = tr.children[9];
+    const tipologiaTd = tr.children[9];
+    const tipologia = tipologiasPorId[u.typology_id];
+    tipologiaTd.textContent = tipologia ? tipologia.nombre : '—';
+    if (!tipologia) tipologiaTd.style.color = 'var(--suave)';
+
+    const modTd = tr.children[11];
     const miembro = MIEMBROS_ACTUALES[u.updated_by];
     if (u.updated_by){
       const quien = miembro ? miembro.email : u.updated_by;
@@ -450,7 +556,44 @@ function pintarUnidades(unidades){
   });
   document.getElementById('cargando-unidades').hidden = true;
   document.getElementById('tabla-unidades').hidden = false;
+  document.getElementById('barra-lote').hidden = false;
+  actualizarBarraLote();
 }
+
+// Contador de "sin tipología" + habilitar/deshabilitar el botón de
+// asignación según haya algo seleccionado — es el error más fácil de
+// cometer con 40-70 unidades y 9 tipologías, por eso va siempre visible.
+function actualizarBarraLote(){
+  const sinTipologia = UNIDADES_ACTUALES.filter(u => !u.typology_id).length;
+  document.getElementById('tipologias-sin-asignar').textContent =
+    sinTipologia === 0 ? 'Todas las unidades tienen tipología asignada.'
+      : sinTipologia + ' de ' + UNIDADES_ACTUALES.length + ' unidades sin tipología asignada.';
+
+  const seleccionadas = document.querySelectorAll('.check-unidad:checked').length;
+  document.getElementById('conteo-seleccion').textContent = seleccionadas;
+  document.getElementById('btn-asignar-lote').disabled = seleccionadas === 0;
+}
+
+document.getElementById('check-todas').addEventListener('change', (ev) => {
+  document.querySelectorAll('.check-unidad').forEach(c => { c.checked = ev.target.checked; });
+  actualizarBarraLote();
+});
+
+document.getElementById('btn-asignar-lote').addEventListener('click', async () => {
+  const valor = document.getElementById('select-tipologia-lote').value;
+  if (!valor) return;
+  const ids = Array.from(document.querySelectorAll('.check-unidad:checked'))
+    .map(c => Number(c.dataset.unidadId));
+  if (!ids.length) return;
+  const typologyId = valor === '__ninguna__' ? null : valor;
+  const btn = document.getElementById('btn-asignar-lote');
+  btn.disabled = true;
+  const { error } = await sb.from('units').update({ typology_id: typologyId })
+    .eq('project_id', PROYECTO_ACTUAL.id).in('id', ids);
+  if (error){ alert('No se pudo asignar: ' + error.message); btn.disabled = false; return; }
+  document.getElementById('check-todas').checked = false;
+  cargarUnidades();
+});
 
 async function cambiarEstado(id, nuevoEstado, select){
   select.disabled = true;
@@ -497,14 +640,22 @@ async function cargarDemanda(){
   const porUnidad = {};
   eventos.forEach(ev => { porUnidad[ev.unit_id] = (porUnidad[ev.unit_id] || 0) + 1; });
 
+  // Franjas de piso en tercios, según la cantidad de pisos del proyecto
+  // actual (no un edificio de 10 pisos fijo).
+  const pisos = PROYECTO_ACTUAL.pisos || Math.max(0, ...unidades.map(u => u.piso));
+  const corte1 = Math.ceil(pisos / 3), corte2 = Math.ceil(pisos * 2 / 3);
+  const etiquetaFranja = p =>
+    p <= corte1 ? 'Pisos 1-' + corte1 :
+    p <= corte2 ? 'Pisos ' + (corte1 + 1) + '-' + corte2 :
+    'Pisos ' + (corte2 + 1) + '-' + pisos;
+
   const porDorms = {}, porFranja = {}, porOrient = {};
   Object.entries(porUnidad).forEach(([id, n]) => {
     const u = unidadesPorId[id];
     if (!u) return;
-    const kd = u.dorms + (u.dorms === 1 ? ' dormitorio' : ' dormitorios');
+    const kd = u.dorms === 0 ? 'Monoambiente' : u.dorms + (u.dorms === 1 ? ' dormitorio' : ' dormitorios');
     porDorms[kd] = (porDorms[kd] || 0) + n;
-    const franja = u.piso <= 3 ? 'Pisos 1-3' : u.piso <= 7 ? 'Pisos 4-7' : 'Pisos 8-10';
-    porFranja[franja] = (porFranja[franja] || 0) + n;
+    porFranja[etiquetaFranja(u.piso)] = (porFranja[etiquetaFranja(u.piso)] || 0) + n;
     porOrient[u.orientacion] = (porOrient[u.orientacion] || 0) + n;
   });
   const aFilas = obj => Object.entries(obj).map(([etq, val]) => ({ etq, val })).sort((a, b) => b.val - a.val);
@@ -649,11 +800,188 @@ document.getElementById('form-amenity-nuevo').addEventListener('submit', async (
   cargarAmenities();
 });
 
-// Imágenes: mismo patrón de reordenar/borrar que amenities, más la subida
-// a Storage. Cada archivo va a "<project_id>/<uuid>.<ext>" en el bucket
-// público "renders" (ver supabase-migration-media-storage.sql) — el
-// project_id como primer segmento de la ruta es lo que usan las políticas
-// de Storage para decidir quién puede subir/borrar ahí.
+// Imágenes: reordenar/borrar/subir, compartido entre la galería de renders
+// del proyecto y la planta/renders de cada tipología (ver más abajo). Todo
+// vive en el mismo bucket público "renders" (ver
+// supabase-migration-media-storage.sql): "<project_id>/<uuid>.<ext>" para
+// renders de proyecto, "<project_id>/typology/<typology_id>/<uuid>.<ext>"
+// para media de tipología — el project_id sigue siendo el primer segmento
+// de la ruta en ambos casos, que es lo único que miran las políticas de
+// Storage para decidir quién puede subir/borrar ahí.
+const MAX_IMAGENES = 12;          // renders de proyecto (media_limite en Supabase)
+const MAX_RENDERS_TIPOLOGIA = 12; // renders de tipología (mismo tope)
+const MAX_PLANTAS_TIPOLOGIA = 3;  // variantes de planta de una misma tipología
+const MAX_DIMENSION_IMAGEN = 2000;
+const CALIDAD_JPEG = 0.82;
+
+// Los renders (de proyecto o de tipología) siempre se recomprimen a JPEG —
+// una foto de celular de 12 MB queda en unos cientos de KB sin verse peor
+// en la galería, que nunca la muestra a tamaño completo de pantalla. Una
+// planta suele ser un dibujo de líneas, a veces con transparencia: forzarla
+// a JPEG se ve peor que la foto, así que si el original es PNG se mantiene
+// PNG (misma reducción de tamaño, sin el artefacto de compresión con
+// pérdida ni el fondo transparente vuelto negro).
+function formatoSalida(tipo, file){
+  return (tipo === 'planta' && file.type === 'image/png') ? 'image/png' : 'image/jpeg';
+}
+
+function comprimirImagen(file, formato){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > MAX_DIMENSION_IMAGEN || height > MAX_DIMENSION_IMAGEN){
+        const escala = MAX_DIMENSION_IMAGEN / Math.max(width, height);
+        width = Math.round(width * escala);
+        height = Math.round(height * escala);
+      }
+      const cv = document.createElement('canvas');
+      cv.width = width; cv.height = height;
+      const ctx = cv.getContext('2d');
+      // JPEG no tiene canal alfa: sin este fondo, un PNG con transparencia
+      // que se recomprime a JPEG queda con esas zonas en negro.
+      if (formato === 'image/jpeg'){ ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height); }
+      ctx.drawImage(img, 0, 0, width, height);
+      cv.toBlob(
+        blob => blob ? resolve(blob) : reject(new Error('no se pudo procesar la imagen')),
+        formato, formato === 'image/jpeg' ? CALIDAD_JPEG : undefined
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('archivo de imagen inválido')); };
+    img.src = url;
+  });
+}
+
+// Extrae el path dentro del bucket a partir de la URL pública guardada en
+// `media.url`, para poder borrar el archivo de Storage además de la fila.
+function pathDeRender(url){
+  const marca = '/storage/v1/object/public/renders/';
+  const idx = url.indexOf(marca);
+  return idx === -1 ? null : url.slice(idx + marca.length);
+}
+
+// Sube un archivo a Storage + inserta la fila en `media`, aplicando el
+// mismo tope que ya hace cumplir el trigger media_limite en Supabase
+// (chequearlo acá antes es solo para avisar sin gastar la subida). Devuelve
+// la fila creada, o null si algo falló (ya mostró el alert correspondiente).
+async function subirUnaImagen({ file, scope, tipo, projectId, typologyId, maxCount, estadoEl }){
+  if (!file.type.startsWith('image/')){
+    alert('Elegí un archivo de imagen: ' + file.name);
+    return null;
+  }
+  estadoEl.hidden = false;
+  estadoEl.textContent = 'Comprobando…';
+
+  let qConteo = sb.from('media').select('id', { count: 'exact', head: true }).eq('scope', scope).eq('tipo', tipo);
+  qConteo = scope === 'project' ? qConteo.eq('project_id', projectId) : qConteo.eq('typology_id', typologyId);
+  const { count, error: eCount } = await qConteo;
+  if (eCount){ alert('No se pudo comprobar el límite de imágenes: ' + eCount.message); estadoEl.hidden = true; return null; }
+  if (count >= maxCount){
+    alert('Llegaste al máximo de ' + maxCount + ' imágenes acá. Eliminá alguna para poder subir otra.');
+    estadoEl.hidden = true;
+    return null;
+  }
+
+  estadoEl.textContent = 'Optimizando…';
+  const formato = formatoSalida(tipo, file);
+  let comprimida;
+  try { comprimida = await comprimirImagen(file, formato); }
+  catch (e){ alert('No se pudo procesar ' + file.name + ': ' + e.message); estadoEl.hidden = true; return null; }
+
+  estadoEl.textContent = 'Subiendo…';
+  const ext = formato === 'image/png' ? 'png' : 'jpg';
+  const carpeta = scope === 'project' ? projectId : projectId + '/typology/' + typologyId;
+  const ruta = carpeta + '/' + crypto.randomUUID() + '.' + ext;
+  const { error: eSubida } = await sb.storage.from('renders').upload(ruta, comprimida, { contentType: formato });
+  if (eSubida){ alert('No se pudo subir ' + file.name + ': ' + eSubida.message); estadoEl.hidden = true; return null; }
+  const { data: pub } = sb.storage.from('renders').getPublicUrl(ruta);
+
+  let qOrden = sb.from('media').select('orden').eq('scope', scope).eq('tipo', tipo).order('orden', { ascending:false }).limit(1);
+  qOrden = scope === 'project' ? qOrden.eq('project_id', projectId) : qOrden.eq('typology_id', typologyId);
+  const { data: existentes } = await qOrden;
+  const siguienteOrden = existentes && existentes.length ? existentes[0].orden + 1 : 1;
+
+  const fila = { scope, tipo, url: pub.publicUrl, orden: siguienteOrden };
+  fila[scope === 'project' ? 'project_id' : 'typology_id'] = scope === 'project' ? projectId : typologyId;
+
+  const { data: insertada, error: eInsert } = await sb.from('media').insert(fila).select().single();
+  if (eInsert){
+    // El archivo ya quedó en Storage pero la fila no se pudo crear (ej. el
+    // trigger media_limite rechazó una carrera con otra subida) — se borra
+    // para no dejar huérfanos en el bucket.
+    await sb.storage.from('renders').remove([ruta]);
+    alert('No se pudo guardar ' + file.name + ': ' + eInsert.message);
+    return null;
+  }
+  return insertada;
+}
+
+// Sube varios archivos en secuencia (no en paralelo, para que el chequeo de
+// tope de cada uno vea ya contadas las subidas anteriores de la misma
+// tanda) y llama a `onListo` al terminar, se haya subido algo o no.
+async function subirVariasImagenes(files, opts, onListo){
+  for (const file of files){
+    await subirUnaImagen({ ...opts, file });
+  }
+  opts.estadoEl.hidden = true;
+  onListo();
+}
+
+function crearTarjetaImagen(m, i, lista, { onMover, onBorrar }){
+  const tarjeta = document.createElement('div');
+  tarjeta.className = 'tarjeta-imagen';
+
+  const img = document.createElement('img');
+  img.src = m.url;
+  img.alt = '';
+  img.loading = 'lazy';
+  tarjeta.appendChild(img);
+
+  const acciones = document.createElement('div');
+  acciones.className = 'tarjeta-imagen-acciones';
+
+  const flechas = document.createElement('div');
+  flechas.className = 'amenity-flechas';
+  const btnArriba = document.createElement('button');
+  btnArriba.type = 'button'; btnArriba.textContent = '↑'; btnArriba.disabled = i === 0;
+  btnArriba.addEventListener('click', () => onMover(lista, i, -1));
+  const btnAbajo = document.createElement('button');
+  btnAbajo.type = 'button'; btnAbajo.textContent = '↓'; btnAbajo.disabled = i === lista.length - 1;
+  btnAbajo.addEventListener('click', () => onMover(lista, i, 1));
+  flechas.append(btnArriba, btnAbajo);
+  acciones.appendChild(flechas);
+
+  const btnBorrar = document.createElement('button');
+  btnBorrar.type = 'button'; btnBorrar.className = 'btn-borrar'; btnBorrar.textContent = 'Eliminar';
+  btnBorrar.addEventListener('click', () => onBorrar(m));
+  acciones.appendChild(btnBorrar);
+
+  tarjeta.appendChild(acciones);
+  return tarjeta;
+}
+
+// Habilita arrastrar y soltar sobre `el` — dispara `onFiles(files)` con la
+// lista de archivos soltados. El click-to-upload de al lado sigue andando
+// igual; esto es un camino más para la misma subida.
+function activarDropzone(el, onFiles){
+  ['dragenter', 'dragover'].forEach(ev => el.addEventListener(ev, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    el.classList.add('dropzone-activa');
+  }));
+  ['dragleave', 'dragend'].forEach(ev => el.addEventListener(ev, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    el.classList.remove('dropzone-activa');
+  }));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    el.classList.remove('dropzone-activa');
+    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length) onFiles(files);
+  });
+}
+
 async function cargarImagenes(){
   const { data, error } = await sb.from('media').select('*')
     .eq('project_id', PROYECTO_ACTUAL.id).eq('scope', 'project').eq('tipo', 'render').order('orden');
@@ -663,48 +991,16 @@ async function cargarImagenes(){
 
 function pintarImagenes(lista){
   const cont = document.getElementById('grid-imagenes');
-  const sinImagenes = document.getElementById('sin-imagenes');
   actualizarContadorImagenes(lista.length);
+  cont.innerHTML = '';
+  document.getElementById('sin-imagenes')?.remove();
   if (!lista.length){
-    cont.innerHTML = '';
-    if (!sinImagenes) cont.insertAdjacentHTML('beforebegin', '<p id="sin-imagenes">Todavía no hay imágenes cargadas.</p>');
+    cont.insertAdjacentHTML('afterend', '<p class="sin-imagenes" id="sin-imagenes">Todavía no hay imágenes cargadas.</p>');
     return;
   }
-  document.getElementById('sin-imagenes')?.remove();
-
-  cont.innerHTML = '';
-  lista.forEach((m, i) => {
-    const tarjeta = document.createElement('div');
-    tarjeta.className = 'tarjeta-imagen';
-
-    const img = document.createElement('img');
-    img.src = m.url;
-    img.alt = '';
-    img.loading = 'lazy';
-    tarjeta.appendChild(img);
-
-    const acciones = document.createElement('div');
-    acciones.className = 'tarjeta-imagen-acciones';
-
-    const flechas = document.createElement('div');
-    flechas.className = 'amenity-flechas';
-    const btnArriba = document.createElement('button');
-    btnArriba.type = 'button'; btnArriba.textContent = '↑'; btnArriba.disabled = i === 0;
-    btnArriba.addEventListener('click', () => moverImagen(lista, i, -1));
-    const btnAbajo = document.createElement('button');
-    btnAbajo.type = 'button'; btnAbajo.textContent = '↓'; btnAbajo.disabled = i === lista.length - 1;
-    btnAbajo.addEventListener('click', () => moverImagen(lista, i, 1));
-    flechas.append(btnArriba, btnAbajo);
-    acciones.appendChild(flechas);
-
-    const btnBorrar = document.createElement('button');
-    btnBorrar.type = 'button'; btnBorrar.className = 'btn-borrar'; btnBorrar.textContent = 'Eliminar';
-    btnBorrar.addEventListener('click', () => borrarImagen(m));
-    acciones.appendChild(btnBorrar);
-
-    tarjeta.appendChild(acciones);
-    cont.appendChild(tarjeta);
-  });
+  lista.forEach((m, i) => cont.appendChild(
+    crearTarjetaImagen(m, i, lista, { onMover: moverImagen, onBorrar: borrarImagen })
+  ));
 }
 
 function actualizarContadorImagenes(cantidad){
@@ -725,14 +1021,6 @@ async function moverImagen(lista, i, dir){
   cargarImagenes();
 }
 
-// Extrae el path dentro del bucket a partir de la URL pública guardada en
-// `media.url`, para poder borrar el archivo de Storage además de la fila.
-function pathDeRender(url){
-  const marca = '/storage/v1/object/public/renders/';
-  const idx = url.indexOf(marca);
-  return idx === -1 ? null : url.slice(idx + marca.length);
-}
-
 async function borrarImagen(m){
   if (!confirm('¿Eliminar esta imagen?')) return;
   const path = pathDeRender(m.url);
@@ -742,113 +1030,263 @@ async function borrarImagen(m){
   cargarImagenes();
 }
 
-// Mismo tope que el trigger media_limite en Supabase (ver
-// supabase-migration-media-storage.sql) — chequearlo acá antes es solo
-// para poder avisar sin gastar la subida a Storage; el trigger es la
-// garantía real.
-const MAX_IMAGENES = 12;
-// Se re-codifica todo a JPEG ~2000px/82% antes de subir: una foto de
-// celular de 12 MB queda en unos cientos de KB sin verse peor en la
-// galería, que nunca la muestra a tamaño completo de pantalla igual.
-const MAX_DIMENSION_IMAGEN = 2000;
-const CALIDAD_JPEG = 0.82;
-
-function comprimirImagen(file){
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width, height } = img;
-      if (width > MAX_DIMENSION_IMAGEN || height > MAX_DIMENSION_IMAGEN){
-        const escala = MAX_DIMENSION_IMAGEN / Math.max(width, height);
-        width = Math.round(width * escala);
-        height = Math.round(height * escala);
-      }
-      const cv = document.createElement('canvas');
-      cv.width = width; cv.height = height;
-      cv.getContext('2d').drawImage(img, 0, 0, width, height);
-      cv.toBlob(
-        blob => blob ? resolve(blob) : reject(new Error('no se pudo procesar la imagen')),
-        'image/jpeg', CALIDAD_JPEG
-      );
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('archivo de imagen inválido')); };
-    img.src = url;
+activarDropzone(document.getElementById('dropzone-imagenes'), (files) => {
+  const estado = document.getElementById('imagen-subiendo');
+  document.getElementById('btn-subir-imagen').setAttribute('aria-disabled', 'true');
+  subirVariasImagenes(files, {
+    scope: 'project', tipo: 'render', projectId: PROYECTO_ACTUAL.id,
+    maxCount: MAX_IMAGENES, estadoEl: estado,
+  }, () => {
+    document.getElementById('btn-subir-imagen').removeAttribute('aria-disabled');
+    cargarImagenes();
   });
-}
+});
 
 document.getElementById('input-imagen').addEventListener('change', async (ev) => {
-  const file = ev.target.files[0];
-  if (!file) return;
+  const files = Array.from(ev.target.files || []);
+  if (!files.length) return;
   const btnSubir = document.getElementById('btn-subir-imagen');
   const estado = document.getElementById('imagen-subiendo');
-
-  if (!file.type.startsWith('image/')){
-    alert('Elegí un archivo de imagen.');
-    ev.target.value = '';
-    return;
-  }
-
   btnSubir.setAttribute('aria-disabled', 'true');
-  estado.hidden = false;
-  estado.textContent = 'Comprobando…';
-
-  const { count, error: eCount } = await sb.from('media')
-    .select('id', { count: 'exact', head: true })
-    .eq('project_id', PROYECTO_ACTUAL.id).eq('scope', 'project').eq('tipo', 'render');
-  if (eCount){
-    alert('No se pudo comprobar el límite de imágenes: ' + eCount.message);
-    btnSubir.removeAttribute('aria-disabled'); estado.hidden = true; ev.target.value = '';
-    return;
-  }
-  if (count >= MAX_IMAGENES){
-    alert('Llegaste al máximo de ' + MAX_IMAGENES + ' imágenes. Eliminá alguna para poder subir otra.');
-    btnSubir.removeAttribute('aria-disabled'); estado.hidden = true; ev.target.value = '';
-    return;
-  }
-
-  estado.textContent = 'Optimizando…';
-  let comprimida;
-  try {
-    comprimida = await comprimirImagen(file);
-  } catch (e){
-    alert('No se pudo procesar la imagen: ' + e.message);
-    btnSubir.removeAttribute('aria-disabled'); estado.hidden = true; ev.target.value = '';
-    return;
-  }
-
-  estado.textContent = 'Subiendo…';
-  const ruta = PROYECTO_ACTUAL.id + '/' + crypto.randomUUID() + '.jpg';
-  const { error: eSubida } = await sb.storage.from('renders').upload(ruta, comprimida, { contentType: 'image/jpeg' });
-  if (eSubida){
-    alert('No se pudo subir la imagen: ' + eSubida.message);
-    btnSubir.removeAttribute('aria-disabled'); estado.hidden = true; ev.target.value = '';
-    return;
-  }
-  const { data: pub } = sb.storage.from('renders').getPublicUrl(ruta);
-
-  const { data: existentes } = await sb.from('media').select('orden')
-    .eq('project_id', PROYECTO_ACTUAL.id).eq('scope', 'project').eq('tipo', 'render')
-    .order('orden', { ascending:false }).limit(1);
-  const siguienteOrden = existentes && existentes.length ? existentes[0].orden + 1 : 1;
-
-  const { error: eInsert } = await sb.from('media').insert({
-    project_id: PROYECTO_ACTUAL.id, scope: 'project', tipo: 'render',
-    url: pub.publicUrl, orden: siguienteOrden,
-  });
-  btnSubir.removeAttribute('aria-disabled');
-  estado.hidden = true;
   ev.target.value = '';
-  if (eInsert){
-    // El archivo ya quedó en Storage pero la fila no se pudo crear (ej. el
-    // trigger media_limite rechazó una carrera con otra subida) — se borra
-    // para no dejar huérfanos en el bucket.
-    await sb.storage.from('renders').remove([ruta]);
-    alert('No se pudo guardar la imagen: ' + eInsert.message);
+  await subirVariasImagenes(files, {
+    scope: 'project', tipo: 'render', projectId: PROYECTO_ACTUAL.id,
+    maxCount: MAX_IMAGENES, estadoEl: estado,
+  }, () => {
+    btnSubir.removeAttribute('aria-disabled');
+    cargarImagenes();
+  });
+});
+
+/* ============================================================
+   Tipologías: alta/baja/rename + planta y renders de cada una.
+   ============================================================ */
+
+async function cargarTipologias(){
+  const tipologias = await obtenerTipologias(true);
+  llenarSelectorTipologiaLote(tipologias);
+  if (!tipologias.length){
+    document.getElementById('cargando-tipologias').hidden = true;
+    document.getElementById('form-tipologia-nueva').hidden = false;
+    document.getElementById('lista-tipologias').innerHTML =
+      '<p class="sin-imagenes">Todavía no hay tipologías creadas.</p>';
     return;
   }
-  cargarImagenes();
+
+  const ids = tipologias.map(t => t.id);
+  const [{ data: media, error: eMedia }, { data: unidades, error: eUnidades }] = await Promise.all([
+    sb.from('media').select('*').in('typology_id', ids).eq('scope', 'typology').order('orden'),
+    sb.from('units').select('id, typology_id').eq('project_id', PROYECTO_ACTUAL.id),
+  ]);
+  if (eMedia){ alert('No se pudo cargar la media de tipologías: ' + eMedia.message); return; }
+  if (eUnidades){ alert('No se pudo cargar las unidades: ' + eUnidades.message); return; }
+
+  const mediaPorTipologia = {};
+  tipologias.forEach(t => { mediaPorTipologia[t.id] = { planta: [], render: [] }; });
+  (media || []).forEach(m => { mediaPorTipologia[m.typology_id]?.[m.tipo]?.push(m); });
+
+  // Para cruzar cada tipología con los planos que llegan nombrados por
+  // número de unidad (ej. "102-1-dormitorio.pdf") — sin esto, no hay forma
+  // de saber desde acá a qué unidades les corresponde cada imagen.
+  const unidadesPorTipologia = {};
+  (unidades || []).forEach(u => {
+    if (!u.typology_id) return;
+    (unidadesPorTipologia[u.typology_id] || (unidadesPorTipologia[u.typology_id] = [])).push(u.id);
+  });
+  Object.values(unidadesPorTipologia).forEach(lista => lista.sort((a, b) => a - b));
+
+  document.getElementById('cargando-tipologias').hidden = true;
+  document.getElementById('form-tipologia-nueva').hidden = false;
+  pintarTipologias(tipologias, mediaPorTipologia, unidadesPorTipologia);
+}
+
+function pintarTipologias(tipologias, mediaPorTipologia, unidadesPorTipologia){
+  const cont = document.getElementById('lista-tipologias');
+  cont.innerHTML = '';
+  tipologias.forEach(t => cont.appendChild(
+    crearTarjetaTipologia(t, mediaPorTipologia[t.id], unidadesPorTipologia[t.id] || [])
+  ));
+}
+
+function crearTarjetaTipologia(t, media, unidadesAsignadas){
+  const tarjeta = document.createElement('div');
+  tarjeta.className = 'tarjeta-tipologia';
+
+  const cabeza = document.createElement('div');
+  cabeza.className = 'tipologia-cabeza';
+
+  const nombre = document.createElement('input');
+  nombre.className = 'tipologia-nombre'; nombre.value = t.nombre;
+  nombre.addEventListener('change', () => guardarTipologia(t.id, { nombre: nombre.value.trim() }, nombre, t.nombre));
+
+  const dorms = document.createElement('input');
+  dorms.type = 'number'; dorms.min = '0'; dorms.step = '1'; dorms.className = 'tipologia-num';
+  dorms.value = t.dorms; dorms.title = 'Dormitorios';
+  dorms.addEventListener('change', () => guardarTipologia(t.id, { dorms: Number(dorms.value) }));
+
+  const m2 = document.createElement('input');
+  m2.type = 'number'; m2.min = '0'; m2.step = '0.01'; m2.className = 'tipologia-num';
+  m2.value = t.m2; m2.title = 'm²';
+  m2.addEventListener('change', () => guardarTipologia(t.id, { m2: Number(m2.value) }));
+
+  const orient = document.createElement('input');
+  orient.type = 'text'; orient.className = 'tipologia-orient';
+  orient.value = t.orientacion || ''; orient.placeholder = 'Orientación'; orient.title = 'Orientación';
+  orient.addEventListener('change', () => guardarTipologia(t.id, { orientacion: orient.value.trim() || null }));
+
+  const btnBorrar = document.createElement('button');
+  btnBorrar.type = 'button'; btnBorrar.className = 'btn-borrar'; btnBorrar.textContent = 'Eliminar tipología';
+  btnBorrar.addEventListener('click', () => borrarTipologia(t, media));
+
+  cabeza.append(nombre, dorms, m2, orient, btnBorrar);
+  tarjeta.appendChild(cabeza);
+
+  const unidadesEl = document.createElement('p');
+  unidadesEl.className = 'tipologia-unidades';
+  unidadesEl.textContent = unidadesAsignadas.length
+    ? 'Unidades: ' + unidadesAsignadas.join(', ')
+    : 'Sin unidades asignadas todavía.';
+  tarjeta.appendChild(unidadesEl);
+
+  const cuerpoMedia = document.createElement('div');
+  cuerpoMedia.className = 'tipologia-media';
+  cuerpoMedia.appendChild(seccionMediaTipologia(t, 'planta', 'Planta', media.planta, MAX_PLANTAS_TIPOLOGIA));
+  cuerpoMedia.appendChild(seccionMediaTipologia(t, 'render', 'Renders', media.render, MAX_RENDERS_TIPOLOGIA));
+  tarjeta.appendChild(cuerpoMedia);
+
+  return tarjeta;
+}
+
+function seccionMediaTipologia(t, tipo, titulo, lista, maxCount){
+  const seccion = document.createElement('div');
+
+  const h4 = document.createElement('h4');
+  h4.textContent = titulo + ' (' + lista.length + '/' + maxCount + ')';
+  seccion.appendChild(h4);
+
+  const dropzone = document.createElement('div');
+  dropzone.className = 'dropzone';
+  dropzone.textContent = 'Arrastrá una imagen acá, o';
+  const btnSubir = document.createElement('label');
+  btnSubir.className = 'btn-subir'; btnSubir.style.marginLeft = '6px'; btnSubir.style.fontSize = '12px';
+  btnSubir.style.padding = '5px 10px'; btnSubir.textContent = 'elegí un archivo…';
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*'; input.multiple = true; input.hidden = true;
+  btnSubir.appendChild(input);
+  dropzone.appendChild(btnSubir);
+  seccion.appendChild(dropzone);
+
+  const estado = document.createElement('span');
+  estado.className = 'subiendo'; estado.hidden = true; estado.textContent = 'Subiendo…';
+  seccion.appendChild(estado);
+
+  const grid = document.createElement('div');
+  grid.className = 'grid-imagenes';
+  seccion.appendChild(grid);
+
+  function pintar(lista){
+    grid.innerHTML = '';
+    seccion.querySelector('.sin-imagenes')?.remove();
+    if (!lista.length){
+      grid.insertAdjacentHTML('afterend', '<p class="sin-imagenes">Sin imágenes todavía.</p>');
+      return;
+    }
+    lista.forEach((m, i) => grid.appendChild(crearTarjetaImagen(m, i, lista, {
+      onMover: (l, idx, dir) => moverImagenTipologia(l, idx, dir, pintar),
+      onBorrar: (m) => borrarImagenTipologia(m, pintar),
+    })));
+  }
+  pintar(lista);
+
+  function subir(files){
+    estado.hidden = false;
+    subirVariasImagenes(Array.from(files), {
+      scope: 'typology', tipo, projectId: PROYECTO_ACTUAL.id, typologyId: t.id, maxCount, estadoEl: estado,
+    }, async () => {
+      const actual = await recargarMediaTipologia(t.id, tipo);
+      h4.textContent = titulo + ' (' + actual.length + '/' + maxCount + ')';
+      pintar(actual);
+    });
+  }
+  activarDropzone(dropzone, subir);
+  input.addEventListener('change', () => { subir(input.files); input.value = ''; });
+
+  return seccion;
+}
+
+async function recargarMediaTipologia(typologyId, tipo){
+  const { data } = await sb.from('media').select('*')
+    .eq('typology_id', typologyId).eq('scope', 'typology').eq('tipo', tipo).order('orden');
+  return data || [];
+}
+
+async function moverImagenTipologia(lista, i, dir, pintar){
+  const actual = lista[i], otro = lista[i + dir];
+  if (!otro) return;
+  const { error: e1 } = await sb.from('media').update({ orden: otro.orden }).eq('id', actual.id);
+  const { error: e2 } = await sb.from('media').update({ orden: actual.orden }).eq('id', otro.id);
+  if (e1 || e2){ alert('No se pudo reordenar'); return; }
+  const actualizada = await recargarMediaTipologia(actual.typology_id, actual.tipo);
+  pintar(actualizada);
+}
+
+async function borrarImagenTipologia(m, pintar){
+  if (!confirm('¿Eliminar esta imagen?')) return;
+  const path = pathDeRender(m.url);
+  if (path) await sb.storage.from('renders').remove([path]);
+  const { error } = await sb.from('media').delete().eq('id', m.id);
+  if (error){ alert('No se pudo eliminar: ' + error.message); return; }
+  const actualizada = await recargarMediaTipologia(m.typology_id, m.tipo);
+  pintar(actualizada);
+}
+
+async function guardarTipologia(id, cambios, inputEl, valorPrevio){
+  const { error } = await sb.from('typologies').update(cambios).eq('id', id).eq('project_id', PROYECTO_ACTUAL.id);
+  if (error){
+    alert('No se pudo guardar: ' + error.message);
+    if (inputEl && valorPrevio !== undefined) inputEl.value = valorPrevio;
+    return;
+  }
+  await obtenerTipologias(true);
+}
+
+// Borra la tipología entera: primero cada imagen (fila + archivo de
+// Storage, para no dejar huérfanos en el bucket) y recién después la fila
+// de la tipología. Las unidades que la tenían asignada quedan sin
+// tipología (ON DELETE SET NULL, ver supabase-migration-typology-media.sql)
+// en vez de bloquear el borrado.
+async function borrarTipologia(t, media){
+  const totalImagenes = media.planta.length + media.render.length;
+  const aviso = totalImagenes
+    ? '¿Eliminar "' + t.nombre + '" y sus ' + totalImagenes + ' imágenes? Las unidades asignadas quedarán sin tipología.'
+    : '¿Eliminar "' + t.nombre + '"? Las unidades asignadas quedarán sin tipología.';
+  if (!confirm(aviso)) return;
+
+  for (const m of [...media.planta, ...media.render]){
+    const path = pathDeRender(m.url);
+    if (path) await sb.storage.from('renders').remove([path]);
+    await sb.from('media').delete().eq('id', m.id);
+  }
+  const { error } = await sb.from('typologies').delete().eq('id', t.id).eq('project_id', PROYECTO_ACTUAL.id);
+  if (error){ alert('No se pudo eliminar la tipología: ' + error.message); return; }
+  cargarTipologias();
+}
+
+document.getElementById('form-tipologia-nueva').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const nombre = document.getElementById('nueva-tipologia-nombre').value.trim();
+  const dorms = document.getElementById('nueva-tipologia-dorms').value;
+  const m2 = document.getElementById('nueva-tipologia-m2').value;
+  const orientacion = document.getElementById('nueva-tipologia-orient').value.trim();
+  if (!nombre || dorms === '' || m2 === '') return;
+
+  const { error } = await sb.from('typologies').insert({
+    project_id: PROYECTO_ACTUAL.id, nombre, dorms: Number(dorms), m2: Number(m2),
+    orientacion: orientacion || null,
+  });
+  if (error){ alert('No se pudo crear la tipología: ' + error.message); return; }
+  ev.target.reset();
+  cargarTipologias();
 });
 
 </script>

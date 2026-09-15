@@ -78,6 +78,34 @@ important thing to understand is the data flow between them:
    reopens that unit with the camera focused on it (`enfocar(u)`), which is how the
    "share this unit" link (`p-copiar` button) works.
 
+## Unit and floor-plate geometry: the `geom` coordinate system
+
+Each unit can carry its own floor-plan outline (`units.geom.contorno`) instead of being
+positioned by the `col`/`frente` grid and drawn as a fixed `ANCHO`×`PROF` box. The floor
+plate itself (`projects.geometria.losa_contorno` / `.nucleo_contorno`) can override the
+slab and core shape the same way. This is the contract every future building's data load
+has to follow (see also `README.md`'s alta runbook):
+
+- **Format**: `contorno` (and `losa_contorno`/`nucleo_contorno`) is a list of `[x, z]`
+  points in **meters**, at least 3 points, not repeating the first point at the end.
+- **Origin `(0, 0)`**: the center of the floor plate — the same point where the slab and
+  core (`geoLosa`/`geoNucleo` in `index.html`) are centered today. Every floor shares this
+  same X/Z origin; floors stack directly on top of each other with no per-floor offset.
+- **X axis**: horizontal, same direction `col` already uses today — positive to the right
+  when facing the building's front from the street.
+- **Z axis**: horizontal (depth), same direction `frente` already uses today — negative
+  toward the street (frente side), positive toward the contrafrente.
+- **Y axis (height)**: not part of `contorno`. A unit is extruded from `y=0` (that floor's
+  slab level) up to `alto` — an optional field on `units.geom`; if missing, it falls back
+  to that floor's global `ALTO`.
+- **Winding**: doesn't matter. `index.html` normalizes the polygon's winding by signed
+  area before triangulating it (`formaDesdeContorno()`), so nobody loading data by hand
+  needs to get the point order right.
+- **Compatibility**: an empty/missing `geom.contorno` (or a `geometria` without
+  `losa_contorno`/`nucleo_contorno`) falls back to exactly today's rendering — the
+  `col`/`frente` grid and rectangular boxes. That's every one of ROSSO's ~70 units right
+  now, and stays that way until ROSSO's data is deliberately migrated.
+
 ## Adapting this to a different building
 
 Since this file is meant to be copied into a new project for another building, the

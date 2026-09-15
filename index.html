@@ -159,18 +159,17 @@
   .p-tag-real{color:var(--verde);border-color:rgba(47,122,104,.35);background:rgba(47,122,104,.09)}
   .p-tag-estimado{color:var(--ambar);border-color:rgba(192,132,41,.35);background:rgba(192,132,41,.09)}
 
-  /* Fondo cuadriculado tipo papel milimetrado: la planta ya es un esquema
-     técnico (líneas punteadas para vanos, etc.), esto lo refuerza sin
-     agregar otro elemento nuevo. */
+  /* Planta/renders reales de la tipología (subidos desde admin.html) — ver
+     pintarPlantaUnidad(). Varias imágenes posibles (planta + renders): se
+     apilan con un margen fino entre cada una, y cada una abre el lightbox
+     (galeria.abrir) al hacer click. */
   .planta{
-    background-color:#fff;
-    background-image:linear-gradient(rgba(26,33,36,.05) 1px,transparent 1px),
-                      linear-gradient(90deg,rgba(26,33,36,.05) 1px,transparent 1px);
-    background-size:9px 9px;
-    border:1px solid var(--linea);border-radius:6px;padding:12px 12px 8px;margin-bottom:18px;
+    background-color:#fff;border:1px solid var(--linea);border-radius:6px;
+    overflow:hidden;margin-bottom:18px;flex-shrink:0;
   }
-  .planta svg{width:100%;height:auto;display:block}
-  .planta figcaption{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--suave);margin-top:8px;text-align:center}
+  .planta img{width:100%;height:auto;display:block;cursor:zoom-in}
+  .planta img + img{border-top:1px solid var(--linea)}
+  .planta-vacia{margin:0;padding:34px 16px;text-align:center;color:var(--suave);font-size:12.5px;line-height:1.5}
   .acciones-panel{display:flex;flex-direction:column;gap:8px;margin-top:22px}
   .bton{
     display:flex;align-items:center;justify-content:center;gap:8px;
@@ -563,9 +562,9 @@
   </div>
 
   <p class="nota">
-    Demostración armada con datos públicos de avisos (setiembre 2026). La planta es un
-    esquema de proporciones, no el plano del proyecto. Con la planta acotada y la planilla
-    de ventas, cada unidad muestra su distribución real y el estado se actualiza solo.
+    Demostración armada con datos públicos de avisos (setiembre 2026). Cuando la tipología
+    de la unidad tiene su planta real cargada, se muestra tal cual la subió el cliente; si
+    todavía no la cargó, este panel lo dice en vez de inventar un esquema.
   </p>
 </aside>
 
@@ -605,11 +604,12 @@ async function cargarProyecto(){
     .from('public_projects').select('*').eq('slug', SLUG).maybeSingle();
   if (eProyecto || !proyecto) return { error:'no-encontrado' };
 
-  const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }] = await Promise.all([
+  const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }] = await Promise.all([
     sb.from('public_units').select('*').eq('project_id', proyecto.id).order('id'),
     sb.from('public_settings').select('*').eq('project_id', proyecto.id).maybeSingle(),
     sb.from('public_amenities').select('*').eq('project_id', proyecto.id).order('orden'),
     sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'project').eq('tipo', 'render').order('orden'),
+    sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'typology').order('orden'),
   ]);
   if (eUnidades || !unidades) return { error:'sin-datos' };
 
@@ -618,12 +618,15 @@ async function cargarProyecto(){
     settings: settings || { instagram:'', youtube:'', sitio_web:'', whatsapp:'', textos:{} },
     amenities: amenities || [],
     renders: renders || [],
+    mediaTipologias: mediaTipologias || [],
     unidades: unidades.map(r => ({
       id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
       dorms: r.dorms, m2: Number(r.m2), orient: r.orientacion, precio: Number(r.precio),
       estimado: r.estimado, estado: r.estado,
       m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
       cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
+      geom: r.geom || null,
+      typologyId: r.typology_id || null,
     })),
   };
 }
@@ -693,19 +696,18 @@ function mostrarErrorProyecto(msg){
   document.getElementById('cabezal').innerHTML = '<h1>No disponible</h1><p class="sub">' + msg + '</p>';
 }
 
-// Galería de renders: el trigger queda oculto (ver HTML) hasta que haya al
-// menos una imagen — la mayoría de los proyectos todavía no van a tener
-// renders cargados desde admin.html.
-function pintarRenders(lista){
-  if (!lista.length) return;
-
-  const trigger = document.getElementById('renders-trigger');
+// Lightbox genérico (una imagen a la vez, con flechas/teclado/contador):
+// lo usan tanto "Ver renders" (galería fija del edificio) como el click
+// sobre la planta/renders de la unidad en el panel (galería que cambia
+// cada vez que se abre una unidad distinta) — mismo modal, misma UI,
+// cada quien le pasa su propia lista al abrirla.
+const galeria = (() => {
   const modal = document.getElementById('renders-modal');
   const imgEl = document.getElementById('renders-img');
   const contador = document.getElementById('renders-contador');
   const btnPrev = document.getElementById('renders-prev');
   const btnNext = document.getElementById('renders-next');
-  let indice = 0;
+  let lista = [], indice = 0;
 
   function mostrarIndice(i){
     indice = i;
@@ -714,28 +716,39 @@ function pintarRenders(lista){
     btnPrev.disabled = indice === 0;
     btnNext.disabled = indice === lista.length - 1;
   }
-
-  function abrirModal(){
-    mostrarIndice(0);
+  function abrir(nuevaLista, indiceInicial){
+    if (!nuevaLista.length) return;
+    lista = nuevaLista;
+    mostrarIndice(indiceInicial || 0);
     modal.hidden = false;
     document.addEventListener('keydown', alTeclado);
   }
-  function cerrarModal(){
+  function cerrar(){
     modal.hidden = true;
     document.removeEventListener('keydown', alTeclado);
   }
   function alTeclado(e){
-    if (e.key === 'Escape') cerrarModal();
+    if (e.key === 'Escape') cerrar();
     else if (e.key === 'ArrowLeft' && indice > 0) mostrarIndice(indice - 1);
     else if (e.key === 'ArrowRight' && indice < lista.length - 1) mostrarIndice(indice + 1);
   }
 
-  trigger.hidden = false;
-  trigger.addEventListener('click', abrirModal);
-  document.getElementById('renders-cerrar').addEventListener('click', cerrarModal);
-  modal.addEventListener('click', e => { if (e.target === modal) cerrarModal(); });
+  document.getElementById('renders-cerrar').addEventListener('click', cerrar);
+  modal.addEventListener('click', e => { if (e.target === modal) cerrar(); });
   btnPrev.addEventListener('click', () => { if (indice > 0) mostrarIndice(indice - 1); });
   btnNext.addEventListener('click', () => { if (indice < lista.length - 1) mostrarIndice(indice + 1); });
+
+  return { abrir };
+})();
+
+// Galería de renders del edificio: el trigger queda oculto (ver HTML)
+// hasta que haya al menos una imagen — la mayoría de los proyectos
+// todavía no van a tener renders cargados desde admin.html.
+function pintarRenders(lista){
+  if (!lista.length) return;
+  const trigger = document.getElementById('renders-trigger');
+  trigger.hidden = false;
+  trigger.addEventListener('click', () => galeria.abrir(lista, 0));
 }
 
 const btnCompartir = document.getElementById('red-compartir');
@@ -760,10 +773,73 @@ btnCompartir.addEventListener('click', async () => {
   }
 });
 
+// Geometría por polígono (unidades con contorno propio, y losa/núcleo de
+// geometria.losa_contorno / .nucleo_contorno). Sistema de coordenadas
+// documentado en CLAUDE.md — resumen: x/z en metros, origen en el centro
+// de la placa, mismo sentido que ya usan col/frente.
+
+function areaConSigno(pts){ // pts: [[u,v], ...] en el plano que se está midiendo
+  let a = 0;
+  for (let i = 0; i < pts.length; i++){
+    const [u1, v1] = pts[i], [u2, v2] = pts[(i + 1) % pts.length];
+    a += u1 * v2 - u2 * v1;
+  }
+  return a / 2;
+}
+
+// Centroide simple (promedio de vértices): alcanza para ubicar la unidad y
+// para orientar la cámara en enfocar() — no hace falta el centroide exacto
+// ponderado por área para eso.
+function centroideContorno(pts){
+  const s = pts.reduce((acc, [x, z]) => ({ x: acc.x + x, z: acc.z + z }), { x:0, z:0 });
+  return { x: s.x / pts.length, z: s.z / pts.length };
+}
+
+// Arma el Shape de three.js centrado en su propio centroide (mismo criterio
+// que BoxGeometry: geometría centrada en el origen local, la posición del
+// mesh es lo que la ubica en el mundo — ver geometriaExtruida). El Shape
+// vive en su plano XY local; acá lo armamos como (x, -z) del contorno
+// porque ExtrudeGeometry + la rotación de -90° en X que aplica
+// geometriaExtruida mandan ese eje Y del Shape al Z mundial invertido. El
+// sentido se normaliza en ESE espacio (x, -z), no en el (x, z) del dato
+// crudo, para que la extrusión salga con las normales hacia afuera sin
+// depender de cómo vino cargado el contorno.
+function formaDesdeContorno(pts, centro){
+  let enShape = pts.map(([x, z]) => [x - centro.x, -(z - centro.z)]);
+  if (areaConSigno(enShape) < 0) enShape = enShape.reverse();
+  const forma = new THREE.Shape();
+  enShape.forEach(([u, v], i) => { if (i === 0) forma.moveTo(u, v); else forma.lineTo(u, v); });
+  forma.closePath();
+  return forma;
+}
+
+// ExtrudeGeometry extruye a lo largo de +Z local; rotar -90° en X manda ese
+// +Z local a +Y mundial (arriba) y el plano XY del shape al plano XZ del
+// piso. depth = altura del volumen (piso a techo, o espesor para la losa).
+// El resultado queda centrado en su propio origen local en los tres ejes
+// (X/Z en el centroide del contorno, Y en depth/2) — igual que
+// BoxGeometry — así que se posiciona con mesh.position exactamente como
+// las cajas rectangulares de hoy.
+function geometriaExtruida(pts, depth, centro){
+  const geo = new THREE.ExtrudeGeometry(formaDesdeContorno(pts, centro), { depth, bevelEnabled:false });
+  geo.rotateX(-Math.PI / 2);
+  geo.translate(0, -depth / 2, 0);
+  return geo;
+}
+
 // Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
 // adentro de iniciar() porque necesita esperar a que lleguen el proyecto y
 // las unidades desde Supabase antes de construir nada.
-function iniciar(proyecto, settingsRow, UNIDADES){
+function iniciar(proyecto, settingsRow, UNIDADES, mediaTipologias){
+
+// Media real por tipología (planta/renders subidos desde admin.html),
+// agrupada por typology_id y tipo — así abrir(u) resuelve en O(1) qué
+// mostrarle a cada unidad según su u.typologyId. Ver pintarPlantaUnidad().
+const MEDIA_POR_TIPOLOGIA = {};
+(mediaTipologias || []).forEach(m => {
+  const grupo = MEDIA_POR_TIPOLOGIA[m.typology_id] || (MEDIA_POR_TIPOLOGIA[m.typology_id] = { planta: [], render: [] });
+  (grupo[m.tipo] || (grupo[m.tipo] = [])).push(m);
+});
 
 document.getElementById('h1-proyecto').textContent = proyecto.nombre;
 document.getElementById('sub-proyecto').textContent =
@@ -795,6 +871,13 @@ const SEP_X = geo.sep_x ?? (ANCHO + 0.3), SEP_Z = geo.sep_z ?? ((PROF + 2.0) / 2
 const LOSA_ANCHO = geo.losa_ancho ?? (SEP_X * 4 + 0.5), LOSA_LARGO = geo.losa_largo ?? (SEP_Z * 2 + PROF + 0.5);
 const NUCLEO_ANCHO = geo.nucleo_ancho ?? (SEP_X * 2), NUCLEO_LARGO = geo.nucleo_largo ?? 1.7;
 const calleCfg = geo.calle || {};
+
+// Placas con forma propia (edificios que no son una losa rectangular
+// simétrica) — mismo sistema de coordenadas que units.geom, ver CLAUDE.md.
+// Si faltan, la losa/núcleo siguen siendo el rectángulo de arriba.
+const LOSA_CONTORNO = Array.isArray(geo.losa_contorno) && geo.losa_contorno.length >= 3 ? geo.losa_contorno : null;
+const NUCLEO_CONTORNO = Array.isArray(geo.nucleo_contorno) && geo.nucleo_contorno.length >= 3 ? geo.nucleo_contorno : null;
+const ORIGEN_PLACA = { x:0, z:0 };
 
 const escena = new THREE.Scene();
 escena.background = new THREE.Color(0xDEE2E4);
@@ -867,8 +950,8 @@ escena.add(torre);
 
 const geoUnidad  = new THREE.BoxGeometry(ANCHO, ALTO, PROF);
 const bordesGeo  = new THREE.EdgesGeometry(geoUnidad);
-const geoLosa    = new THREE.BoxGeometry(LOSA_ANCHO, LOSA, LOSA_LARGO);
-const geoNucleo  = new THREE.BoxGeometry(NUCLEO_ANCHO, ALTO, NUCLEO_LARGO);
+const geoLosa    = LOSA_CONTORNO ? geometriaExtruida(LOSA_CONTORNO, LOSA, ORIGEN_PLACA) : new THREE.BoxGeometry(LOSA_ANCHO, LOSA, LOSA_LARGO);
+const geoNucleo  = NUCLEO_CONTORNO ? geometriaExtruida(NUCLEO_CONTORNO, ALTO, ORIGEN_PLACA) : new THREE.BoxGeometry(NUCLEO_ANCHO, ALTO, NUCLEO_LARGO);
 const matLosa    = new THREE.MeshStandardMaterial({ color:0xB4BBBD, roughness:0.9 });
 const matNucleo  = new THREE.MeshStandardMaterial({ color:0xA5ADB0, roughness:0.9 });
 
@@ -914,18 +997,32 @@ for (let piso = 1; piso <= PISOS; piso++){
   g.add(nucleo);
 
   UNIDADES.filter(u => u.piso === piso).forEach(u => {
+    // Unidad con contorno propio (units.geom.contorno, ver CLAUDE.md) en vez
+    // de la grilla col/frente + caja ANCHO×PROF. Si falta, cae exactamente
+    // en el camino de siempre — así ROSSO no cambia.
+    const tieneGeom = u.geom && Array.isArray(u.geom.contorno) && u.geom.contorno.length >= 3;
+    const altoUnidad = tieneGeom && u.geom.alto ? u.geom.alto : ALTO;
+    let geoU = geoUnidad, bordesU = bordesGeo, posX = u.col * SEP_X, posZ = u.frente * SEP_Z;
+    if (tieneGeom){
+      const centro = centroideContorno(u.geom.contorno);
+      geoU = geometriaExtruida(u.geom.contorno, altoUnidad, centro);
+      bordesU = new THREE.EdgesGeometry(geoU);
+      posX = centro.x; posZ = centro.z;
+      u._centro = centro; // enfocar() lo usa para orientar la cámara sin col/frente
+    }
+
     const color = new THREE.Color(ESTADOS[u.estado].color);
-    const caja = new THREE.Mesh(geoUnidad, new THREE.MeshStandardMaterial({
+    const caja = new THREE.Mesh(geoU, new THREE.MeshStandardMaterial({
       color, roughness:0.45, metalness:0.05, transparent:true,
       opacity: u.estado === 'disponible' ? 0.94 : 0.72,
     }));
-    caja.position.set(u.col * SEP_X, ALTO/2, u.frente * SEP_Z);
+    caja.position.set(posX, altoUnidad/2, posZ);
     caja.castShadow = caja.receiveShadow = true;
     caja.userData = { unidad:u, colorBase:color.clone(), activa:true };
     g.add(caja);
     cajas.push(caja);
 
-    const borde = new THREE.LineSegments(bordesGeo,
+    const borde = new THREE.LineSegments(bordesU,
       new THREE.LineBasicMaterial({ color:0x1A2124, transparent:true, opacity:0.26 }));
     borde.position.copy(caja.position);
     caja.userData.borde = borde;
@@ -1055,7 +1152,14 @@ lienzo.addEventListener('wheel', e => {
 const rayo = new THREE.Raycaster();
 const raton = new THREE.Vector2(-2,-2);
 let posRaton = {x:0,y:0}, sobre = null, sobreCalle = false, elegida = null, separado = false, pisoAislado = null;
-let fDorms = new Set([1,2]), fEstado = new Set(Object.keys(ESTADOS));
+// Los valores de dormitorios (0 = monoambiente, 1, 2, 3...) salen de las
+// unidades cargadas, no de una lista fija: cada edificio tiene su propia
+// mezcla de tipologías.
+const dormsDisponibles = [...new Set(UNIDADES.map(u => u.dorms))].sort((a,b) => a-b);
+function etiquetaDorms(d){
+  return d === 0 ? 'Monoambiente' : d === 1 ? '1 dormitorio' : d + ' dormitorios';
+}
+let fDorms = new Set(dormsDisponibles), fEstado = new Set(Object.keys(ESTADOS));
 
 const tooltip = document.getElementById('tooltip');
 const panel = document.getElementById('panel');
@@ -1088,7 +1192,7 @@ function chip(cont, texto, color, alTocar){
   });
   cont.appendChild(b);
 }
-[1,2].forEach(d => chip(document.getElementById('f-dorms'), d + (d===1?' dormitorio':' dormitorios'), null,
+dormsDisponibles.forEach(d => chip(document.getElementById('f-dorms'), etiquetaDorms(d), null,
   on => on ? fDorms.add(d) : fDorms.delete(d)));
 Object.entries(ESTADOS).forEach(([k,e]) => chip(document.getElementById('f-estado'), e.nombre, e.color,
   on => on ? fEstado.add(k) : fEstado.delete(k)));
@@ -1191,7 +1295,7 @@ filtrosBackdrop.addEventListener('click', cerrarFiltros);
 // = sin badge), para que se sepa desde afuera si hay un filtro activo sin
 // tener que abrir la hoja.
 function actualizarBadgeFiltros(){
-  const excluidos = (2 - fDorms.size) + (Object.keys(ESTADOS).length - fEstado.size);
+  const excluidos = (dormsDisponibles.length - fDorms.size) + (Object.keys(ESTADOS).length - fEstado.size);
   ftBadge.textContent = excluidos;
   ftBadge.hidden = excluidos === 0;
 }
@@ -1251,56 +1355,34 @@ fijoPisos.appendChild(btnTodos);
 riel.appendChild(fijoPisos);
 
 /* ============================================================
-   Planta esquemática. Se dibuja desde los datos de la tipología:
-   proporciones aproximadas, no el plano del arquitecto.
+   Planta real de la tipología (subida por el cliente desde admin.html,
+   ver MEDIA_POR_TIPOLOGIA más arriba). Antes acá se dibujaba un esquema de
+   rectángulos a partir de m²/dorms — se sacó porque un esquema inventado
+   que no coincide con muros reales (diagonales, plantas en L, etc.) es
+   peor que avisar que la planta no está disponible todavía.
    ============================================================ */
 
-function ambientes(u){
-  // terraza más profunda cuanto mayor es la diferencia con lo cubierto
-  const t = Math.max(9, Math.min(20, (u.m2 - (u.dorms === 1 ? 40 : 70)) * 0.9));
-  const y0 = 4 + t, H = 66 - y0;
-
-  if (u.dorms === 1) return [
-    { x:4,  y:4,           w:92, h:t,        nom:'Terraza',        fuera:true },
-    { x:4,  y:y0,          w:52, h:H,        nom:'Estar · cocina' },
-    { x:56, y:y0,          w:40, h:H*0.56,   nom:'Dormitorio' },
-    { x:56, y:y0+H*0.56,   w:21, h:H*0.44,   nom:'Baño' },
-    { x:77, y:y0+H*0.56,   w:19, h:H*0.44,   nom:'Acceso' },
-  ];
-  return [
-    { x:4,  y:4,           w:92, h:t,        nom:'Terraza',        fuera:true },
-    { x:4,  y:y0,          w:46, h:H*0.60,   nom:'Estar · comedor' },
-    { x:4,  y:y0+H*0.60,   w:46, h:H*0.40,   nom:'Cocina' },
-    { x:50, y:y0,          w:46, h:H*0.38,   nom:'Dormitorio 1' },
-    { x:50, y:y0+H*0.38,   w:30, h:H*0.34,   nom:'Dormitorio 2' },
-    { x:80, y:y0+H*0.38,   w:16, h:H*0.34,   nom:'Baño' },
-    { x:50, y:y0+H*0.72,   w:46, h:H*0.28,   nom:'Acceso' },
-  ];
+// Planta primero, después los renders de la tipología — mismo orden en el
+// que se muestran y en el que se navega al ampliar con el lightbox.
+function mediaDeUnidad(u){
+  const media = (u.typologyId && MEDIA_POR_TIPOLOGIA[u.typologyId]) || { planta: [], render: [] };
+  return media.planta.length ? [media.planta[0], ...media.render] : media.render;
 }
 
-function plantaSVG(u){
-  const salas = ambientes(u);
-  const cuerpo = salas.map(s => {
-    const relleno = s.fuera ? '#E6ECEA' : '#F3F5F5';
-    const trazo   = s.fuera ? 'stroke-dasharray="2 1.6"' : '';
-    const chico   = s.w < 24 || s.h < 11;
-    return '<rect x="'+s.x+'" y="'+s.y.toFixed(1)+'" width="'+s.w+'" height="'+s.h.toFixed(1)+'"'+
-           ' fill="'+relleno+'" stroke="#1A2124" stroke-width="1.3" '+trazo+'/>'+
-           '<text x="'+(s.x+s.w/2)+'" y="'+(s.y+s.h/2+1.3).toFixed(1)+'" text-anchor="middle"'+
-           ' font-size="'+(chico?3.4:4)+'" font-weight="600" fill="#1A2124">'+s.nom+'</text>';
-  }).join('');
-
-  // aberturas sobre la fachada y marca de puerta de entrada
-  const vanos = '<line x1="18" y1="4" x2="40" y2="4" stroke="#fff" stroke-width="2.4"/>'+
-                '<line x1="60" y1="4" x2="82" y2="4" stroke="#fff" stroke-width="2.4"/>'+
-                '<line x1="86" y1="66" x2="94" y2="66" stroke="#2F7A68" stroke-width="2.4"/>';
-
-  const rotulo = '<text x="50" y="2.8" text-anchor="middle" font-size="3.2" font-weight="600" fill="#5D686C"'+
-                 ' letter-spacing=".4">'+u.orient.toUpperCase()+'</text>';
-
-  return '<svg viewBox="0 -1 100 72" xmlns="http://www.w3.org/2000/svg" role="img"'+
-         ' aria-label="Planta esquemática de la unidad '+u.id+'">'+rotulo+cuerpo+vanos+'</svg>'+
-         '<figcaption>Esquema de proporciones · '+u.m2+' m² totales</figcaption>';
+function pintarPlantaUnidad(u){
+  const cont = document.getElementById('p-planta');
+  const items = mediaDeUnidad(u);
+  if (!items.length){
+    cont.innerHTML = '<p class="planta-vacia">Planta no disponible todavía para esta unidad.</p>';
+    return;
+  }
+  cont.innerHTML = items.map((m, i) =>
+    '<img src="' + m.url + '" data-idx="' + i + '"' +
+    ' alt="' + (m.tipo === 'planta' ? 'Planta' : 'Render') + ' de la unidad ' + u.id + '">'
+  ).join('');
+  cont.querySelectorAll('img').forEach(img =>
+    img.addEventListener('click', () => galeria.abrir(items, Number(img.dataset.idx)))
+  );
 }
 
 // Tira de elevación junto al número de unidad: 11 marcas (PB + pisos 1–10),
@@ -1320,7 +1402,12 @@ function actualizarTiraPiso(u){
 // Lleva la cámara frente a la unidad, a la altura de su piso.
 function enfocar(u){
   objetivo.set(0, u.piso * PASO + ALTO / 2, 0);
-  theta = (u.frente < 0 ? Math.PI : 0) - u.col * 0.16;
+  // Unidades con contorno propio no tienen col/frente utilizables para
+  // orientar la cámara — se deriva un ángulo equivalente del centroide
+  // (mismo criterio: signo de Z = lado frente/contrafrente, X = desplazamiento lateral).
+  theta = u._centro
+    ? (u._centro.z < 0 ? Math.PI : 0) - (u._centro.x / SEP_X) * 0.16
+    : (u.frente < 0 ? Math.PI : 0) - u.col * 0.16;
   phi = 1.32;
   radio = 62;
   tocado = true;
@@ -1361,8 +1448,8 @@ function abrir(u, mover){
   pEstado.style.borderColor  = e.color + '4D';
   pEstado.style.color        = e.color;
   actualizarTiraPiso(u);
-  document.getElementById('p-planta').innerHTML   = plantaSVG(u);
-  document.getElementById('p-dorms').textContent      = u.dorms;
+  pintarPlantaUnidad(u);
+  document.getElementById('p-dorms').textContent      = etiquetaDorms(u.dorms);
   document.getElementById('p-m2').textContent         = u.m2 + ' m²';
   document.getElementById('p-orient').textContent     = u.orient;
   document.getElementById('p-precio').textContent     = formatearPrecio(u.precio, proyecto.moneda, proyecto.locale);
@@ -1383,7 +1470,7 @@ function abrir(u, mover){
     ? 'Precio y superficie estimados — falta el dato real.'
     : 'Precio y superficie publicados en el aviso.';
   const texto = 'Hola, quiero consultar por la unidad ' + u.id + ' de ' + proyecto.nombre + ' (' +
-                u.dorms + ' dormitorio' + (u.dorms > 1 ? 's' : '') + ', ' + u.m2 + ' m²). ' + linkDe(u);
+                etiquetaDorms(u.dorms).toLowerCase() + ', ' + u.m2 + ' m²). ' + linkDe(u);
   document.getElementById('p-wa').href = settingsRow.whatsapp
     ? 'https://wa.me/' + settingsRow.whatsapp + '?text=' + encodeURIComponent(texto)
     : '#';
@@ -1502,7 +1589,7 @@ addEventListener('resize', () => {
   pintarAmenities(resultado.amenities);
   pintarLegal(resultado.settings.textos);
   pintarRenders(resultado.renders);
-  iniciar(resultado.proyecto, resultado.settings, resultado.unidades);
+  iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias);
 })();
 </script>
 </body>

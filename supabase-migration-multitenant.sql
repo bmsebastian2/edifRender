@@ -408,7 +408,7 @@ where p.publicado;
 
 create or replace view public_units as
 select u.project_id, u.id, u.piso, u.pos, u.col, u.frente, u.dorms, u.m2, u.orientacion,
-       u.precio, u.estimado, u.estado, u.m2_terraza, u.cochera_precio, u.typology_id
+       u.precio, u.estimado, u.estado, u.m2_terraza, u.cochera_precio, u.typology_id, u.geom
 from units u join projects p on p.id = u.project_id
 where p.publicado;
 
