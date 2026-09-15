@@ -1,234 +1,881 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ROSSO by Block · disponibilidad navegable</title>
-<style>
-  :root{
-    --fondo:#DEE2E4; --tinta:#1A2124; --suave:#546065; --linea:rgba(26,33,36,.14);
-    --papel:rgba(255,255,255,.86); --verde:#2F7A68; --gris:#646C6E; --ambar:#C08429;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;height:100%;overflow:hidden;background:var(--fondo);color:var(--tinta)}
-  body{font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
-  canvas{display:block}
-  button{font-family:inherit;font-size:inherit;color:inherit}
-  h1{font-size:22px;font-weight:650;letter-spacing:-.02em;margin:0}
-  .sub{margin:3px 0 0;color:var(--suave);font-size:13px}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ROSSO by Block · disponibilidad navegable</title>
+  <style>
+    :root {
+      --fondo: #DEE2E4;
+      --tinta: #1A2124;
+      --suave: #546065;
+      --linea: rgba(26, 33, 36, .14);
+      --papel: rgba(255, 255, 255, .86);
+      --verde: #2F7A68;
+      --gris: #646C6E;
+      --ambar: #C08429;
+    }
 
-  #cabezal{position:fixed;top:0;left:0;padding:22px 24px;z-index:10;max-width:330px}
-  #aviso{
-    margin-top:18px;padding:13px 15px;border-radius:5px;background:var(--papel);
-    border:1px solid var(--linea);border-left:3px solid var(--ambar);font-size:13px;
-  }
-  #aviso b{font-weight:600}
+    * {
+      box-sizing: border-box
+    }
 
-  /* Envoltorio puramente de layout: en desktop no debe existir como caja
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: var(--fondo);
+      color: var(--tinta)
+    }
+
+    body {
+      font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased
+    }
+
+    canvas {
+      display: block
+    }
+
+    button {
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 650;
+      letter-spacing: -.02em;
+      margin: 0
+    }
+
+    .sub {
+      margin: 3px 0 0;
+      color: var(--suave);
+      font-size: 13px
+    }
+
+    #cabezal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      padding: 22px 24px;
+      z-index: 10;
+      max-width: 330px
+    }
+
+    #aviso {
+      margin-top: 18px;
+      padding: 13px 15px;
+      border-radius: 5px;
+      background: var(--papel);
+      border: 1px solid var(--linea);
+      border-left: 3px solid var(--ambar);
+      font-size: 13px;
+    }
+
+    #aviso b {
+      font-weight: 600
+    }
+
+    /* Envoltorio puramente de layout: en desktop no debe existir como caja
      (cota/redes siguen siendo position:fixed, independientes entre sí),
      en mobile pasa a ser la fila que los alinea dentro del flujo del
      header (ver media query de abajo). */
-  #cabezal-utilidades{display:contents}
+    #cabezal-utilidades {
+      display: contents
+    }
 
-  #cota{
-    position:fixed;top:22px;right:24px;z-index:11;display:flex;align-items:center;gap:8px;
-    font-size:13px;color:var(--suave);text-decoration:none;
-  }
-  #cota:hover{color:var(--tinta)}
+    #cota {
+      position: fixed;
+      top: 22px;
+      right: 24px;
+      z-index: 11;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--suave);
+      text-decoration: none;
+    }
 
-  #admin-link{
-    position:fixed;top:54px;right:24px;z-index:11;font-size:11.5px;color:var(--suave);
-    text-decoration:none;opacity:.55;
-  }
-  #admin-link:hover{opacity:1;color:var(--tinta)}
-  @media (max-width:860px){ #admin-link{display:none} }
+    #cota:hover {
+      color: var(--tinta)
+    }
 
-  #redes{position:fixed;top:76px;right:24px;z-index:11;display:flex;gap:10px}
-  #redes a,#redes button{
-    display:flex;align-items:center;justify-content:center;width:26px;height:26px;
-    border:none;background:none;padding:0;cursor:pointer;color:var(--suave);opacity:.55;
-    transition:opacity .15s,color .15s;
-  }
-  #redes a:hover,#redes button:hover{opacity:1;color:var(--tinta)}
-  #redes svg{width:16px;height:16px}
-  #redes a[hidden]{display:none}
+    #admin-link {
+      position: fixed;
+      top: 54px;
+      right: 24px;
+      z-index: 11;
+      font-size: 11.5px;
+      color: var(--suave);
+      text-decoration: none;
+      opacity: .55;
+    }
 
-  #compartir-aviso{
-    position:fixed;top:110px;right:24px;z-index:12;
-    background:var(--tinta);color:#fff;font-size:12.5px;line-height:1;
-    padding:8px 12px;border-radius:4px;white-space:nowrap;
-    opacity:0;transform:translateY(-6px);pointer-events:none;
-    transition:opacity .18s ease,transform .18s ease;
-  }
-  #compartir-aviso.visible{opacity:1;transform:translateY(0)}
+    #admin-link:hover {
+      opacity: 1;
+      color: var(--tinta)
+    }
 
-  #filtros{position:fixed;left:24px;bottom:22px;z-index:10;max-width:330px}
+    @media (max-width:860px) {
+      #admin-link {
+        display: none
+      }
+    }
 
-  /* Envoltorio de layout, mismo truco que #cabezal-utilidades: en desktop
+    #redes {
+      position: fixed;
+      top: 76px;
+      right: 24px;
+      z-index: 11;
+      display: flex;
+      gap: 10px
+    }
+
+    #redes a,
+    #redes button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border: none;
+      background: none;
+      padding: 0;
+      cursor: pointer;
+      color: var(--suave);
+      opacity: .55;
+      transition: opacity .15s, color .15s;
+    }
+
+    #redes a:hover,
+    #redes button:hover {
+      opacity: 1;
+      color: var(--tinta)
+    }
+
+    #redes svg {
+      width: 16px;
+      height: 16px
+    }
+
+    #redes a[hidden] {
+      display: none
+    }
+
+    #compartir-aviso {
+      position: fixed;
+      top: 110px;
+      right: 24px;
+      z-index: 12;
+      background: var(--tinta);
+      color: #fff;
+      font-size: 12.5px;
+      line-height: 1;
+      padding: 8px 12px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    #compartir-aviso.visible {
+      opacity: 1;
+      transform: translateY(0)
+    }
+
+    #filtros {
+      position: fixed;
+      left: 24px;
+      bottom: 22px;
+      z-index: 10;
+      max-width: 330px
+    }
+
+    /* Envoltorio de layout, mismo truco que #cabezal-utilidades: en desktop
      no debe existir como caja (renders-trigger es fixed propio, filtros-
      trigger queda oculto), en mobile pasa a ser la barra que los alinea
      lado a lado (ver media query). */
-  #barra-inferior{display:contents}
+    #barra-inferior {
+      display: contents
+    }
 
-  #renders-trigger{
-    position:fixed;right:24px;bottom:22px;z-index:10;
-    display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:20px;
-    border:1px solid var(--linea);background:var(--papel);color:var(--suave);
-    font-size:12.5px;font-weight:600;cursor:pointer;
-    transition:color .15s,border-color .15s;
-  }
-  #renders-trigger:hover{color:var(--tinta);border-color:rgba(26,33,36,.32)}
-  #renders-trigger svg{flex:none}
-  #renders-trigger[hidden]{display:none}
+    #renders-trigger {
+      position: fixed;
+      right: 24px;
+      bottom: 22px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--linea);
+      background: var(--papel);
+      color: var(--suave);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
 
-  .grupo{margin-bottom:11px}
-  .grupo p{margin:0 0 6px;font-size:12.5px;color:var(--suave)}
-  .fila{display:flex;flex-wrap:wrap;gap:6px}
-  .chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:4px;cursor:pointer;
-    border:1px solid var(--linea);background:var(--papel);color:var(--suave);font-size:13px;
-    transition:color .15s,background .15s,border-color .15s}
-  .chip:hover{color:var(--tinta);border-color:rgba(26,33,36,.32)}
-  .chip[aria-pressed="true"]{color:#fff;background:var(--tinta);border-color:var(--tinta)}
-  .chip:focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
-  .punto{width:8px;height:8px;border-radius:2px;flex:none}
-  #separar{margin-top:2px;padding:8px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--linea);background:var(--papel);color:var(--suave)}
-  #separar[aria-pressed="true"]{color:#fff;background:var(--tinta);border-color:var(--tinta)}
+    #renders-trigger:hover {
+      color: var(--tinta);
+      border-color: rgba(26, 33, 36, .32)
+    }
 
-  /* Riel de pisos: columna fija a la derecha. Con muchos pisos no entra
+    #renders-trigger svg {
+      flex: none
+    }
+
+    #renders-trigger[hidden] {
+      display: none
+    }
+
+    .grupo {
+      margin-bottom: 11px
+    }
+
+    .grupo p {
+      margin: 0 0 6px;
+      font-size: 12.5px;
+      color: var(--suave)
+    }
+
+    .fila {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid var(--linea);
+      background: var(--papel);
+      color: var(--suave);
+      font-size: 13px;
+      transition: color .15s, background .15s, border-color .15s
+    }
+
+    .chip:hover {
+      color: var(--tinta);
+      border-color: rgba(26, 33, 36, .32)
+    }
+
+    .chip[aria-pressed="true"] {
+      color: #fff;
+      background: var(--tinta);
+      border-color: var(--tinta)
+    }
+
+    .chip:focus-visible {
+      outline: 2px solid var(--tinta);
+      outline-offset: 2px
+    }
+
+    .punto {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      flex: none
+    }
+
+    #separar {
+      margin-top: 2px;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid var(--linea);
+      background: var(--papel);
+      color: var(--suave)
+    }
+
+    #separar[aria-pressed="true"] {
+      color: #fff;
+      background: var(--tinta);
+      border-color: var(--tinta)
+    }
+
+    /* Riel de pisos: columna fija a la derecha. Con muchos pisos no entra
      entero en alto de viewport, así que se cap-ea la altura y el resto
      scrollea — "PISO" + TODOS quedan pegados arriba y PB pegado abajo,
      como los extremos fijos de un panel de ascensor. */
-  #pisos{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:10;display:flex;flex-direction:column-reverse;gap:2px;
-    max-height:min(62vh,540px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
-  #pisos::-webkit-scrollbar{display:none}
-  #pisos button{width:36px;height:24px;border:none;background:none;cursor:pointer;color:var(--suave);flex:none;
-    font-size:12.5px;font-variant-numeric:tabular-nums;border-right:2px solid transparent;transition:color .15s,border-color .15s}
-  #pisos button:hover{color:var(--tinta)}
-  #pisos button[aria-pressed="true"]{color:var(--tinta);font-weight:650;border-right-color:var(--tinta)}
-  #pisos .pisos-fijo{position:sticky;top:0;z-index:2;background:var(--fondo);flex:none;display:flex;flex-direction:column}
-  #pisos .pisos-etiqueta{font-size:10.5px;letter-spacing:.08em;color:var(--suave);text-align:right;
-    padding:0 8px 6px;margin-bottom:4px;border-bottom:1px solid var(--linea);pointer-events:none}
-  #pisos .pisos-todos{font-size:9.5px;letter-spacing:.02em;font-weight:650;height:auto;
-    white-space:nowrap;padding:2px 0 8px;margin-top:2px}
-  #pisos .pisos-pb{position:sticky;bottom:0;z-index:2;background:var(--fondo)}
-  #pisos-backdrop{display:none}
-  #pisos-trigger{display:none}
-  #filtros-backdrop{display:none}
-  #filtros-trigger{display:none}
+    #pisos {
+      position: fixed;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 2px;
+      max-height: min(62vh, 540px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none
+    }
 
-  #piso-info{position:fixed;right:70px;top:50%;transform:translateY(-50%) translateX(6px);z-index:10;
-    max-width:210px;padding:13px 15px;border-radius:5px;background:var(--papel);
-    border:1px solid var(--linea);border-right:3px solid var(--tinta);font-size:12.5px;
-    color:var(--suave);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
-  #piso-info.visible{opacity:1;transform:translateY(-50%) translateX(0)}
-  #piso-info b{color:var(--tinta);font-size:16px;font-weight:650;display:block;margin-bottom:5px;
-    letter-spacing:-.01em}
-  #piso-info span{display:block}
+    #pisos::-webkit-scrollbar {
+      display: none
+    }
 
-  #panel{position:fixed;top:0;right:0;height:100%;width:330px;z-index:12;background:rgba(255,255,255,.94);
-    backdrop-filter:blur(12px);border-left:1px solid var(--linea);padding:26px 26px 22px;
-    display:flex;flex-direction:column;overflow-y:auto;transform:translateX(100%);transition:transform .3s cubic-bezier(.22,.61,.36,1)}
-  #panel.abierto{transform:none}
-  #cerrar{position:absolute;top:18px;right:18px;width:28px;height:28px;border:1px solid var(--linea);
-    background:none;border-radius:50%;color:var(--suave);cursor:pointer;line-height:1}
-  /* Cabecera del panel: número de unidad + estado a la izquierda, y una
+    #pisos button {
+      width: 36px;
+      height: 24px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--suave);
+      flex: none;
+      font-size: 12.5px;
+      font-variant-numeric: tabular-nums;
+      border-right: 2px solid transparent;
+      transition: color .15s, border-color .15s
+    }
+
+    #pisos button:hover {
+      color: var(--tinta)
+    }
+
+    #pisos button[aria-pressed="true"] {
+      color: var(--tinta);
+      font-weight: 650;
+      border-right-color: var(--tinta)
+    }
+
+    #pisos .pisos-fijo {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--fondo);
+      flex: none;
+      display: flex;
+      flex-direction: column
+    }
+
+    #pisos .pisos-etiqueta {
+      font-size: 10.5px;
+      letter-spacing: .08em;
+      color: var(--suave);
+      text-align: right;
+      padding: 0 8px 6px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--linea);
+      pointer-events: none
+    }
+
+    #pisos .pisos-todos {
+      font-size: 9.5px;
+      letter-spacing: .02em;
+      font-weight: 650;
+      height: auto;
+      white-space: nowrap;
+      padding: 2px 0 8px;
+      margin-top: 2px
+    }
+
+    #pisos .pisos-pb {
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+      background: var(--fondo)
+    }
+
+    #pisos-backdrop {
+      display: none
+    }
+
+    #pisos-trigger {
+      display: none
+    }
+
+    #filtros-backdrop {
+      display: none
+    }
+
+    #filtros-trigger {
+      display: none
+    }
+
+    #piso-info {
+      position: fixed;
+      right: 70px;
+      top: 50%;
+      transform: translateY(-50%) translateX(6px);
+      z-index: 10;
+      max-width: 210px;
+      padding: 13px 15px;
+      border-radius: 5px;
+      background: var(--papel);
+      border: 1px solid var(--linea);
+      border-right: 3px solid var(--tinta);
+      font-size: 12.5px;
+      color: var(--suave);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s, transform .18s
+    }
+
+    #piso-info.visible {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0)
+    }
+
+    #piso-info b {
+      color: var(--tinta);
+      font-size: 16px;
+      font-weight: 650;
+      display: block;
+      margin-bottom: 5px;
+      letter-spacing: -.01em
+    }
+
+    #piso-info span {
+      display: block
+    }
+
+    #panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: 330px;
+      z-index: 12;
+      background: rgba(255, 255, 255, .94);
+      backdrop-filter: blur(12px);
+      border-left: 1px solid var(--linea);
+      padding: 26px 26px 22px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform .3s cubic-bezier(.22, .61, .36, 1)
+    }
+
+    #panel.abierto {
+      transform: none
+    }
+
+    #cerrar {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--linea);
+      background: none;
+      border-radius: 50%;
+      color: var(--suave);
+      cursor: pointer;
+      line-height: 1
+    }
+
+    /* Cabecera del panel: número de unidad + estado a la izquierda, y una
      "tira de elevación" a la derecha — el mismo lenguaje del riel de pisos
      (panel de ascensor) trasladado acá, para que el número no flote solo:
      siempre se lee en relación a dónde está esa unidad en la torre. */
-  .p-cabeza{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-top:26px}
-  .p-eyebrow{margin:0;font-size:11px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;color:var(--suave)}
-  #p-unidad{font-size:32px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0 0}
-  #p-estado{display:inline-flex;align-items:center;gap:6px;margin:10px 0 0;padding:5px 12px 5px 9px;
-    border-radius:20px;font-size:12.5px;font-weight:650;border:1px solid var(--linea);width:fit-content}
-  #p-estado .punto{border-radius:50%}
+    .p-cabeza {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 26px
+    }
 
-  .p-tira-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex:none;padding-top:1px}
-  .p-tira-tope,.p-tira-base{font-size:8.5px;font-weight:650;letter-spacing:.03em;color:var(--suave)}
-  .p-tira{display:flex;flex-direction:column-reverse;align-items:flex-end;gap:3px}
-  .p-tira-marca{display:block;width:13px;height:5px;border-radius:1px;background:var(--linea)}
-  .p-tira-marca.activa{width:21px}
+    .p-eyebrow {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: var(--suave)
+    }
 
-  dl{margin:0;display:grid;grid-template-columns:auto 1fr;column-gap:18px;row-gap:0;font-size:13.5px}
-  dt{color:var(--suave);margin:0;padding:9px 0;border-bottom:1px solid var(--linea)}
-  dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:560;padding:9px 0;border-bottom:1px solid var(--linea)}
+    #p-unidad {
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+      margin: 2px 0 0
+    }
 
-  .p-precio-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin:18px 0 4px}
-  #p-precio{font-size:22px;font-weight:650;margin:0;font-variant-numeric:tabular-nums}
-  .p-tag{display:inline-flex;align-items:center;padding:4px 11px;border-radius:20px;font-size:11px;
-    font-weight:650;letter-spacing:.01em;border:1px solid var(--linea);color:var(--suave);background:var(--papel)}
-  .p-tag-real{color:var(--verde);border-color:rgba(47,122,104,.35);background:rgba(47,122,104,.09)}
-  .p-tag-estimado{color:var(--ambar);border-color:rgba(192,132,41,.35);background:rgba(192,132,41,.09)}
+    #p-estado {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 10px 0 0;
+      padding: 5px 12px 5px 9px;
+      border-radius: 20px;
+      font-size: 12.5px;
+      font-weight: 650;
+      border: 1px solid var(--linea);
+      width: fit-content
+    }
 
-  /* Planta/renders reales de la tipología (subidos desde admin.html) — ver
+    #p-estado .punto {
+      border-radius: 50%
+    }
+
+    .p-tira-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: none;
+      padding-top: 1px
+    }
+
+    .p-tira-tope,
+    .p-tira-base {
+      font-size: 8.5px;
+      font-weight: 650;
+      letter-spacing: .03em;
+      color: var(--suave)
+    }
+
+    .p-tira {
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: flex-end;
+      gap: 3px
+    }
+
+    .p-tira-marca {
+      display: block;
+      width: 13px;
+      height: 5px;
+      border-radius: 1px;
+      background: var(--linea)
+    }
+
+    .p-tira-marca.activa {
+      width: 21px
+    }
+
+    dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      column-gap: 18px;
+      row-gap: 0;
+      font-size: 13.5px
+    }
+
+    dt {
+      color: var(--suave);
+      margin: 0;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--linea)
+    }
+
+    dd {
+      margin: 0;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 560;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--linea)
+    }
+
+    .p-precio-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 9px;
+      margin: 18px 0 4px
+    }
+
+    #p-precio {
+      font-size: 22px;
+      font-weight: 650;
+      margin: 0;
+      font-variant-numeric: tabular-nums
+    }
+
+    .p-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 11px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: .01em;
+      border: 1px solid var(--linea);
+      color: var(--suave);
+      background: var(--papel)
+    }
+
+    .p-tag-real {
+      color: var(--verde);
+      border-color: rgba(47, 122, 104, .35);
+      background: rgba(47, 122, 104, .09)
+    }
+
+    .p-tag-estimado {
+      color: var(--ambar);
+      border-color: rgba(192, 132, 41, .35);
+      background: rgba(192, 132, 41, .09)
+    }
+
+    /* Planta/renders reales de la tipología (subidos desde admin.html) — ver
      pintarPlantaUnidad(). Varias imágenes posibles (planta + renders): se
      apilan con un margen fino entre cada una, y cada una abre el lightbox
      (galeria.abrir) al hacer click. */
-  .planta{
-    background-color:#fff;border:1px solid var(--linea);border-radius:6px;
-    overflow:hidden;margin-bottom:18px;flex-shrink:0;
-  }
-  .planta img{width:100%;height:auto;display:block;cursor:zoom-in}
-  .planta img + img{border-top:1px solid var(--linea)}
-  .planta-vacia{margin:0;padding:34px 16px;text-align:center;color:var(--suave);font-size:12.5px;line-height:1.5}
-  .acciones-panel{display:flex;flex-direction:column;gap:8px;margin-top:22px}
-  .bton{
-    display:flex;align-items:center;justify-content:center;gap:8px;
-    padding:12px 16px;border-radius:5px;cursor:pointer;font-size:14.5px;font-weight:550;
-    border:1px solid transparent;text-decoration:none;transition:background .15s,border-color .15s,color .15s;
-  }
-  .bton-p{background:var(--verde);color:#fff}
-  .bton-p:hover{background:#38907B}
-  .bton-s{border-color:var(--linea);background:none;color:var(--suave)}
-  .bton-s:hover{color:var(--tinta);border-color:rgba(26,33,36,.34)}
-  .bton:focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
-  .bton svg{flex:none}
-  .nota{margin-top:auto;padding-top:16px;border-top:1px solid var(--linea);color:var(--suave);font-size:12px;line-height:1.55}
-  #p-edificio{margin-top:18px;padding-top:16px;border-top:1px solid var(--linea);font-size:12.5px;color:var(--suave);line-height:1.55}
-  #p-edificio .p-edificio-tit{margin:0 0 8px;font-weight:600;color:var(--tinta);font-size:12.5px}
-  #p-edificio ul{margin:0 0 10px;padding-left:18px}
-  #p-edificio li{margin-bottom:3px}
-  #p-edificio p{margin:0}
+    .planta {
+      background-color: #fff;
+      border: 1px solid var(--linea);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 18px;
+      flex-shrink: 0;
+    }
 
-  #tooltip{position:fixed;z-index:14;pointer-events:none;opacity:0;transform:translate(-50%,calc(-100% - 12px));
-    padding:5px 10px;border-radius:4px;background:var(--tinta);color:#fff;font-size:12.5px;white-space:nowrap;transition:opacity .12s}
+    .planta img {
+      width: 100%;
+      height: auto;
+      display: block;
+      cursor: zoom-in
+    }
 
-  /* Galería de renders: overlay oscuro simple, una imagen a la vez. No hay
+    .planta img+img {
+      border-top: 1px solid var(--linea)
+    }
+
+    .planta-vacia {
+      margin: 0;
+      padding: 34px 16px;
+      text-align: center;
+      color: var(--suave);
+      font-size: 12.5px;
+      line-height: 1.5
+    }
+
+    .acciones-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 22px
+    }
+
+    .bton {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14.5px;
+      font-weight: 550;
+      border: 1px solid transparent;
+      text-decoration: none;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+
+    .bton-p {
+      background: var(--verde);
+      color: #fff
+    }
+
+    .bton-p:hover {
+      background: #38907B
+    }
+
+    .bton-s {
+      border-color: var(--linea);
+      background: none;
+      color: var(--suave)
+    }
+
+    .bton-s:hover {
+      color: var(--tinta);
+      border-color: rgba(26, 33, 36, .34)
+    }
+
+    .bton:focus-visible {
+      outline: 2px solid var(--tinta);
+      outline-offset: 2px
+    }
+
+    .bton svg {
+      flex: none
+    }
+
+    .nota {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid var(--linea);
+      color: var(--suave);
+      font-size: 12px;
+      line-height: 1.55
+    }
+
+    #p-edificio {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--linea);
+      font-size: 12.5px;
+      color: var(--suave);
+      line-height: 1.55
+    }
+
+    #p-edificio .p-edificio-tit {
+      margin: 0 0 8px;
+      font-weight: 600;
+      color: var(--tinta);
+      font-size: 12.5px
+    }
+
+    #p-edificio ul {
+      margin: 0 0 10px;
+      padding-left: 18px
+    }
+
+    #p-edificio li {
+      margin-bottom: 3px
+    }
+
+    #p-edificio p {
+      margin: 0
+    }
+
+    #tooltip {
+      position: fixed;
+      z-index: 14;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, calc(-100% - 12px));
+      padding: 5px 10px;
+      border-radius: 4px;
+      background: var(--tinta);
+      color: #fff;
+      font-size: 12.5px;
+      white-space: nowrap;
+      transition: opacity .12s
+    }
+
+    /* Galería de renders: overlay oscuro simple, una imagen a la vez. No hay
      miniaturas ni zoom a propósito — es un puñado de fotos del edificio,
      no un catálogo, así que un carrusel liviano alcanza. */
-  #renders-modal{
-    position:fixed;inset:0;z-index:30;background:rgba(15,19,21,.92);
-    display:flex;align-items:center;justify-content:center;
-  }
-  #renders-modal[hidden]{display:none}
-  #renders-img{max-width:88vw;max-height:82vh;object-fit:contain;border-radius:4px;user-select:none}
-  #renders-cerrar{
-    position:absolute;top:18px;right:18px;width:38px;height:38px;border-radius:50%;
-    border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;
-    font-size:20px;line-height:1;cursor:pointer;
-  }
-  #renders-cerrar:hover{background:rgba(255,255,255,.18)}
-  #renders-prev,#renders-next{
-    position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;
-    border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;
-  }
-  #renders-prev:hover,#renders-next:hover{background:rgba(255,255,255,.18)}
-  #renders-prev{left:16px}
-  #renders-next{right:16px}
-  #renders-prev[disabled],#renders-next[disabled]{opacity:.25;cursor:default;pointer-events:none}
-  #renders-contador{
-    position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
-    color:#fff;font-size:12.5px;background:rgba(0,0,0,.35);padding:5px 12px;border-radius:20px;
-    font-variant-numeric:tabular-nums;
-  }
+    #renders-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      background: rgba(15, 19, 21, .92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-  canvas{touch-action:none}
+    #renders-modal[hidden] {
+      display: none
+    }
 
-  @media (max-width:860px){
-    #cabezal{max-width:none;padding:16px 18px}
-    #cabezal h1{font-size:19px}
+    #renders-img {
+      max-width: 88vw;
+      max-height: 82vh;
+      object-fit: contain;
+      border-radius: 4px;
+      user-select: none
+    }
 
-    /* Filtros: en desktop es un panel siempre visible abajo a la izquierda;
+    #renders-cerrar {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, .3);
+      background: rgba(255, 255, 255, .08);
+      color: #fff;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    #renders-cerrar:hover {
+      background: rgba(255, 255, 255, .18)
+    }
+
+    #renders-prev,
+    #renders-next {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, .3);
+      background: rgba(255, 255, 255, .08);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    #renders-prev:hover,
+    #renders-next:hover {
+      background: rgba(255, 255, 255, .18)
+    }
+
+    #renders-prev {
+      left: 16px
+    }
+
+    #renders-next {
+      right: 16px
+    }
+
+    #renders-prev[disabled],
+    #renders-next[disabled] {
+      opacity: .25;
+      cursor: default;
+      pointer-events: none
+    }
+
+    #renders-contador {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 12.5px;
+      background: rgba(0, 0, 0, .35);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    canvas {
+      touch-action: none
+    }
+
+    @media (max-width:860px) {
+      #cabezal {
+        max-width: none;
+        padding: 16px 18px
+      }
+
+      #cabezal h1 {
+        font-size: 19px
+      }
+
+      /* Filtros: en desktop es un panel siempre visible abajo a la izquierda;
        en mobile eso significaba Tipología + Estado + "Separar pisos"
        ocupando permanentemente un tercio de la pantalla y tapando el
        edificio (que es lo importante acá). Mismo mecanismo que el riel de
@@ -237,119 +884,298 @@
        (ver su CSS más abajo) — un botón cuadrado de ícono al lado del de
        texto, en vez de dos elementos flotantes separados compitiendo por
        el mismo rincón de la pantalla. */
-    #barra-inferior{
-      display:flex;gap:8px;position:fixed;left:18px;right:18px;
-      bottom:calc(16px + env(safe-area-inset-bottom));z-index:10;
-    }
-    #panel.abierto ~ #barra-inferior{display:none}
+      #barra-inferior {
+        display: flex;
+        gap: 8px;
+        position: fixed;
+        left: 18px;
+        right: 18px;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        z-index: 10;
+      }
 
-    #filtros-trigger{
-      position:static;flex:1;min-width:0;
-      display:flex;align-items:center;justify-content:center;gap:8px;
-      padding:12px 16px;border-radius:8px;
-      border:1px solid var(--linea);background:var(--papel);color:var(--tinta);
-      font-size:13.5px;font-weight:600;cursor:pointer;
-      box-shadow:0 4px 14px rgba(20,26,28,.10);
-    }
-    #filtros-trigger .chev{transition:transform .2s ease;color:var(--suave);flex:none}
-    #filtros-trigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
-    .ft-badge{
-      display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;
-      padding:0 5px;border-radius:9px;background:var(--tinta);color:#fff;font-size:10.5px;font-weight:700;
-    }
-    .ft-badge[hidden]{display:none}
+      #panel.abierto~#barra-inferior {
+        display: none
+      }
 
-    /* Ícono cuadrado al lado del de Filtros — sin texto para no competir
+      #filtros-trigger {
+        position: static;
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--linea);
+        background: var(--papel);
+        color: var(--tinta);
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(20, 26, 28, .10);
+      }
+
+      #filtros-trigger .chev {
+        transition: transform .2s ease;
+        color: var(--suave);
+        flex: none
+      }
+
+      #filtros-trigger[aria-expanded="true"] .chev {
+        transform: rotate(180deg)
+      }
+
+      .ft-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 9px;
+        background: var(--tinta);
+        color: #fff;
+        font-size: 10.5px;
+        font-weight: 700;
+      }
+
+      .ft-badge[hidden] {
+        display: none
+      }
+
+      /* Ícono cuadrado al lado del de Filtros — sin texto para no competir
        por ancho con él en una pantalla angosta. */
-    #renders-trigger{
-      position:static;right:auto;bottom:auto;flex:none;
-      width:46px;height:46px;padding:0;justify-content:center;
-      border-radius:8px;box-shadow:0 4px 14px rgba(20,26,28,.10);
-    }
-    #renders-trigger span{display:none}
+      #renders-trigger {
+        position: static;
+        right: auto;
+        bottom: auto;
+        flex: none;
+        width: 46px;
+        height: 46px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 8px;
+        box-shadow: 0 4px 14px rgba(20, 26, 28, .10);
+      }
 
-    #filtros-backdrop{
-      display:block;position:fixed;inset:0;z-index:19;background:rgba(26,33,36,.35);
-      opacity:0;pointer-events:none;transition:opacity .2s ease;
-    }
-    #filtros-backdrop.visible{opacity:1;pointer-events:auto}
+      #renders-trigger span {
+        display: none
+      }
 
-    #filtros{
-      position:fixed;top:auto;right:0;bottom:0;left:0;transform:translateY(100%);
-      z-index:20;max-width:none;max-height:min(70vh,520px);
-      background:#fff;border-top:1px solid var(--linea);border-radius:14px 14px 0 0;
-      box-shadow:0 -10px 30px rgba(20,26,28,.16);
-      padding:22px 18px calc(18px + env(safe-area-inset-bottom));
-      overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
-      transition:transform .28s cubic-bezier(.22,.61,.36,1);
-    }
-    #filtros.abierto{transform:translateY(0)}
-    #filtros::before{
-      content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);
-      width:36px;height:4px;border-radius:2px;background:var(--linea);
-    }
-    /* Riel de pisos: en desktop es una columna fija a la derecha; en mobile
+      #filtros-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 19;
+        background: rgba(26, 33, 36, .35);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .2s ease;
+      }
+
+      #filtros-backdrop.visible {
+        opacity: 1;
+        pointer-events: auto
+      }
+
+      #filtros {
+        position: fixed;
+        top: auto;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateY(100%);
+        z-index: 20;
+        max-width: none;
+        max-height: min(70vh, 520px);
+        background: #fff;
+        border-top: 1px solid var(--linea);
+        border-radius: 14px 14px 0 0;
+        box-shadow: 0 -10px 30px rgba(20, 26, 28, .16);
+        padding: 22px 18px calc(18px + env(safe-area-inset-bottom));
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        transition: transform .28s cubic-bezier(.22, .61, .36, 1);
+      }
+
+      #filtros.abierto {
+        transform: translateY(0)
+      }
+
+      #filtros::before {
+        content: "";
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--linea);
+      }
+
+      /* Riel de pisos: en desktop es una columna fija a la derecha; en mobile
        no hay ancho para eso (y una tira horizontal no escala si el edificio
        tiene muchos pisos), así que pasa a ser una hoja que sube desde abajo,
        como el panel de botones de un ascensor: se abre con un botón
        compacto en el header y no depende del ancho de pantalla. */
-    #pisos-trigger{
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-      width:100%;margin-top:12px;padding:10px 13px;border-radius:5px;
-      border:1px solid var(--linea);background:var(--papel);color:var(--tinta);
-      font-size:13px;font-weight:600;cursor:pointer;
-    }
-    #pisos-trigger .chev{transition:transform .2s ease;color:var(--suave);flex:none}
-    #pisos-trigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
+      #pisos-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        margin-top: 12px;
+        padding: 10px 13px;
+        border-radius: 5px;
+        border: 1px solid var(--linea);
+        background: var(--papel);
+        color: var(--tinta);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
 
-    #pisos-backdrop{
-      display:block;position:fixed;inset:0;z-index:19;background:rgba(26,33,36,.35);
-      opacity:0;pointer-events:none;transition:opacity .2s ease;
-    }
-    #pisos-backdrop.visible{opacity:1;pointer-events:auto}
+      #pisos-trigger .chev {
+        transition: transform .2s ease;
+        color: var(--suave);
+        flex: none
+      }
 
-    #pisos{
-      position:fixed;top:auto;right:0;bottom:0;left:0;transform:translateY(100%);
-      z-index:20;max-height:min(64vh,480px);
-      display:grid;grid-template-columns:repeat(5,1fr);gap:8px;
-      background:#fff;border-top:1px solid var(--linea);border-radius:14px 14px 0 0;
-      box-shadow:0 -10px 30px rgba(20,26,28,.16);
-      padding:20px 16px calc(18px + env(safe-area-inset-bottom));
-      overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
-      transition:transform .28s cubic-bezier(.22,.61,.36,1);
-    }
-    #pisos.abierto{transform:translateY(0)}
-    #pisos::before{
-      content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);
-      width:36px;height:4px;border-radius:2px;background:var(--linea);
-    }
-    #pisos .pisos-fijo{
-      grid-column:1/-1;order:-1;position:static;background:none;
-      display:flex;align-items:baseline;justify-content:space-between;gap:10px;
-      padding:6px 2px 10px;margin-bottom:2px;border-bottom:1px solid var(--linea);
-    }
-    #pisos .pisos-etiqueta{display:block;padding:0;margin:0;border:none;font-size:11px}
-    #pisos .pisos-todos{height:34px;padding:0 12px;white-space:nowrap;margin:0;border:1px solid var(--linea);
-      border-radius:4px;background:var(--papel)}
-    #pisos button{
-      width:auto;height:40px;padding:0 6px;flex:none;
-      border:1px solid var(--linea);border-radius:6px;background:var(--papel);
-    }
-    #pisos button[aria-pressed="true"]{
-      color:#fff;background:var(--tinta);border-color:var(--tinta);border-right-color:var(--tinta);
-    }
-    #pisos .pisos-pb{position:static;grid-column:span 1}
+      #pisos-trigger[aria-expanded="true"] .chev {
+        transform: rotate(180deg)
+      }
 
-    /* Tarjeta de info del piso: en desktop flota al lado del riel; acá
+      #pisos-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 19;
+        background: rgba(26, 33, 36, .35);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .2s ease;
+      }
+
+      #pisos-backdrop.visible {
+        opacity: 1;
+        pointer-events: auto
+      }
+
+      #pisos {
+        position: fixed;
+        top: auto;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateY(100%);
+        z-index: 20;
+        max-height: min(64vh, 480px);
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+        background: #fff;
+        border-top: 1px solid var(--linea);
+        border-radius: 14px 14px 0 0;
+        box-shadow: 0 -10px 30px rgba(20, 26, 28, .16);
+        padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        transition: transform .28s cubic-bezier(.22, .61, .36, 1);
+      }
+
+      #pisos.abierto {
+        transform: translateY(0)
+      }
+
+      #pisos::before {
+        content: "";
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--linea);
+      }
+
+      #pisos .pisos-fijo {
+        grid-column: 1/-1;
+        order: -1;
+        position: static;
+        background: none;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 6px 2px 10px;
+        margin-bottom: 2px;
+        border-bottom: 1px solid var(--linea);
+      }
+
+      #pisos .pisos-etiqueta {
+        display: block;
+        padding: 0;
+        margin: 0;
+        border: none;
+        font-size: 11px
+      }
+
+      #pisos .pisos-todos {
+        height: 34px;
+        padding: 0 12px;
+        white-space: nowrap;
+        margin: 0;
+        border: 1px solid var(--linea);
+        border-radius: 4px;
+        background: var(--papel)
+      }
+
+      #pisos button {
+        width: auto;
+        height: 40px;
+        padding: 0 6px;
+        flex: none;
+        border: 1px solid var(--linea);
+        border-radius: 6px;
+        background: var(--papel);
+      }
+
+      #pisos button[aria-pressed="true"] {
+        color: #fff;
+        background: var(--tinta);
+        border-color: var(--tinta);
+        border-right-color: var(--tinta);
+      }
+
+      #pisos .pisos-pb {
+        position: static;
+        grid-column: span 1
+      }
+
+      /* Tarjeta de info del piso: en desktop flota al lado del riel; acá
        aparece en flujo normal debajo del botón que abre la hoja, solo si
        hay piso elegido. */
-    #piso-info{display:none}
-    #piso-info.visible{
-      display:block;position:static;transform:none;opacity:1;max-width:none;
-      margin-top:10px;padding:10px 13px;
-    }
+      #piso-info {
+        display: none
+      }
 
-    /* En desktop cota/redes flotan fijos arriba a la derecha, sobre cielo
+      #piso-info.visible {
+        display: block;
+        position: static;
+        transform: none;
+        opacity: 1;
+        max-width: none;
+        margin-top: 10px;
+        padding: 10px 13px;
+      }
+
+      /* En desktop cota/redes flotan fijos arriba a la derecha, sobre cielo
        vacío del canvas; en mobile esa misma esquina cae encima del techo
        del edificio. El edificio es lo importante acá, así que esta fila
        baja al flujo normal pero se mantiene lo más chica posible: sin caja
@@ -358,1239 +1184,1317 @@
        y sin el texto "Armado por Cota" (el ícono solo ya identifica la
        marca). admin-link no entra acá a propósito: es un link interno, no
        hace falta en el header público de mobile. */
-    #cabezal-utilidades{
-      display:flex;align-items:center;justify-content:space-between;
-      margin-top:8px;
-    }
-    #cota,#redes{position:static;top:auto;right:auto}
-    #cota .cota-txt{display:none}
-    #cota svg,#redes svg{
-      filter:drop-shadow(0 0 2px rgba(255,255,255,.95)) drop-shadow(0 1px 2px rgba(0,0,0,.4));
-    }
-    #redes a,#redes button{opacity:1;color:var(--tinta)}
-    #compartir-aviso{
-      left:50%;right:auto;top:auto;bottom:calc(18px + env(safe-area-inset-bottom));
-      transform:translate(-50%,6px);
-    }
-    #compartir-aviso.visible{transform:translate(-50%,0)}
+      #cabezal-utilidades {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 8px;
+      }
 
-    /* el panel no tapa el edificio: sube desde abajo */
-    #panel{
-      width:100%;height:auto;max-height:74vh;top:auto;bottom:0;overflow-y:auto;
-      border-left:none;border-top:1px solid var(--linea);border-radius:12px 12px 0 0;
-      padding:22px 20px 26px;transform:translateY(100%);
+      #cota,
+      #redes {
+        position: static;
+        top: auto;
+        right: auto
+      }
+
+      #cota .cota-txt {
+        display: none
+      }
+
+      #cota svg,
+      #redes svg {
+        filter: drop-shadow(0 0 2px rgba(255, 255, 255, .95)) drop-shadow(0 1px 2px rgba(0, 0, 0, .4));
+      }
+
+      #redes a,
+      #redes button {
+        opacity: 1;
+        color: var(--tinta)
+      }
+
+      #compartir-aviso {
+        left: 50%;
+        right: auto;
+        top: auto;
+        bottom: calc(18px + env(safe-area-inset-bottom));
+        transform: translate(-50%, 6px);
+      }
+
+      #compartir-aviso.visible {
+        transform: translate(-50%, 0)
+      }
+
+      /* el panel no tapa el edificio: sube desde abajo */
+      #panel {
+        width: 100%;
+        height: auto;
+        max-height: 74vh;
+        top: auto;
+        bottom: 0;
+        overflow-y: auto;
+        border-left: none;
+        border-top: 1px solid var(--linea);
+        border-radius: 12px 12px 0 0;
+        padding: 22px 20px 26px;
+        transform: translateY(100%);
+      }
+
+      #panel.abierto {
+        transform: none
+      }
+
+      #panel::before {
+        content: "";
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 38px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--linea);
+      }
+
+      #panel.abierto~#filtros {
+        display: none
+      }
+
+      .nota {
+        margin-top: 18px
+      }
     }
-    #panel.abierto{transform:none}
-    #panel::before{
-      content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);
-      width:38px;height:4px;border-radius:2px;background:var(--linea);
+
+    @media (prefers-reduced-motion:reduce) {
+      * {
+        transition-duration: .01ms !important
+      }
     }
-    #panel.abierto ~ #filtros{display:none}
-    .nota{margin-top:18px}
-  }
-  @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms !important}}
-</style>
+  </style>
 </head>
 <body>
 
-<header id="cabezal">
-  <h1 id="h1-proyecto">ROSSO by Block</h1>
-  <p class="sub" id="sub-proyecto">Ana Monterroso de Lavalleja 2162, Cordón · 10 pisos · 78 unidades · entrega marzo 2028</p>
-  <div id="aviso">Cargando estado de las unidades…</div>
-  <button id="pisos-trigger" type="button" aria-expanded="false" aria-controls="pisos">
-    <span class="pt-label">Todos los pisos</span>
-    <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
-      <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </button>
-  <div id="piso-info" aria-live="polite"></div>
+  <header id="cabezal">
+    <h1 id="h1-proyecto">ROSSO by Block</h1>
+    <p class="sub" id="sub-proyecto">Ana Monterroso de Lavalleja 2162, Cordón · 10 pisos · 78 unidades · entrega marzo
+      2028</p>
+    <div id="aviso">Cargando estado de las unidades…</div>
+    <button id="pisos-trigger" type="button" aria-expanded="false" aria-controls="pisos">
+      <span class="pt-label">Todos los pisos</span>
+      <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+    </button>
+    <div id="piso-info" aria-live="polite"></div>
 
-  <!-- Envoltorio solo de layout (display:contents en desktop, ver CSS):
+    <!-- Envoltorio solo de layout (display:contents en desktop, ver CSS):
        cota/redes siguen siendo position:fixed en desktop igual que antes;
        en mobile esta fila los baja al flujo normal del header. -->
-  <div id="cabezal-utilidades">
-    <a id="cota" href="https://armadoporcotauy.vercel.app/">
-      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M4 13h12" stroke="#2F7A68" stroke-width="1.7"/>
-        <path d="M10 5l3.4 5.6H6.6L10 5z" fill="#2F7A68"/>
-      </svg>
-      <span class="cota-txt">Armado por Cota</span>
-    </a>
+    <div id="cabezal-utilidades">
+      <a id="cota" href="https://armadoporcotauy.vercel.app/">
+        <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M4 13h12" stroke="#2F7A68" stroke-width="1.7" />
+          <path d="M10 5l3.4 5.6H6.6L10 5z" fill="#2F7A68" />
+        </svg>
+        <span class="cota-txt">Armado por Cota</span>
+      </a>
 
-    <div id="redes">
-      <a id="red-instagram" href="#" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" rx="5"/>
-          <circle cx="12" cy="12" r="4.2"/>
-          <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/>
-        </svg>
-      </a>
-      <a id="red-youtube" href="#" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-          <rect x="2.5" y="5.5" width="19" height="13" rx="4"/>
-          <path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"/>
-        </svg>
-      </a>
-      <a id="red-web" href="#" target="_blank" rel="noopener" aria-label="Sitio web" title="Sitio web" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M3 12h18M12 3c2.6 2.6 4 5.7 4 9s-1.4 6.4-4 9c-2.6-2.6-4-5.7-4-9s1.4-6.4 4-9z"/>
-        </svg>
-      </a>
-      <button id="red-compartir" type="button" aria-label="Compartir" title="Compartir">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-          <circle cx="18" cy="5" r="2.6"/>
-          <circle cx="6" cy="12" r="2.6"/>
-          <circle cx="18" cy="19" r="2.6"/>
-          <path d="M8.3 10.7l7.4-4.1M8.3 13.3l7.4 4.1"/>
-        </svg>
-      </button>
+      <div id="redes">
+        <a id="red-instagram" href="#" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="5" />
+            <circle cx="12" cy="12" r="4.2" />
+            <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
+          </svg>
+        </a>
+        <a id="red-youtube" href="#" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+            <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
+            <path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none" />
+          </svg>
+        </a>
+        <a id="red-web" href="#" target="_blank" rel="noopener" aria-label="Sitio web" title="Sitio web" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M12 3c2.6 2.6 4 5.7 4 9s-1.4 6.4-4 9c-2.6-2.6-4-5.7-4-9s1.4-6.4 4-9z" />
+          </svg>
+        </a>
+        <button id="red-compartir" type="button" aria-label="Compartir" title="Compartir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+            <circle cx="18" cy="5" r="2.6" />
+            <circle cx="6" cy="12" r="2.6" />
+            <circle cx="18" cy="19" r="2.6" />
+            <path d="M8.3 10.7l7.4-4.1M8.3 13.3l7.4 4.1" />
+          </svg>
+        </button>
+      </div>
     </div>
-  </div>
-</header>
+  </header>
 
-<!-- Fuera de #cabezal a propósito: si quedara adentro, su z-index quedaría
+  <!-- Fuera de #cabezal a propósito: si quedara adentro, su z-index quedaría
      acotado al stacking context del header (que compite en la raíz con
      #filtros al mismo z-index) y #filtros terminaría pintando encima pase
      lo que pase con el z-index interno del riel. -->
-<div id="pisos-backdrop"></div>
-<nav id="pisos" aria-label="Pisos"></nav>
+  <div id="pisos-backdrop"></div>
+  <nav id="pisos" aria-label="Pisos"></nav>
 
-<a id="admin-link" href="admin.html">Panel interno</a>
+  <a id="admin-link" href="admin.html">Panel interno</a>
 
-<div id="compartir-aviso" role="status" aria-live="polite">Link copiado</div>
+  <div id="compartir-aviso" role="status" aria-live="polite">Link copiado</div>
 
-<div id="tooltip"></div>
+  <div id="tooltip"></div>
 
-<!-- En mobile #filtros es una hoja que sube desde abajo (mismo mecanismo
+  <!-- En mobile #filtros es una hoja que sube desde abajo (mismo mecanismo
      que #pisos/#pisos-trigger: la data siempre estuvo ahí pero ocupaba
      permanentemente un tercio de la pantalla, tapando el edificio). En
      desktop #filtros-trigger/#filtros-backdrop quedan ocultos y sin
      efecto, y #filtros se ve exactamente igual que siempre. -->
-<div id="filtros-backdrop"></div>
+  <div id="filtros-backdrop"></div>
 
-<!-- #renders-trigger vive en la misma barra que #filtros-trigger en mobile
+  <!-- #renders-trigger vive en la misma barra que #filtros-trigger en mobile
      (#barra-inferior, ver CSS) para no competir por el mismo rincón de
      pantalla; en desktop cada uno tiene su propia posición fija. Queda
      hidden hasta que cargarProyecto() confirme que hay al menos una
      imagen — la mayoría de los proyectos todavía no van a tener renders
      cargados. -->
-<div id="barra-inferior">
-  <button id="renders-trigger" type="button" hidden aria-haspopup="dialog" aria-controls="renders-modal">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="16" rx="2.5"/>
-      <circle cx="9" cy="10" r="1.8"/>
-      <path d="M21 16l-5.5-5.5a2 2 0 0 0-2.8 0L4 19"/>
-    </svg>
-    <span>Ver renders</span>
-  </button>
-
-  <button id="filtros-trigger" type="button" aria-expanded="false" aria-controls="filtros">
-    <span>Filtros</span>
-    <span id="ft-badge" class="ft-badge" hidden></span>
-    <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
-      <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </button>
-</div>
-
-<div id="filtros">
-  <div class="grupo"><p>Tipología</p><div class="fila" id="f-dorms"></div></div>
-  <div class="grupo"><p>Estado</p><div class="fila" id="f-estado"></div></div>
-  <button id="separar" aria-pressed="false">Separar pisos</button>
-</div>
-
-<!-- Galería de renders: modal simple, una imagen a la vez, con contador y
-     flechas — no hace falta más para un puñado de fotos del edificio. -->
-<div id="renders-modal" role="dialog" aria-modal="true" aria-label="Renders del edificio" hidden>
-  <button id="renders-cerrar" type="button" aria-label="Cerrar">×</button>
-  <button id="renders-prev" type="button" aria-label="Imagen anterior">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-  </button>
-  <img id="renders-img" alt="">
-  <button id="renders-next" type="button" aria-label="Imagen siguiente">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-  </button>
-  <span id="renders-contador"></span>
-</div>
-
-<aside id="panel" aria-live="polite">
-  <button id="cerrar" aria-label="Cerrar">×</button>
-  <div class="p-cabeza">
-    <div>
-      <p class="p-eyebrow" id="p-eyebrow">Piso —</p>
-      <p id="p-unidad">—</p>
-      <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
-    </div>
-    <div class="p-tira-wrap" aria-hidden="true">
-      <span class="p-tira-tope" id="p-tira-tope">10</span>
-      <div class="p-tira" id="p-tira"></div>
-      <span class="p-tira-base">PB</span>
-    </div>
-  </div>
-  <figure class="planta" id="p-planta"></figure>
-  <dl>
-    <dt>Dormitorios</dt><dd id="p-dorms"></dd>
-    <dt>Superficie total</dt><dd id="p-m2"></dd>
-    <dt id="p-terraza-dt" hidden>Terraza</dt><dd id="p-terraza-dd" hidden></dd>
-    <dt>Orientación</dt><dd id="p-orient"></dd>
-    <dt id="p-cochera-dt" hidden>Cochera</dt><dd id="p-cochera-dd" hidden></dd>
-  </dl>
-  <div class="p-precio-wrap">
-    <p id="p-precio"></p>
-    <span id="p-fuente" class="p-tag"></span>
-  </div>
-  <div class="acciones-panel">
-    <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+  <div id="barra-inferior">
+    <button id="renders-trigger" type="button" hidden aria-haspopup="dialog" aria-controls="renders-modal">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2.5" />
+        <circle cx="9" cy="10" r="1.8" />
+        <path d="M21 16l-5.5-5.5a2 2 0 0 0-2.8 0L4 19" />
       </svg>
-      <span class="bton-txt">Consultar por esta unidad</span>
-    </a>
-    <button class="bton bton-s" id="p-copiar">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <rect x="9" y="9" width="13" height="13" rx="2"/>
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      <span>Ver renders</span>
+    </button>
+
+    <button id="filtros-trigger" type="button" aria-expanded="false" aria-controls="filtros">
+      <span>Filtros</span>
+      <span id="ft-badge" class="ft-badge" hidden></span>
+      <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round" />
       </svg>
-      <span class="bton-txt">Copiar link de esta unidad</span>
     </button>
   </div>
-  <div id="p-edificio">
-    <p class="p-edificio-tit">Amenities del edificio</p>
-    <ul id="p-amenities"></ul>
-    <p id="p-legal" hidden></p>
+
+  <div id="filtros">
+    <div class="grupo">
+      <p>Tipología</p>
+      <div class="fila" id="f-dorms"></div>
+    </div>
+    <div class="grupo">
+      <p>Estado</p>
+      <div class="fila" id="f-estado"></div>
+    </div>
+    <button id="separar" aria-pressed="false">Separar pisos</button>
   </div>
 
-  <p class="nota">
-    Demostración armada con datos públicos de avisos (setiembre 2026). Cuando la tipología
-    de la unidad tiene su planta real cargada, se muestra tal cual la subió el cliente; si
-    todavía no la cargó, este panel lo dice en vez de inventar un esquema.
-  </p>
-</aside>
+  <!-- Galería de renders: modal simple, una imagen a la vez, con contador y
+     flechas — no hace falta más para un puñado de fotos del edificio. -->
+  <div id="renders-modal" role="dialog" aria-modal="true" aria-label="Renders del edificio" hidden>
+    <button id="renders-cerrar" type="button" aria-label="Cerrar">×</button>
+    <button id="renders-prev" type="button" aria-label="Imagen anterior">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </button>
+    <img id="renders-img" alt="">
+    <button id="renders-next" type="button" aria-label="Imagen siguiente">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 6l6 6-6 6" />
+      </svg>
+    </button>
+    <span id="renders-contador"></span>
+  </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="supabase-config.js"></script>
-<script>
-/* ============================================================
-   1. DATOS — vienen de Supabase (tablas `public_units`/`public_projects`/
-   `public_settings`/`public_amenities`, filtradas por proyecto). El estado
-   se edita desde admin.html; acá solo se lee.
-   ============================================================ */
+  <aside id="panel" aria-live="polite">
+    <button id="cerrar" aria-label="Cerrar">×</button>
+    <div class="p-cabeza">
+      <div>
+        <p class="p-eyebrow" id="p-eyebrow">Piso —</p>
+        <p id="p-unidad">—</p>
+        <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
+      </div>
+      <div class="p-tira-wrap" aria-hidden="true">
+        <span class="p-tira-tope" id="p-tira-tope">10</span>
+        <div class="p-tira" id="p-tira"></div>
+        <span class="p-tira-base">PB</span>
+      </div>
+    </div>
+    <figure class="planta" id="p-planta"></figure>
+    <dl>
+      <dt>Dormitorios</dt>
+      <dd id="p-dorms"></dd>
+      <dt>Superficie total</dt>
+      <dd id="p-m2"></dd>
+      <dt id="p-terraza-dt" hidden>Terraza</dt>
+      <dd id="p-terraza-dd" hidden></dd>
+      <dt>Orientación</dt>
+      <dd id="p-orient"></dd>
+      <dt id="p-cochera-dt" hidden>Cochera</dt>
+      <dd id="p-cochera-dd" hidden></dd>
+    </dl>
+    <div class="p-precio-wrap">
+      <p id="p-precio"></p>
+      <span id="p-fuente" class="p-tag"></span>
+    </div>
+    <div class="acciones-panel">
+      <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path
+            d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+        </svg>
+        <span class="bton-txt">Consultar por esta unidad</span>
+      </a>
+      <button class="bton bton-s" id="p-copiar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+        <span class="bton-txt">Copiar link de esta unidad</span>
+      </button>
+    </div>
+    <div id="p-edificio">
+      <p class="p-edificio-tit">Amenities del edificio</p>
+      <ul id="p-amenities"></ul>
+      <p id="p-legal" hidden></p>
+    </div>
 
-const ESTADOS = {
-  disponible: { nombre:'Disponible', color:'#2F7A68' },
-  reservado:  { nombre:'Reservada', color:'#C08429' },
-  vendido:    { nombre:'Vendida', color:'#B3413A' },
-  sin_dato:   { nombre:'Sin estado público', color:'#646C6E' },
-};
+    <p class="nota">
+      Demostración armada con datos públicos de avisos (setiembre 2026). Cuando la tipología
+      de la unidad tiene su planta real cargada, se muestra tal cual la subió el cliente.
+    </p>
+  </aside>
 
-// Qué edificio mostrar: primero un path bonito (/rosso, vía un rewrite de
-// Vercel que todavía no existe pero deja la puerta abierta), después
-// ?p=<slug>, y si no hay ninguno de los dos, ROSSO — así el link que ya
-// está en manos del cliente (sin querystring) no se rompe.
-const DEFAULT_SLUG = 'rosso';
-function resolverSlug(){
-  const porPath = location.pathname.replace(/^\/|\/$/g, '');
-  if (porPath && porPath.toLowerCase() !== 'index.html') return porPath;
-  const porQuery = new URLSearchParams(location.search).get('p');
-  return porQuery || DEFAULT_SLUG;
-}
-const SLUG = resolverSlug();
-document.getElementById('admin-link').href = 'admin.html?p=' + encodeURIComponent(SLUG);
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="supabase-config.js"></script>
+  <script>
+    /* ============================================================
+       1. DATOS — vienen de Supabase (tablas `public_units`/`public_projects`/
+       `public_settings`/`public_amenities`, filtradas por proyecto). El estado
+       se edita desde admin.html; acá solo se lee.
+       ============================================================ */
 
-async function cargarProyecto(){
-  const { data: proyecto, error: eProyecto } = await sb
-    .from('public_projects').select('*').eq('slug', SLUG).maybeSingle();
-  if (eProyecto || !proyecto) return { error:'no-encontrado' };
+    const ESTADOS = {
+      disponible: { nombre: 'Disponible', color: '#2F7A68' },
+      reservado: { nombre: 'Reservada', color: '#C08429' },
+      vendido: { nombre: 'Vendida', color: '#B3413A' },
+      sin_dato: { nombre: 'Sin estado público', color: '#646C6E' },
+    };
 
-  const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }] = await Promise.all([
-    sb.from('public_units').select('*').eq('project_id', proyecto.id).order('id'),
-    sb.from('public_settings').select('*').eq('project_id', proyecto.id).maybeSingle(),
-    sb.from('public_amenities').select('*').eq('project_id', proyecto.id).order('orden'),
-    sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'project').eq('tipo', 'render').order('orden'),
-    sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'typology').order('orden'),
-  ]);
-  if (eUnidades || !unidades) return { error:'sin-datos' };
-
-  return {
-    proyecto,
-    settings: settings || { instagram:'', youtube:'', sitio_web:'', whatsapp:'', textos:{} },
-    amenities: amenities || [],
-    renders: renders || [],
-    mediaTipologias: mediaTipologias || [],
-    unidades: unidades.map(r => ({
-      id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
-      dorms: r.dorms, m2: Number(r.m2), orient: r.orientacion, precio: Number(r.precio),
-      estimado: r.estimado, estado: r.estado,
-      m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
-      cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
-      geom: r.geom || null,
-      typologyId: r.typology_id || null,
-    })),
-  };
-}
-
-function formatearPrecio(valor, moneda, locale){
-  return new Intl.NumberFormat(locale, { style:'currency', currency:moneda, maximumFractionDigits:0 }).format(valor);
-}
-
-// Sesión anónima persistida en este navegador — sin esto no se puede
-// distinguir un visitante de treinta clics de treinta visitantes distintos.
-// origen (?src=) queda pegado a la sesión desde el primer touch (atribución
-// de la primera visita, no de la última).
-function obtenerSesion(){
-  try {
-    let s = localStorage.getItem('cota_sesion');
-    if (!s){ s = crypto.randomUUID(); localStorage.setItem('cota_sesion', s); }
-    return s;
-  } catch { return crypto.randomUUID(); }
-}
-function obtenerOrigen(){
-  try {
-    const porURL = new URLSearchParams(location.search).get('src');
-    if (porURL){
-      const limpio = porURL.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
-      if (limpio) localStorage.setItem('cota_origen', limpio);
+    // Qué edificio mostrar: primero un path bonito (/rosso, vía un rewrite de
+    // Vercel que todavía no existe pero deja la puerta abierta), después
+    // ?p=<slug>, y si no hay ninguno de los dos, ROSSO — así el link que ya
+    // está en manos del cliente (sin querystring) no se rompe.
+    const DEFAULT_SLUG = 'rosso';
+    function resolverSlug() {
+      const porPath = location.pathname.replace(/^\/|\/$/g, '');
+      if (porPath && porPath.toLowerCase() !== 'index.html') return porPath;
+      const porQuery = new URLSearchParams(location.search).get('p');
+      return porQuery || DEFAULT_SLUG;
     }
-    return localStorage.getItem('cota_origen') || null;
-  } catch { return null; }
-}
+    const SLUG = resolverSlug();
+    document.getElementById('admin-link').href = 'admin.html?p=' + encodeURIComponent(SLUG);
 
-// Deja constancia de que alguien abrió esta unidad — alimenta las
-// estadísticas de demanda del panel interno. No bloquea la demo si falla.
-function registrarEvento(projectId, unitId){
-  sb.from('events').insert({
-    project_id: projectId, unit_id: unitId, tipo:'click',
-    sesion: obtenerSesion(), origen: obtenerOrigen(),
-  }).then(({ error }) => {
-    if (error) console.warn('No se pudo registrar el evento', error);
-  });
-}
+    async function cargarProyecto() {
+      const { data: proyecto, error: eProyecto } = await sb
+        .from('public_projects').select('*').eq('slug', SLUG).maybeSingle();
+      if (eProyecto || !proyecto) return { error: 'no-encontrado' };
 
-// URL pública de la demo. Se usa como fallback para compartir y en los
-// links por unidad, para cuando la página se sirve desde about:srcdoc.
-const BASE = 'https://armadoporcota.vercel.app/';
+      const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }] = await Promise.all([
+        sb.from('public_units').select('*').eq('project_id', proyecto.id).order('id'),
+        sb.from('public_settings').select('*').eq('project_id', proyecto.id).maybeSingle(),
+        sb.from('public_amenities').select('*').eq('project_id', proyecto.id).order('orden'),
+        sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'project').eq('tipo', 'render').order('orden'),
+        sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'typology').order('orden'),
+      ]);
+      if (eUnidades || !unidades) return { error: 'sin-datos' };
 
-function pintarRedes(settings){
-  for (const [id, url] of [['red-instagram', settings.instagram], ['red-youtube', settings.youtube], ['red-web', settings.sitio_web]]) {
-    if (!url) continue;
-    const a = document.getElementById(id);
-    a.href = url;
-    a.hidden = false;
-  }
-}
-
-function pintarAmenities(lista){
-  document.getElementById('p-amenities').innerHTML = lista.map(a => '<li>' + a.texto + '</li>').join('');
-}
-
-function pintarLegal(textos){
-  if (!textos || !textos.legal) return;
-  const el = document.getElementById('p-legal');
-  el.textContent = textos.legal;
-  el.hidden = false;
-}
-
-function mostrarErrorProyecto(msg){
-  document.getElementById('cabezal').innerHTML = '<h1>No disponible</h1><p class="sub">' + msg + '</p>';
-}
-
-// Lightbox genérico (una imagen a la vez, con flechas/teclado/contador):
-// lo usan tanto "Ver renders" (galería fija del edificio) como el click
-// sobre la planta/renders de la unidad en el panel (galería que cambia
-// cada vez que se abre una unidad distinta) — mismo modal, misma UI,
-// cada quien le pasa su propia lista al abrirla.
-const galeria = (() => {
-  const modal = document.getElementById('renders-modal');
-  const imgEl = document.getElementById('renders-img');
-  const contador = document.getElementById('renders-contador');
-  const btnPrev = document.getElementById('renders-prev');
-  const btnNext = document.getElementById('renders-next');
-  let lista = [], indice = 0;
-
-  function mostrarIndice(i){
-    indice = i;
-    imgEl.src = lista[indice].url;
-    contador.textContent = (indice + 1) + ' / ' + lista.length;
-    btnPrev.disabled = indice === 0;
-    btnNext.disabled = indice === lista.length - 1;
-  }
-  function abrir(nuevaLista, indiceInicial){
-    if (!nuevaLista.length) return;
-    lista = nuevaLista;
-    mostrarIndice(indiceInicial || 0);
-    modal.hidden = false;
-    document.addEventListener('keydown', alTeclado);
-  }
-  function cerrar(){
-    modal.hidden = true;
-    document.removeEventListener('keydown', alTeclado);
-  }
-  function alTeclado(e){
-    if (e.key === 'Escape') cerrar();
-    else if (e.key === 'ArrowLeft' && indice > 0) mostrarIndice(indice - 1);
-    else if (e.key === 'ArrowRight' && indice < lista.length - 1) mostrarIndice(indice + 1);
-  }
-
-  document.getElementById('renders-cerrar').addEventListener('click', cerrar);
-  modal.addEventListener('click', e => { if (e.target === modal) cerrar(); });
-  btnPrev.addEventListener('click', () => { if (indice > 0) mostrarIndice(indice - 1); });
-  btnNext.addEventListener('click', () => { if (indice < lista.length - 1) mostrarIndice(indice + 1); });
-
-  return { abrir };
-})();
-
-// Galería de renders del edificio: el trigger queda oculto (ver HTML)
-// hasta que haya al menos una imagen — la mayoría de los proyectos
-// todavía no van a tener renders cargados desde admin.html.
-function pintarRenders(lista){
-  if (!lista.length) return;
-  const trigger = document.getElementById('renders-trigger');
-  trigger.hidden = false;
-  trigger.addEventListener('click', () => galeria.abrir(lista, 0));
-}
-
-const btnCompartir = document.getElementById('red-compartir');
-const avisoCompartir = document.getElementById('compartir-aviso');
-let avisoCompartirTimeout;
-function mostrarAvisoCompartir(texto){
-  avisoCompartir.textContent = texto;
-  avisoCompartir.classList.add('visible');
-  clearTimeout(avisoCompartirTimeout);
-  avisoCompartirTimeout = setTimeout(() => avisoCompartir.classList.remove('visible'), 1800);
-}
-btnCompartir.addEventListener('click', async () => {
-  const url = location.protocol.startsWith('http') ? location.href : BASE;
-  // El share nativo del SO (navigator.share) es poco confiable en desktop
-  // (en Windows la hoja de "Compartir" puede fallar sin apps registradas),
-  // así que copiamos el link directamente en vez de depender de él.
-  try {
-    await navigator.clipboard.writeText(url);
-    mostrarAvisoCompartir('Link copiado');
-  } catch {
-    mostrarAvisoCompartir('No se pudo copiar el link');
-  }
-});
-
-// Geometría por polígono (unidades con contorno propio, y losa/núcleo de
-// geometria.losa_contorno / .nucleo_contorno). Sistema de coordenadas
-// documentado en CLAUDE.md — resumen: x/z en metros, origen en el centro
-// de la placa, mismo sentido que ya usan col/frente.
-
-function areaConSigno(pts){ // pts: [[u,v], ...] en el plano que se está midiendo
-  let a = 0;
-  for (let i = 0; i < pts.length; i++){
-    const [u1, v1] = pts[i], [u2, v2] = pts[(i + 1) % pts.length];
-    a += u1 * v2 - u2 * v1;
-  }
-  return a / 2;
-}
-
-// Centroide simple (promedio de vértices): alcanza para ubicar la unidad y
-// para orientar la cámara en enfocar() — no hace falta el centroide exacto
-// ponderado por área para eso.
-function centroideContorno(pts){
-  const s = pts.reduce((acc, [x, z]) => ({ x: acc.x + x, z: acc.z + z }), { x:0, z:0 });
-  return { x: s.x / pts.length, z: s.z / pts.length };
-}
-
-// Arma el Shape de three.js centrado en su propio centroide (mismo criterio
-// que BoxGeometry: geometría centrada en el origen local, la posición del
-// mesh es lo que la ubica en el mundo — ver geometriaExtruida). El Shape
-// vive en su plano XY local; acá lo armamos como (x, -z) del contorno
-// porque ExtrudeGeometry + la rotación de -90° en X que aplica
-// geometriaExtruida mandan ese eje Y del Shape al Z mundial invertido. El
-// sentido se normaliza en ESE espacio (x, -z), no en el (x, z) del dato
-// crudo, para que la extrusión salga con las normales hacia afuera sin
-// depender de cómo vino cargado el contorno.
-function formaDesdeContorno(pts, centro){
-  let enShape = pts.map(([x, z]) => [x - centro.x, -(z - centro.z)]);
-  if (areaConSigno(enShape) < 0) enShape = enShape.reverse();
-  const forma = new THREE.Shape();
-  enShape.forEach(([u, v], i) => { if (i === 0) forma.moveTo(u, v); else forma.lineTo(u, v); });
-  forma.closePath();
-  return forma;
-}
-
-// ExtrudeGeometry extruye a lo largo de +Z local; rotar -90° en X manda ese
-// +Z local a +Y mundial (arriba) y el plano XY del shape al plano XZ del
-// piso. depth = altura del volumen (piso a techo, o espesor para la losa).
-// El resultado queda centrado en su propio origen local en los tres ejes
-// (X/Z en el centroide del contorno, Y en depth/2) — igual que
-// BoxGeometry — así que se posiciona con mesh.position exactamente como
-// las cajas rectangulares de hoy.
-function geometriaExtruida(pts, depth, centro){
-  const geo = new THREE.ExtrudeGeometry(formaDesdeContorno(pts, centro), { depth, bevelEnabled:false });
-  geo.rotateX(-Math.PI / 2);
-  geo.translate(0, -depth / 2, 0);
-  return geo;
-}
-
-// Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
-// adentro de iniciar() porque necesita esperar a que lleguen el proyecto y
-// las unidades desde Supabase antes de construir nada.
-function iniciar(proyecto, settingsRow, UNIDADES, mediaTipologias){
-
-// Media real por tipología (planta/renders subidos desde admin.html),
-// agrupada por typology_id y tipo — así abrir(u) resuelve en O(1) qué
-// mostrarle a cada unidad según su u.typologyId. Ver pintarPlantaUnidad().
-const MEDIA_POR_TIPOLOGIA = {};
-(mediaTipologias || []).forEach(m => {
-  const grupo = MEDIA_POR_TIPOLOGIA[m.typology_id] || (MEDIA_POR_TIPOLOGIA[m.typology_id] = { planta: [], render: [] });
-  (grupo[m.tipo] || (grupo[m.tipo] = [])).push(m);
-});
-
-document.getElementById('h1-proyecto').textContent = proyecto.nombre;
-document.getElementById('sub-proyecto').textContent =
-  [proyecto.direccion, proyecto.ciudad].filter(Boolean).join(', ') + ' · ' + proyecto.pisos + ' pisos · ' +
-  UNIDADES.length + ' unidades' + (proyecto.entrega ? ' · entrega ' + proyecto.entrega : '');
-
-if (proyecto.muestra_totales){
-  const publicadas = UNIDADES.filter(u => u.estado !== 'sin_dato').length;
-  document.getElementById('aviso').innerHTML =
-    '<b>' + publicadas + ' de ' + UNIDADES.length + ' unidades</b> tienen estado publicado hoy. ' +
-    'Las otras ' + (UNIDADES.length - publicadas) + ' aparecen en gris: nadie sabe si están disponibles.';
-} else {
-  document.getElementById('aviso').hidden = true;
-}
-document.getElementById('p-tira-tope').textContent = proyecto.pisos;
-
-/* ============================================================
-   2. ESCENA
-   ============================================================ */
-
-// La forma de la placa es dato del proyecto (projects.geometria); si viene
-// vacío (edificio sin geometría propia cargada todavía) se usan los valores
-// de ROSSO como default, para no romper nada.
-const PISOS = proyecto.pisos;
-const geo = proyecto.geometria || {};
-const ANCHO = geo.ancho ?? 5.4, PROF = geo.prof ?? 6.4, ALTO = geo.alto ?? 3,
-      LOSA = geo.losa_espesor ?? 0.32, PASO = ALTO + LOSA;
-const SEP_X = geo.sep_x ?? (ANCHO + 0.3), SEP_Z = geo.sep_z ?? ((PROF + 2.0) / 2);
-const LOSA_ANCHO = geo.losa_ancho ?? (SEP_X * 4 + 0.5), LOSA_LARGO = geo.losa_largo ?? (SEP_Z * 2 + PROF + 0.5);
-const NUCLEO_ANCHO = geo.nucleo_ancho ?? (SEP_X * 2), NUCLEO_LARGO = geo.nucleo_largo ?? 1.7;
-const calleCfg = geo.calle || {};
-
-// Placas con forma propia (edificios que no son una losa rectangular
-// simétrica) — mismo sistema de coordenadas que units.geom, ver CLAUDE.md.
-// Si faltan, la losa/núcleo siguen siendo el rectángulo de arriba.
-const LOSA_CONTORNO = Array.isArray(geo.losa_contorno) && geo.losa_contorno.length >= 3 ? geo.losa_contorno : null;
-const NUCLEO_CONTORNO = Array.isArray(geo.nucleo_contorno) && geo.nucleo_contorno.length >= 3 ? geo.nucleo_contorno : null;
-const ORIGEN_PLACA = { x:0, z:0 };
-
-const escena = new THREE.Scene();
-escena.background = new THREE.Color(0xDEE2E4);
-escena.fog = new THREE.Fog(0xDEE2E4, 130, 280);
-
-const camara = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.1, 600);
-const render = new THREE.WebGLRenderer({ antialias:true });
-render.setPixelRatio(Math.min(devicePixelRatio, 2));
-render.setSize(innerWidth, innerHeight);
-render.shadowMap.enabled = true;
-render.shadowMap.type = THREE.PCFSoftShadowMap;
-document.body.appendChild(render.domElement);
-
-escena.add(new THREE.HemisphereLight(0xFFFFFF, 0xA6B0B3, 0.9));
-const sol = new THREE.DirectionalLight(0xFFF6E8, 1.0);
-sol.position.set(-34, 58, 30);
-sol.castShadow = true;
-sol.shadow.mapSize.set(2048, 2048);
-const sc = sol.shadow.camera;
-sc.left=-46; sc.right=46; sc.top=64; sc.bottom=-26; sc.near=5; sc.far=170;
-escena.add(sol);
-
-const base = new THREE.Mesh(
-  new THREE.CylinderGeometry(30, 30, 1.2, 72),
-  new THREE.MeshStandardMaterial({ color:0xD1D6D8, roughness:0.95 })
-);
-base.position.y = -0.6;
-base.receiveShadow = true;
-escena.add(base);
-
-// Calle: franja de asfalto frente al edificio (lado "frente", ver NOMBRE_CALLE
-// más abajo) con línea de carril discontinua, para que quede claro a simple
-// vista que ese lado da a una vía vehicular y no es un lado cualquiera.
-const ANCHO_CALLE = calleCfg.ancho ?? 8, LARGO_CALLE = calleCfg.largo ?? 44, VEREDA = calleCfg.vereda ?? 2;
-const BORDE_FRENTE = -(SEP_Z + PROF / 2);
-const Z_CALLE = BORDE_FRENTE - VEREDA - ANCHO_CALLE / 2;
-
-const calle = new THREE.Mesh(
-  new THREE.PlaneGeometry(LARGO_CALLE, ANCHO_CALLE),
-  new THREE.MeshStandardMaterial({ color:0x686F72, roughness:0.95 })
-);
-calle.rotation.x = -Math.PI / 2;
-calle.position.set(0, 0.02, Z_CALLE);
-calle.receiveShadow = true;
-escena.add(calle);
-
-const cordon = new THREE.Mesh(
-  new THREE.PlaneGeometry(LARGO_CALLE, 0.25),
-  new THREE.MeshStandardMaterial({ color:0xF2F3F4, roughness:0.8 })
-);
-cordon.rotation.x = -Math.PI / 2;
-cordon.position.set(0, 0.021, BORDE_FRENTE - VEREDA);
-escena.add(cordon);
-
-const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
-const matGuion = new THREE.MeshStandardMaterial({ color:0xEDEFEF, roughness:0.6 });
-for (let x = -LARGO_CALLE / 2 + 2; x < LARGO_CALLE / 2 - 2; x += 2.8){
-  const guion = new THREE.Mesh(geoGuion, matGuion);
-  guion.rotation.x = -Math.PI / 2;
-  guion.position.set(x, 0.03, Z_CALLE);
-  escena.add(guion);
-}
-
-/* ============================================================
-   3. TORRE
-   ============================================================ */
-
-const torre = new THREE.Group();
-escena.add(torre);
-
-const geoUnidad  = new THREE.BoxGeometry(ANCHO, ALTO, PROF);
-const bordesGeo  = new THREE.EdgesGeometry(geoUnidad);
-const geoLosa    = LOSA_CONTORNO ? geometriaExtruida(LOSA_CONTORNO, LOSA, ORIGEN_PLACA) : new THREE.BoxGeometry(LOSA_ANCHO, LOSA, LOSA_LARGO);
-const geoNucleo  = NUCLEO_CONTORNO ? geometriaExtruida(NUCLEO_CONTORNO, ALTO, ORIGEN_PLACA) : new THREE.BoxGeometry(NUCLEO_ANCHO, ALTO, NUCLEO_LARGO);
-const matLosa    = new THREE.MeshStandardMaterial({ color:0xB4BBBD, roughness:0.9 });
-const matNucleo  = new THREE.MeshStandardMaterial({ color:0xA5ADB0, roughness:0.9 });
-
-const pisosGrupo = [], cajas = [];
-
-// Planta baja: nivel de ingreso, debajo del piso 1. Todavía no está
-// definido cómo se divide (local, hall, cocheras...), así que por ahora
-// es solo un volumen — pero el edificio no puede arrancar directo en el
-// piso 1 como si no hubiera PB.
-const geoPB = new THREE.BoxGeometry(LOSA_ANCHO, ALTO, LOSA_LARGO);
-const matPB = new THREE.MeshStandardMaterial({ color:0xC7CBCC, roughness:0.9, transparent:true, opacity:0.55 });
-
-const pb = new THREE.Group();
-pb.position.y = 0;
-pb.userData = { offset:0, objetivo:0 };
-
-const losaPB = new THREE.Mesh(geoLosa, matLosa);
-losaPB.position.y = -LOSA/2;
-losaPB.castShadow = losaPB.receiveShadow = true;
-pb.add(losaPB);
-
-const volumenPB = new THREE.Mesh(geoPB, matPB);
-volumenPB.position.y = ALTO/2;
-volumenPB.receiveShadow = true;
-pb.add(volumenPB);
-
-torre.add(pb);
-pisosGrupo.push(pb);
-
-for (let piso = 1; piso <= PISOS; piso++){
-  const g = new THREE.Group();
-  g.position.y = piso * PASO;
-  g.userData = { offset:0, objetivo:0 };
-
-  const losa = new THREE.Mesh(geoLosa, matLosa);
-  losa.position.y = -LOSA/2;
-  losa.castShadow = losa.receiveShadow = true;
-  g.add(losa);
-
-  const nucleo = new THREE.Mesh(geoNucleo, matNucleo);
-  nucleo.position.y = ALTO/2;
-  nucleo.castShadow = true;
-  g.add(nucleo);
-
-  UNIDADES.filter(u => u.piso === piso).forEach(u => {
-    // Unidad con contorno propio (units.geom.contorno, ver CLAUDE.md) en vez
-    // de la grilla col/frente + caja ANCHO×PROF. Si falta, cae exactamente
-    // en el camino de siempre — así ROSSO no cambia.
-    const tieneGeom = u.geom && Array.isArray(u.geom.contorno) && u.geom.contorno.length >= 3;
-    const altoUnidad = tieneGeom && u.geom.alto ? u.geom.alto : ALTO;
-    let geoU = geoUnidad, bordesU = bordesGeo, posX = u.col * SEP_X, posZ = u.frente * SEP_Z;
-    if (tieneGeom){
-      const centro = centroideContorno(u.geom.contorno);
-      geoU = geometriaExtruida(u.geom.contorno, altoUnidad, centro);
-      bordesU = new THREE.EdgesGeometry(geoU);
-      posX = centro.x; posZ = centro.z;
-      u._centro = centro; // enfocar() lo usa para orientar la cámara sin col/frente
+      return {
+        proyecto,
+        settings: settings || { instagram: '', youtube: '', sitio_web: '', whatsapp: '', textos: {} },
+        amenities: amenities || [],
+        renders: renders || [],
+        mediaTipologias: mediaTipologias || [],
+        unidades: unidades.map(r => ({
+          id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
+          dorms: r.dorms, m2: Number(r.m2), orient: r.orientacion, precio: Number(r.precio),
+          estimado: r.estimado, estado: r.estado,
+          m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
+          cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
+          geom: r.geom || null,
+          typologyId: r.typology_id || null,
+        })),
+      };
     }
 
-    const color = new THREE.Color(ESTADOS[u.estado].color);
-    const caja = new THREE.Mesh(geoU, new THREE.MeshStandardMaterial({
-      color, roughness:0.45, metalness:0.05, transparent:true,
-      opacity: u.estado === 'disponible' ? 0.94 : 0.72,
-    }));
-    caja.position.set(posX, altoUnidad/2, posZ);
-    caja.castShadow = caja.receiveShadow = true;
-    caja.userData = { unidad:u, colorBase:color.clone(), activa:true };
-    g.add(caja);
-    cajas.push(caja);
+    function formatearPrecio(valor, moneda, locale) {
+      return new Intl.NumberFormat(locale, { style: 'currency', currency: moneda, maximumFractionDigits: 0 }).format(valor);
+    }
 
-    const borde = new THREE.LineSegments(bordesU,
-      new THREE.LineBasicMaterial({ color:0x1A2124, transparent:true, opacity:0.26 }));
-    borde.position.copy(caja.position);
-    caja.userData.borde = borde;
-    g.add(borde);
-  });
+    // Sesión anónima persistida en este navegador — sin esto no se puede
+    // distinguir un visitante de treinta clics de treinta visitantes distintos.
+    // origen (?src=) queda pegado a la sesión desde el primer touch (atribución
+    // de la primera visita, no de la última).
+    function obtenerSesion() {
+      try {
+        let s = localStorage.getItem('cota_sesion');
+        if (!s) { s = crypto.randomUUID(); localStorage.setItem('cota_sesion', s); }
+        return s;
+      } catch { return crypto.randomUUID(); }
+    }
+    function obtenerOrigen() {
+      try {
+        const porURL = new URLSearchParams(location.search).get('src');
+        if (porURL) {
+          const limpio = porURL.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+          if (limpio) localStorage.setItem('cota_origen', limpio);
+        }
+        return localStorage.getItem('cota_origen') || null;
+      } catch { return null; }
+    }
 
-  torre.add(g);
-  pisosGrupo.push(g);
-}
-const ALTURA = (PISOS + 1) * PASO; // pisos + PB
+    // Deja constancia de que alguien abrió esta unidad — alimenta las
+    // estadísticas de demanda del panel interno. No bloquea la demo si falla.
+    function registrarEvento(projectId, unitId) {
+      sb.from('events').insert({
+        project_id: projectId, unit_id: unitId, tipo: 'click',
+        sesion: obtenerSesion(), origen: obtenerOrigen(),
+      }).then(({ error }) => {
+        if (error) console.warn('No se pudo registrar el evento', error);
+      });
+    }
 
-// Cartel de calle: nombre de la vía + ícono de ubicación, parado junto a la
-// vereda como un cartel real. Es un sprite (siempre mirando a cámara)
-// anclado a la posición de la calle en el mundo 3D a propósito: tiene que
-// quedar SIEMPRE sobre la carretera del frente, sin importar cómo se
-// oriente la cámara. Es clickeable (raycasting, ver BUCLE más abajo) y abre
-// Google Maps en esa dirección — el ícono en el cartel es la pista visual
-// de que se puede tocar.
-// geometria.calle_nombre permite fijar el nombre a mano; si no está, se
-// aproxima tomando la dirección hasta el primer número
-// ("Bulevar 123, Barrio" → "Bulevar").
-function crearCartelCalle(texto){
-  const cv = document.createElement('canvas');
-  const ctx = cv.getContext('2d');
-  const fuente = '600 44px Inter, "Helvetica Neue", Arial, sans-serif';
-  ctx.font = fuente;
-  const anchoTexto = ctx.measureText(texto).width;
-  const iconoR = 15, iconoHueco = 24; // radio del pin + separación hasta el texto
-  cv.width = iconoR * 2 + iconoHueco + anchoTexto + 66;
-  cv.height = 84;
-  ctx.font = fuente;
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'center';
-  const r = cv.height / 2;
-  ctx.fillStyle = 'rgba(26,33,36,.88)';
-  ctx.beginPath();
-  ctx.moveTo(r, 0);
-  ctx.arcTo(cv.width, 0, cv.width, r, r);
-  ctx.arcTo(cv.width, cv.height, cv.width - r, cv.height, r);
-  ctx.arcTo(0, cv.height, 0, r, r);
-  ctx.arcTo(0, 0, r, 0, r);
-  ctx.closePath();
-  ctx.fill();
+    // URL pública de la demo. Se usa como fallback para compartir y en los
+    // links por unidad, para cuando la página se sirve desde about:srcdoc.
+    const BASE = 'https://armadoporcota.vercel.app/';
 
-  // Pin de ubicación (círculo + punta + agujero central "recortado" con
-  // destination-out, para que se vea hueco como un ícono de mapa real).
-  const cx = 24 + iconoR, cy = cv.height / 2;
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(cx, cy - iconoR * 0.15, iconoR, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(cx - iconoR * 0.75, cy + iconoR * 0.55);
-  ctx.quadraticCurveTo(cx, cy + iconoR * 1.9, cx + iconoR * 0.75, cy + iconoR * 0.55);
-  ctx.closePath();
-  ctx.fill();
-  ctx.save();
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.beginPath();
-  ctx.arc(cx, cy - iconoR * 0.15, iconoR * 0.42, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+    function pintarRedes(settings) {
+      for (const [id, url] of [['red-instagram', settings.instagram], ['red-youtube', settings.youtube], ['red-web', settings.sitio_web]]) {
+        if (!url) continue;
+        const a = document.getElementById(id);
+        a.href = url;
+        a.hidden = false;
+      }
+    }
 
-  ctx.fillStyle = '#fff';
-  ctx.fillText(texto, cx + iconoR + iconoHueco + anchoTexto / 2, cv.height / 2 + 2);
+    function pintarAmenities(lista) {
+      document.getElementById('p-amenities').innerHTML = lista.map(a => '<li>' + a.texto + '</li>').join('');
+    }
 
-  const tex = new THREE.CanvasTexture(cv);
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map:tex, transparent:true, depthWrite:false, depthTest:true, sizeAttenuation:true,
-  }));
-  const escalaPx = 0.026;
-  sprite.scale.set(cv.width * escalaPx, cv.height * escalaPx, 1);
-  return sprite;
-}
+    function pintarLegal(textos) {
+      if (!textos || !textos.legal) return;
+      const el = document.getElementById('p-legal');
+      el.textContent = textos.legal;
+      el.hidden = false;
+    }
 
-const NOMBRE_CALLE = geo.calle_nombre || (proyecto.direccion || '').replace(/\s*\d.*$/, '') || proyecto.nombre;
-const cartelCalle = crearCartelCalle(NOMBRE_CALLE);
-cartelCalle.position.set(LARGO_CALLE / 2 - 4, 1.7, BORDE_FRENTE - VEREDA);
-const consultaMapaCalle = [proyecto.direccion, proyecto.ciudad, proyecto.pais].filter(Boolean).join(', ') || NOMBRE_CALLE;
-cartelCalle.userData.mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(consultaMapaCalle);
-escena.add(cartelCalle);
+    function mostrarErrorProyecto(msg) {
+      document.getElementById('cabezal').innerHTML = '<h1>No disponible</h1><p class="sub">' + msg + '</p>';
+    }
 
-/* ============================================================
-   4. CÁMARA
-   ============================================================ */
+    // Lightbox genérico (una imagen a la vez, con flechas/teclado/contador):
+    // lo usan tanto "Ver renders" (galería fija del edificio) como el click
+    // sobre la planta/renders de la unidad en el panel (galería que cambia
+    // cada vez que se abre una unidad distinta) — mismo modal, misma UI,
+    // cada quien le pasa su propia lista al abrirla.
+    const galeria = (() => {
+      const modal = document.getElementById('renders-modal');
+      const imgEl = document.getElementById('renders-img');
+      const contador = document.getElementById('renders-contador');
+      const btnPrev = document.getElementById('renders-prev');
+      const btnNext = document.getElementById('renders-next');
+      let lista = [], indice = 0;
 
-const objetivo = new THREE.Vector3(0, ALTURA * 0.45, 0);
-let radio = 96, theta = 0.7, phi = 1.15, arrastrando = false, ultimo = {x:0,y:0}, tocado = false;
+      function mostrarIndice(i) {
+        indice = i;
+        imgEl.src = lista[indice].url;
+        contador.textContent = (indice + 1) + ' / ' + lista.length;
+        btnPrev.disabled = indice === 0;
+        btnNext.disabled = indice === lista.length - 1;
+      }
+      function abrir(nuevaLista, indiceInicial) {
+        if (!nuevaLista.length) return;
+        lista = nuevaLista;
+        mostrarIndice(indiceInicial || 0);
+        modal.hidden = false;
+        document.addEventListener('keydown', alTeclado);
+      }
+      function cerrar() {
+        modal.hidden = true;
+        document.removeEventListener('keydown', alTeclado);
+      }
+      function alTeclado(e) {
+        if (e.key === 'Escape') cerrar();
+        else if (e.key === 'ArrowLeft' && indice > 0) mostrarIndice(indice - 1);
+        else if (e.key === 'ArrowRight' && indice < lista.length - 1) mostrarIndice(indice + 1);
+      }
 
-function ubicarCamara(){
-  phi = Math.max(0.18, Math.min(Math.PI/2 + 0.16, phi));
-  camara.position.set(
-    objetivo.x + radio * Math.sin(phi) * Math.sin(theta),
-    objetivo.y + radio * Math.cos(phi),
-    objetivo.z + radio * Math.sin(phi) * Math.cos(theta)
-  );
-  camara.lookAt(objetivo);
-}
-ubicarCamara();
+      document.getElementById('renders-cerrar').addEventListener('click', cerrar);
+      modal.addEventListener('click', e => { if (e.target === modal) cerrar(); });
+      btnPrev.addEventListener('click', () => { if (indice > 0) mostrarIndice(indice - 1); });
+      btnNext.addEventListener('click', () => { if (indice < lista.length - 1) mostrarIndice(indice + 1); });
 
-const lienzo = render.domElement;
-lienzo.style.cursor = 'grab';
-lienzo.addEventListener('pointerdown', e => {
-  arrastrando = true; tocado = true;
-  ultimo = { x:e.clientX, y:e.clientY };
-  lienzo.setPointerCapture(e.pointerId);
-});
-lienzo.addEventListener('pointerup', e => { arrastrando = false; lienzo.releasePointerCapture(e.pointerId); });
-lienzo.addEventListener('pointermove', e => {
-  const dx = e.clientX - ultimo.x, dy = e.clientY - ultimo.y;
-  ultimo = { x:e.clientX, y:e.clientY };
-  if (arrastrando){ theta -= dx * 0.005; phi -= dy * 0.004; ubicarCamara(); }
-  raton.x =  (e.clientX / innerWidth)  * 2 - 1;
-  raton.y = -(e.clientY / innerHeight) * 2 + 1;
-  posRaton = { x:e.clientX, y:e.clientY };
-});
-lienzo.addEventListener('wheel', e => {
-  e.preventDefault(); tocado = true;
-  radio = Math.max(34, Math.min(190, radio + e.deltaY * 0.09));
-  ubicarCamara();
-}, { passive:false });
+      return { abrir };
+    })();
 
-/* ============================================================
-   5. INTERACCIÓN
-   ============================================================ */
+    // Galería de renders del edificio: el trigger queda oculto (ver HTML)
+    // hasta que haya al menos una imagen — la mayoría de los proyectos
+    // todavía no van a tener renders cargados desde admin.html.
+    function pintarRenders(lista) {
+      if (!lista.length) return;
+      const trigger = document.getElementById('renders-trigger');
+      trigger.hidden = false;
+      trigger.addEventListener('click', () => galeria.abrir(lista, 0));
+    }
 
-const rayo = new THREE.Raycaster();
-const raton = new THREE.Vector2(-2,-2);
-let posRaton = {x:0,y:0}, sobre = null, sobreCalle = false, elegida = null, separado = false, pisoAislado = null;
-// Los valores de dormitorios (0 = monoambiente, 1, 2, 3...) salen de las
-// unidades cargadas, no de una lista fija: cada edificio tiene su propia
-// mezcla de tipologías.
-const dormsDisponibles = [...new Set(UNIDADES.map(u => u.dorms))].sort((a,b) => a-b);
-function etiquetaDorms(d){
-  return d === 0 ? 'Monoambiente' : d === 1 ? '1 dormitorio' : d + ' dormitorios';
-}
-let fDorms = new Set(dormsDisponibles), fEstado = new Set(Object.keys(ESTADOS));
+    const btnCompartir = document.getElementById('red-compartir');
+    const avisoCompartir = document.getElementById('compartir-aviso');
+    let avisoCompartirTimeout;
+    function mostrarAvisoCompartir(texto) {
+      avisoCompartir.textContent = texto;
+      avisoCompartir.classList.add('visible');
+      clearTimeout(avisoCompartirTimeout);
+      avisoCompartirTimeout = setTimeout(() => avisoCompartir.classList.remove('visible'), 1800);
+    }
+    btnCompartir.addEventListener('click', async () => {
+      const url = location.protocol.startsWith('http') ? location.href : BASE;
+      // El share nativo del SO (navigator.share) es poco confiable en desktop
+      // (en Windows la hoja de "Compartir" puede fallar sin apps registradas),
+      // así que copiamos el link directamente en vez de depender de él.
+      try {
+        await navigator.clipboard.writeText(url);
+        mostrarAvisoCompartir('Link copiado');
+      } catch {
+        mostrarAvisoCompartir('No se pudo copiar el link');
+      }
+    });
 
-const tooltip = document.getElementById('tooltip');
-const panel = document.getElementById('panel');
+    // Geometría por polígono (unidades con contorno propio, y losa/núcleo de
+    // geometria.losa_contorno / .nucleo_contorno). Sistema de coordenadas
+    // documentado en CLAUDE.md — resumen: x/z en metros, origen en el centro
+    // de la placa, mismo sentido que ya usan col/frente.
 
-const pasa = u => fDorms.has(u.dorms) && fEstado.has(u.estado) &&
-                  (pisoAislado === null || u.piso === pisoAislado);
+    function areaConSigno(pts) { // pts: [[u,v], ...] en el plano que se está midiendo
+      let a = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const [u1, v1] = pts[i], [u2, v2] = pts[(i + 1) % pts.length];
+        a += u1 * v2 - u2 * v1;
+      }
+      return a / 2;
+    }
 
-function aplicar(){
-  cajas.forEach(c => {
-    const u = c.userData.unidad, ok = pasa(u);
-    c.userData.activa = ok;
-    c.material.opacity = ok ? (u.estado === 'disponible' ? 0.94 : 0.72) : 0.06;
-    c.material.color.copy(ok ? c.userData.colorBase : new THREE.Color(0x98A1A4));
-    c.castShadow = ok;
-    c.userData.borde.material.opacity = ok ? 0.26 : 0.04;
-  });
-  if (elegida && !pasa(elegida)) cerrar();
-  actualizarBadgeFiltros();
-}
+    // Centroide simple (promedio de vértices): alcanza para ubicar la unidad y
+    // para orientar la cámara en enfocar() — no hace falta el centroide exacto
+    // ponderado por área para eso.
+    function centroideContorno(pts) {
+      const s = pts.reduce((acc, [x, z]) => ({ x: acc.x + x, z: acc.z + z }), { x: 0, z: 0 });
+      return { x: s.x / pts.length, z: s.z / pts.length };
+    }
 
-function chip(cont, texto, color, alTocar){
-  const b = document.createElement('button');
-  b.className = 'chip';
-  b.setAttribute('aria-pressed','true');
-  b.innerHTML = (color ? '<span class="punto" style="background:'+color+'"></span>' : '') + texto;
-  b.addEventListener('click', () => {
-    const on = b.getAttribute('aria-pressed') !== 'true';
-    b.setAttribute('aria-pressed', on);
-    alTocar(on); aplicar();
-  });
-  cont.appendChild(b);
-}
-dormsDisponibles.forEach(d => chip(document.getElementById('f-dorms'), etiquetaDorms(d), null,
-  on => on ? fDorms.add(d) : fDorms.delete(d)));
-Object.entries(ESTADOS).forEach(([k,e]) => chip(document.getElementById('f-estado'), e.nombre, e.color,
-  on => on ? fEstado.add(k) : fEstado.delete(k)));
+    // Arma el Shape de three.js centrado en su propio centroide (mismo criterio
+    // que BoxGeometry: geometría centrada en el origen local, la posición del
+    // mesh es lo que la ubica en el mundo — ver geometriaExtruida). El Shape
+    // vive en su plano XY local; acá lo armamos como (x, -z) del contorno
+    // porque ExtrudeGeometry + la rotación de -90° en X que aplica
+    // geometriaExtruida mandan ese eje Y del Shape al Z mundial invertido. El
+    // sentido se normaliza en ESE espacio (x, -z), no en el (x, z) del dato
+    // crudo, para que la extrusión salga con las normales hacia afuera sin
+    // depender de cómo vino cargado el contorno.
+    function formaDesdeContorno(pts, centro) {
+      let enShape = pts.map(([x, z]) => [x - centro.x, -(z - centro.z)]);
+      if (areaConSigno(enShape) < 0) enShape = enShape.reverse();
+      const forma = new THREE.Shape();
+      enShape.forEach(([u, v], i) => { if (i === 0) forma.moveTo(u, v); else forma.lineTo(u, v); });
+      forma.closePath();
+      return forma;
+    }
 
-const btnSep = document.getElementById('separar');
-btnSep.addEventListener('click', () => {
-  separado = !separado;
-  btnSep.setAttribute('aria-pressed', separado);
-  pisosGrupo.forEach((g,i) => g.userData.objetivo = separado ? i * 2.5 : 0);
-  // Al explotar la torre gana altura: sin esto la cámara general queda
-  // encuadrada para la torre compacta y los pisos de arriba se cortan.
-  if (pisoAislado === null){
-    tocado = true;
-    const extra = separado ? (pisosGrupo.length - 1) * 2.5 : 0;
-    objetivo.y = objetivoGeneral.y + extra / 2;
-    radio = radioGeneral + extra * 0.85;
-    ubicarCamara();
-  }
-});
+    // ExtrudeGeometry extruye a lo largo de +Z local; rotar -90° en X manda ese
+    // +Z local a +Y mundial (arriba) y el plano XY del shape al plano XZ del
+    // piso. depth = altura del volumen (piso a techo, o espesor para la losa).
+    // El resultado queda centrado en su propio origen local en los tres ejes
+    // (X/Z en el centroide del contorno, Y en depth/2) — igual que
+    // BoxGeometry — así que se posiciona con mesh.position exactamente como
+    // las cajas rectangulares de hoy.
+    function geometriaExtruida(pts, depth, centro) {
+      const geo = new THREE.ExtrudeGeometry(formaDesdeContorno(pts, centro), { depth, bevelEnabled: false });
+      geo.rotateX(-Math.PI / 2);
+      geo.translate(0, -depth / 2, 0);
+      return geo;
+    }
 
-const riel = document.getElementById('pisos');
-const infoPiso = document.getElementById('piso-info');
-const objetivoGeneral = objetivo.clone(), radioGeneral = radio, phiGeneral = phi;
-const botonesPiso = [];
+    // Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
+    // adentro de iniciar() porque necesita esperar a que lleguen el proyecto y
+    // las unidades desde Supabase antes de construir nada.
+    function iniciar(proyecto, settingsRow, UNIDADES, mediaTipologias) {
 
-// Ubica la cámara a la altura del piso elegido (o vuelve a la vista general del edificio).
-function enfocarPiso(p){
-  tocado = true;
-  if (p === null){ objetivo.copy(objetivoGeneral); radio = radioGeneral; phi = phiGeneral; }
-  else { objetivo.set(0, p * PASO + ALTO / 2, 0); radio = 72; phi = 1.28; }
-  ubicarCamara();
-}
+      // Media real por tipología (planta/renders subidos desde admin.html),
+      // agrupada por typology_id y tipo — así abrir(u) resuelve en O(1) qué
+      // mostrarle a cada unidad según su u.typologyId. Ver pintarPlantaUnidad().
+      const MEDIA_POR_TIPOLOGIA = {};
+      (mediaTipologias || []).forEach(m => {
+        const grupo = MEDIA_POR_TIPOLOGIA[m.typology_id] || (MEDIA_POR_TIPOLOGIA[m.typology_id] = { planta: [], render: [] });
+        (grupo[m.tipo] || (grupo[m.tipo] = [])).push(m);
+      });
 
-function actualizarInfoPiso(){
-  if (pisoAislado === null){ infoPiso.classList.remove('visible'); return; }
-  if (pisoAislado === 0){
-    infoPiso.innerHTML = '<b>Planta baja</b><span>Ingreso al edificio · aún sin definir</span>';
-    infoPiso.classList.add('visible');
-    return;
-  }
-  const enPiso = UNIDADES.filter(u => u.piso === pisoAislado);
-  const disponibles = enPiso.filter(u => u.estado === 'disponible').length;
-  infoPiso.innerHTML =
-    '<b>Piso ' + pisoAislado + '</b>' +
-    '<span>' + (pisoAislado - 1) + ' piso' + (pisoAislado - 1 === 1 ? '' : 's') + ' por debajo · ' +
-      (PISOS - pisoAislado) + ' por encima</span>' +
-    '<span>' + enPiso.length + ' unidad' + (enPiso.length === 1 ? '' : 'es') +
-      (disponibles ? ' · ' + disponibles + ' disponible' + (disponibles === 1 ? '' : 's') : '') + '</span>';
-  infoPiso.classList.add('visible');
-}
+      document.getElementById('h1-proyecto').textContent = proyecto.nombre;
+      document.getElementById('sub-proyecto').textContent =
+        [proyecto.direccion, proyecto.ciudad].filter(Boolean).join(', ') + ' · ' + proyecto.pisos + ' pisos · ' +
+        UNIDADES.length + ' unidades' + (proyecto.entrega ? ' · entrega ' + proyecto.entrega : '');
 
-// En mobile el riel es una hoja que se abre desde un botón del header
-// (ver #pisos-trigger); en desktop esos dos elementos quedan ocultos y sin
-// efecto. cerrarHoja() es un no-op inofensivo en desktop.
-const pisosTrigger = document.getElementById('pisos-trigger');
-const pisosTriggerLabel = pisosTrigger.querySelector('.pt-label');
-const pisosBackdrop = document.getElementById('pisos-backdrop');
+      if (proyecto.muestra_totales) {
+        const publicadas = UNIDADES.filter(u => u.estado !== 'sin_dato').length;
+        document.getElementById('aviso').innerHTML =
+          '<b>' + publicadas + ' de ' + UNIDADES.length + ' unidades</b> tienen estado publicado hoy. ' +
+          'Las otras ' + (UNIDADES.length - publicadas) + ' aparecen en gris: nadie sabe si están disponibles.';
+      } else {
+        document.getElementById('aviso').hidden = true;
+      }
+      document.getElementById('p-tira-tope').textContent = proyecto.pisos;
 
-function abrirHoja(){
-  cerrarFiltros();
-  riel.classList.add('abierto');
-  pisosBackdrop.classList.add('visible');
-  pisosTrigger.setAttribute('aria-expanded','true');
-}
-function cerrarHoja(){
-  riel.classList.remove('abierto');
-  pisosBackdrop.classList.remove('visible');
-  pisosTrigger.setAttribute('aria-expanded','false');
-}
-pisosTrigger.addEventListener('click', () => {
-  riel.classList.contains('abierto') ? cerrarHoja() : abrirHoja();
-});
-pisosBackdrop.addEventListener('click', cerrarHoja);
+      /* ============================================================
+         2. ESCENA
+         ============================================================ */
 
-// Mismo mecanismo de hoja que el riel de pisos, para Tipología/Estado/
-// Separar pisos: en desktop #filtros-trigger/#filtros-backdrop quedan
-// ocultos y estas funciones son no-ops inofensivos.
-const filtrosTrigger = document.getElementById('filtros-trigger');
-const filtrosBackdrop = document.getElementById('filtros-backdrop');
-const filtrosEl = document.getElementById('filtros');
-const ftBadge = document.getElementById('ft-badge');
+      // La forma de la placa es dato del proyecto (projects.geometria); si viene
+      // vacío (edificio sin geometría propia cargada todavía) se usan los valores
+      // de ROSSO como default, para no romper nada.
+      const PISOS = proyecto.pisos;
+      const geo = proyecto.geometria || {};
+      const ANCHO = geo.ancho ?? 5.4, PROF = geo.prof ?? 6.4, ALTO = geo.alto ?? 3,
+        LOSA = geo.losa_espesor ?? 0.32, PASO = ALTO + LOSA;
+      const SEP_X = geo.sep_x ?? (ANCHO + 0.3), SEP_Z = geo.sep_z ?? ((PROF + 2.0) / 2);
+      const LOSA_ANCHO = geo.losa_ancho ?? (SEP_X * 4 + 0.5), LOSA_LARGO = geo.losa_largo ?? (SEP_Z * 2 + PROF + 0.5);
+      const NUCLEO_ANCHO = geo.nucleo_ancho ?? (SEP_X * 2), NUCLEO_LARGO = geo.nucleo_largo ?? 1.7;
+      const calleCfg = geo.calle || {};
 
-function abrirFiltros(){
-  cerrarHoja();
-  filtrosEl.classList.add('abierto');
-  filtrosBackdrop.classList.add('visible');
-  filtrosTrigger.setAttribute('aria-expanded','true');
-}
-function cerrarFiltros(){
-  filtrosEl.classList.remove('abierto');
-  filtrosBackdrop.classList.remove('visible');
-  filtrosTrigger.setAttribute('aria-expanded','false');
-}
-filtrosTrigger.addEventListener('click', () => {
-  filtrosEl.classList.contains('abierto') ? cerrarFiltros() : abrirFiltros();
-});
-filtrosBackdrop.addEventListener('click', cerrarFiltros);
+      // Placas con forma propia (edificios que no son una losa rectangular
+      // simétrica) — mismo sistema de coordenadas que units.geom, ver CLAUDE.md.
+      // Si faltan, la losa/núcleo siguen siendo el rectángulo de arriba.
+      const LOSA_CONTORNO = Array.isArray(geo.losa_contorno) && geo.losa_contorno.length >= 3 ? geo.losa_contorno : null;
+      const NUCLEO_CONTORNO = Array.isArray(geo.nucleo_contorno) && geo.nucleo_contorno.length >= 3 ? geo.nucleo_contorno : null;
+      const ORIGEN_PLACA = { x: 0, z: 0 };
 
-// Badge con la cantidad de opciones excluidas (todo prendido por default
-// = sin badge), para que se sepa desde afuera si hay un filtro activo sin
-// tener que abrir la hoja.
-function actualizarBadgeFiltros(){
-  const excluidos = (dormsDisponibles.length - fDorms.size) + (Object.keys(ESTADOS).length - fEstado.size);
-  ftBadge.textContent = excluidos;
-  ftBadge.hidden = excluidos === 0;
-}
+      const escena = new THREE.Scene();
+      escena.background = new THREE.Color(0xDEE2E4);
+      escena.fog = new THREE.Fog(0xDEE2E4, 130, 280);
 
-function actualizarRielPisos(){
-  botonesPiso.forEach((el,i) => el.setAttribute('aria-pressed', pisoAislado === i+1));
-  btnPB.setAttribute('aria-pressed', pisoAislado === 0);
-  btnTodos.setAttribute('aria-pressed', pisoAislado === null);
-  pisosTriggerLabel.textContent =
-    pisoAislado === null ? 'Todos los pisos' : pisoAislado === 0 ? 'Planta baja' : 'Piso ' + pisoAislado;
-  actualizarInfoPiso();
-  cerrarHoja();
-}
-const btnPB = document.createElement('button');
-btnPB.className = 'pisos-pb';
-btnPB.textContent = 'PB';
-btnPB.setAttribute('aria-pressed','false');
-btnPB.addEventListener('click', () => {
-  pisoAislado = pisoAislado === 0 ? null : 0;
-  actualizarRielPisos();
-  enfocarPiso(pisoAislado);
-  aplicar();
-});
-riel.appendChild(btnPB);
-for (let p = 1; p <= PISOS; p++){
-  const b = document.createElement('button');
-  b.textContent = p;
-  b.setAttribute('aria-pressed','false');
-  b.addEventListener('click', () => {
-    pisoAislado = pisoAislado === p ? null : p;
-    actualizarRielPisos();
-    enfocarPiso(pisoAislado);
-    aplicar();
-  });
-  botonesPiso.push(b);
-  riel.appendChild(b);
-}
-// "PISO" + TODOS van agrupados: en desktop es el bloque fijo (sticky) de
-// arriba del riel; en mobile es la fila de cabecera de la hoja.
-const fijoPisos = document.createElement('div');
-fijoPisos.className = 'pisos-fijo';
-const etiquetaPisos = document.createElement('span');
-etiquetaPisos.className = 'pisos-etiqueta';
-etiquetaPisos.textContent = 'PISO';
-fijoPisos.appendChild(etiquetaPisos);
-const btnTodos = document.createElement('button');
-btnTodos.className = 'pisos-todos';
-btnTodos.textContent = 'TODOS';
-btnTodos.setAttribute('aria-pressed','true');
-btnTodos.addEventListener('click', () => {
-  pisoAislado = null;
-  actualizarRielPisos();
-  enfocarPiso(null);
-  aplicar();
-});
-fijoPisos.appendChild(btnTodos);
-riel.appendChild(fijoPisos);
+      const camara = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 600);
+      const render = new THREE.WebGLRenderer({ antialias: true });
+      render.setPixelRatio(Math.min(devicePixelRatio, 2));
+      render.setSize(innerWidth, innerHeight);
+      render.shadowMap.enabled = true;
+      render.shadowMap.type = THREE.PCFSoftShadowMap;
+      document.body.appendChild(render.domElement);
 
-/* ============================================================
-   Planta real de la tipología (subida por el cliente desde admin.html,
-   ver MEDIA_POR_TIPOLOGIA más arriba). Antes acá se dibujaba un esquema de
-   rectángulos a partir de m²/dorms — se sacó porque un esquema inventado
-   que no coincide con muros reales (diagonales, plantas en L, etc.) es
-   peor que avisar que la planta no está disponible todavía.
-   ============================================================ */
+      escena.add(new THREE.HemisphereLight(0xFFFFFF, 0xA6B0B3, 0.9));
+      const sol = new THREE.DirectionalLight(0xFFF6E8, 1.0);
+      sol.position.set(-34, 58, 30);
+      sol.castShadow = true;
+      sol.shadow.mapSize.set(2048, 2048);
+      const sc = sol.shadow.camera;
+      sc.left = -46; sc.right = 46; sc.top = 64; sc.bottom = -26; sc.near = 5; sc.far = 170;
+      escena.add(sol);
 
-// Planta primero, después los renders de la tipología — mismo orden en el
-// que se muestran y en el que se navega al ampliar con el lightbox.
-function mediaDeUnidad(u){
-  const media = (u.typologyId && MEDIA_POR_TIPOLOGIA[u.typologyId]) || { planta: [], render: [] };
-  return media.planta.length ? [media.planta[0], ...media.render] : media.render;
-}
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(30, 30, 1.2, 72),
+        new THREE.MeshStandardMaterial({ color: 0xD1D6D8, roughness: 0.95 })
+      );
+      base.position.y = -0.6;
+      base.receiveShadow = true;
+      escena.add(base);
 
-function pintarPlantaUnidad(u){
-  const cont = document.getElementById('p-planta');
-  const items = mediaDeUnidad(u);
-  if (!items.length){
-    cont.innerHTML = '<p class="planta-vacia">Planta no disponible todavía para esta unidad.</p>';
-    return;
-  }
-  cont.innerHTML = items.map((m, i) =>
-    '<img src="' + m.url + '" data-idx="' + i + '"' +
-    ' alt="' + (m.tipo === 'planta' ? 'Planta' : 'Render') + ' de la unidad ' + u.id + '">'
-  ).join('');
-  cont.querySelectorAll('img').forEach(img =>
-    img.addEventListener('click', () => galeria.abrir(items, Number(img.dataset.idx)))
-  );
-}
+      // Calle: franja de asfalto frente al edificio (lado "frente", ver NOMBRE_CALLE
+      // más abajo) con línea de carril discontinua, para que quede claro a simple
+      // vista que ese lado da a una vía vehicular y no es un lado cualquiera.
+      const ANCHO_CALLE = calleCfg.ancho ?? 8, LARGO_CALLE = calleCfg.largo ?? 44, VEREDA = calleCfg.vereda ?? 2;
+      const BORDE_FRENTE = -(SEP_Z + PROF / 2);
+      const Z_CALLE = BORDE_FRENTE - VEREDA - ANCHO_CALLE / 2;
 
-// Tira de elevación junto al número de unidad: 11 marcas (PB + pisos 1–10),
-// la del piso de la unidad elegida se destaca con el color de su estado.
-// Mismo lenguaje visual que el riel de pisos (panel de ascensor).
-function actualizarTiraPiso(u){
-  const cont = document.getElementById('p-tira');
-  cont.innerHTML = '';
-  for (let p = 0; p <= PISOS; p++){
-    const marca = document.createElement('i');
-    marca.className = 'p-tira-marca' + (p === u.piso ? ' activa' : '');
-    if (p === u.piso) marca.style.background = ESTADOS[u.estado].color;
-    cont.appendChild(marca);
-  }
-}
+      const calle = new THREE.Mesh(
+        new THREE.PlaneGeometry(LARGO_CALLE, ANCHO_CALLE),
+        new THREE.MeshStandardMaterial({ color: 0x686F72, roughness: 0.95 })
+      );
+      calle.rotation.x = -Math.PI / 2;
+      calle.position.set(0, 0.02, Z_CALLE);
+      calle.receiveShadow = true;
+      escena.add(calle);
 
-// Lleva la cámara frente a la unidad, a la altura de su piso.
-function enfocar(u){
-  objetivo.set(0, u.piso * PASO + ALTO / 2, 0);
-  // Unidades con contorno propio no tienen col/frente utilizables para
-  // orientar la cámara — se deriva un ángulo equivalente del centroide
-  // (mismo criterio: signo de Z = lado frente/contrafrente, X = desplazamiento lateral).
-  theta = u._centro
-    ? (u._centro.z < 0 ? Math.PI : 0) - (u._centro.x / SEP_X) * 0.16
-    : (u.frente < 0 ? Math.PI : 0) - u.col * 0.16;
-  phi = 1.32;
-  radio = 62;
-  tocado = true;
-  ubicarCamara();
-}
+      const cordon = new THREE.Mesh(
+        new THREE.PlaneGeometry(LARGO_CALLE, 0.25),
+        new THREE.MeshStandardMaterial({ color: 0xF2F3F4, roughness: 0.8 })
+      );
+      cordon.rotation.x = -Math.PI / 2;
+      cordon.position.set(0, 0.021, BORDE_FRENTE - VEREDA);
+      escena.add(cordon);
 
-function linkDe(u){
-  const propia = location.protocol.startsWith('http')
-    ? location.origin + location.pathname
-    : BASE;
-  return propia + '?p=' + encodeURIComponent(proyecto.slug) + '&u=' + u.id;
-}
+      const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
+      const matGuion = new THREE.MeshStandardMaterial({ color: 0xEDEFEF, roughness: 0.6 });
+      for (let x = -LARGO_CALLE / 2 + 2; x < LARGO_CALLE / 2 - 2; x += 2.8) {
+        const guion = new THREE.Mesh(geoGuion, matGuion);
+        guion.rotation.x = -Math.PI / 2;
+        guion.position.set(x, 0.03, Z_CALLE);
+        escena.add(guion);
+      }
 
-// En previsualizaciones (about:srcdoc) el historial no se puede tocar.
-function marcarURL(consulta){
-  try { history.replaceState(null, '', consulta); } catch (e) { /* sin historial */ }
-}
+      /* ============================================================
+         3. TORRE
+         ============================================================ */
 
-// ?p=<slug> se preserva en la URL incluso al cerrar el panel — si no, un
-// edificio que no sea el default perdería su slug de la barra y una
-// recarga en ese momento resolvería al edificio equivocado.
-function queryProyecto(){
-  return proyecto.slug === DEFAULT_SLUG ? '' : 'p=' + encodeURIComponent(proyecto.slug);
-}
+      const torre = new THREE.Group();
+      escena.add(torre);
 
-function abrir(u, mover){
-  registrarEvento(proyecto.id, u.id);
-  elegida = u;
-  tooltip.style.opacity = 0; // en touch queda pegado en la última posición tocada
-  if (mover) enfocar(u);
-  const e = ESTADOS[u.estado];
-  document.getElementById('p-eyebrow').textContent    = 'Piso ' + u.piso;
-  document.getElementById('p-unidad').textContent     = u.id;
-  document.getElementById('p-estado-txt').textContent = e.nombre;
-  document.getElementById('p-color').style.background = e.color;
-  const pEstado = document.getElementById('p-estado');
-  pEstado.style.background   = e.color + '1A';
-  pEstado.style.borderColor  = e.color + '4D';
-  pEstado.style.color        = e.color;
-  actualizarTiraPiso(u);
-  pintarPlantaUnidad(u);
-  document.getElementById('p-dorms').textContent      = etiquetaDorms(u.dorms);
-  document.getElementById('p-m2').textContent         = u.m2 + ' m²';
-  document.getElementById('p-orient').textContent     = u.orient;
-  document.getElementById('p-precio').textContent     = formatearPrecio(u.precio, proyecto.moneda, proyecto.locale);
+      const geoUnidad = new THREE.BoxGeometry(ANCHO, ALTO, PROF);
+      const bordesGeo = new THREE.EdgesGeometry(geoUnidad);
+      const geoLosa = LOSA_CONTORNO ? geometriaExtruida(LOSA_CONTORNO, LOSA, ORIGEN_PLACA) : new THREE.BoxGeometry(LOSA_ANCHO, LOSA, LOSA_LARGO);
+      const geoNucleo = NUCLEO_CONTORNO ? geometriaExtruida(NUCLEO_CONTORNO, ALTO, ORIGEN_PLACA) : new THREE.BoxGeometry(NUCLEO_ANCHO, ALTO, NUCLEO_LARGO);
+      const matLosa = new THREE.MeshStandardMaterial({ color: 0xB4BBBD, roughness: 0.9 });
+      const matNucleo = new THREE.MeshStandardMaterial({ color: 0xA5ADB0, roughness: 0.9 });
 
-  const terrazaDt = document.getElementById('p-terraza-dt');
-  const terrazaDd = document.getElementById('p-terraza-dd');
-  terrazaDt.hidden = terrazaDd.hidden = !u.m2Terraza;
-  if (u.m2Terraza) terrazaDd.textContent = u.m2Terraza + ' m²';
+      const pisosGrupo = [], cajas = [];
 
-  const cocheraDt = document.getElementById('p-cochera-dt');
-  const cocheraDd = document.getElementById('p-cochera-dd');
-  cocheraDt.hidden = cocheraDd.hidden = !u.cocheraPrecio;
-  if (u.cocheraPrecio) cocheraDd.textContent = formatearPrecio(u.cocheraPrecio, proyecto.moneda, proyecto.locale) + ' (opcional)';
-  const fuente = document.getElementById('p-fuente');
-  fuente.textContent = u.estimado ? 'Dato estimado' : 'Dato publicado';
-  fuente.className = 'p-tag ' + (u.estimado ? 'p-tag-estimado' : 'p-tag-real');
-  fuente.title = u.estimado
-    ? 'Precio y superficie estimados — falta el dato real.'
-    : 'Precio y superficie publicados en el aviso.';
-  const texto = 'Hola, quiero consultar por la unidad ' + u.id + ' de ' + proyecto.nombre + ' (' +
-                etiquetaDorms(u.dorms).toLowerCase() + ', ' + u.m2 + ' m²). ' + linkDe(u);
-  document.getElementById('p-wa').href = settingsRow.whatsapp
-    ? 'https://wa.me/' + settingsRow.whatsapp + '?text=' + encodeURIComponent(texto)
-    : '#';
+      // Planta baja: nivel de ingreso, debajo del piso 1. Todavía no está
+      // definido cómo se divide (local, hall, cocheras...), así que por ahora
+      // es solo un volumen — pero el edificio no puede arrancar directo en el
+      // piso 1 como si no hubiera PB.
+      const geoPB = new THREE.BoxGeometry(LOSA_ANCHO, ALTO, LOSA_LARGO);
+      const matPB = new THREE.MeshStandardMaterial({ color: 0xC7CBCC, roughness: 0.9, transparent: true, opacity: 0.55 });
 
-  marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
-  panel.classList.add('abierto');
-}
+      const pb = new THREE.Group();
+      pb.position.y = 0;
+      pb.userData = { offset: 0, objetivo: 0 };
 
-function cerrar(){
-  elegida = null;
-  panel.classList.remove('abierto');
-  const qp = queryProyecto();
-  marcarURL(location.pathname + (qp ? '?' + qp : ''));
-}
+      const losaPB = new THREE.Mesh(geoLosa, matLosa);
+      losaPB.position.y = -LOSA / 2;
+      losaPB.castShadow = losaPB.receiveShadow = true;
+      pb.add(losaPB);
 
-const btnCopiar = document.getElementById('p-copiar');
-const btnCopiarTxt = btnCopiar.querySelector('.bton-txt');
-btnCopiar.addEventListener('click', async () => {
-  if (!elegida) return;
-  try { await navigator.clipboard.writeText(linkDe(elegida)); }
-  catch { return; }
-  btnCopiarTxt.textContent = 'Link copiado';
-  setTimeout(() => btnCopiarTxt.textContent = 'Copiar link de esta unidad', 1800);
-});
+      const volumenPB = new THREE.Mesh(geoPB, matPB);
+      volumenPB.position.y = ALTO / 2;
+      volumenPB.receiveShadow = true;
+      pb.add(volumenPB);
 
-document.getElementById('cerrar').addEventListener('click', cerrar);
-addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
-lienzo.addEventListener('click', () => {
-  if (sobre) abrir(sobre.userData.unidad);
-  else if (sobreCalle) window.open(cartelCalle.userData.mapsUrl, '_blank', 'noopener');
-  else cerrar();
-});
+      torre.add(pb);
+      pisosGrupo.push(pb);
 
-aplicar();
+      for (let piso = 1; piso <= PISOS; piso++) {
+        const g = new THREE.Group();
+        g.position.y = piso * PASO;
+        g.userData = { offset: 0, objetivo: 0 };
 
-// ?u=703 abre el edificio con esa unidad seleccionada y la cámara frente a ella.
-const pedida = new URLSearchParams(location.search).get('u');
-if (pedida){
-  const u = UNIDADES.find(x => String(x.id) === pedida);
-  if (u) abrir(u, true);
-}
+        const losa = new THREE.Mesh(geoLosa, matLosa);
+        losa.position.y = -LOSA / 2;
+        losa.castShadow = losa.receiveShadow = true;
+        g.add(losa);
 
-/* ============================================================
-   6. BUCLE
-   ============================================================ */
+        const nucleo = new THREE.Mesh(geoNucleo, matNucleo);
+        nucleo.position.y = ALTO / 2;
+        nucleo.castShadow = true;
+        g.add(nucleo);
 
-function animar(){
-  requestAnimationFrame(animar);
-  if (!tocado){ theta += 0.0013; ubicarCamara(); }
+        UNIDADES.filter(u => u.piso === piso).forEach(u => {
+          // Unidad con contorno propio (units.geom.contorno, ver CLAUDE.md) en vez
+          // de la grilla col/frente + caja ANCHO×PROF. Si falta, cae exactamente
+          // en el camino de siempre — así ROSSO no cambia.
+          const tieneGeom = u.geom && Array.isArray(u.geom.contorno) && u.geom.contorno.length >= 3;
+          const altoUnidad = tieneGeom && u.geom.alto ? u.geom.alto : ALTO;
+          let geoU = geoUnidad, bordesU = bordesGeo, posX = u.col * SEP_X, posZ = u.frente * SEP_Z;
+          if (tieneGeom) {
+            const centro = centroideContorno(u.geom.contorno);
+            geoU = geometriaExtruida(u.geom.contorno, altoUnidad, centro);
+            bordesU = new THREE.EdgesGeometry(geoU);
+            posX = centro.x; posZ = centro.z;
+            u._centro = centro; // enfocar() lo usa para orientar la cámara sin col/frente
+          }
 
-  pisosGrupo.forEach((g,i) => {
-    const d = g.userData;
-    d.offset += (d.objetivo - d.offset) * 0.11;
-    g.position.y = i * PASO + d.offset;
-  });
+          const color = new THREE.Color(ESTADOS[u.estado].color);
+          const caja = new THREE.Mesh(geoU, new THREE.MeshStandardMaterial({
+            color, roughness: 0.45, metalness: 0.05, transparent: true,
+            opacity: u.estado === 'disponible' ? 0.94 : 0.72,
+          }));
+          caja.position.set(posX, altoUnidad / 2, posZ);
+          caja.castShadow = caja.receiveShadow = true;
+          caja.userData = { unidad: u, colorBase: color.clone(), activa: true };
+          g.add(caja);
+          cajas.push(caja);
 
-  rayo.setFromCamera(raton, camara);
-  const golpes = rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
-  const nuevo = golpes.length ? golpes[0].object : null;
-  if (nuevo !== sobre){
-    if (sobre) sobre.material.emissive.setHex(0x000000);
-    sobre = nuevo;
-    lienzo.style.cursor = sobre ? 'pointer' : 'grab';
-    if (sobre){
-      sobre.material.emissive.setScalar(0.22);
-      const u = sobre.userData.unidad;
-      tooltip.textContent = u.id + ' · ' + u.dorms + ' dorm · ' + u.m2 + ' m²';
-      tooltip.style.opacity = 1;
-    } else tooltip.style.opacity = 0;
-  }
-  if (sobre){ tooltip.style.left = posRaton.x+'px'; tooltip.style.top = posRaton.y+'px'; }
+          const borde = new THREE.LineSegments(bordesU,
+            new THREE.LineBasicMaterial({ color: 0x1A2124, transparent: true, opacity: 0.26 }));
+          borde.position.copy(caja.position);
+          caja.userData.borde = borde;
+          g.add(borde);
+        });
 
-  // Cartel de calle: mismo patrón de hover/tooltip que las unidades, pero
-  // sin emissive (es un sprite, no tiene material que resaltar) — solo
-  // cursor + tooltip para dejar claro que es clickeable.
-  const golpeCalle = sobre ? [] : rayo.intersectObject(cartelCalle, false);
-  const nuevoSobreCalle = golpeCalle.length > 0;
-  if (nuevoSobreCalle !== sobreCalle){
-    sobreCalle = nuevoSobreCalle;
-    if (!sobre) lienzo.style.cursor = sobreCalle ? 'pointer' : 'grab';
-    if (sobreCalle){ tooltip.textContent = 'Ver en Google Maps'; tooltip.style.opacity = 1; }
-    else if (!sobre) tooltip.style.opacity = 0;
-  }
-  if (sobreCalle){ tooltip.style.left = posRaton.x+'px'; tooltip.style.top = posRaton.y+'px'; }
+        torre.add(g);
+        pisosGrupo.push(g);
+      }
+      const ALTURA = (PISOS + 1) * PASO; // pisos + PB
 
-  cajas.forEach(c => {
-    const sel = elegida && c.userData.unidad.id === elegida.id;
-    if (sel && c !== sobre) c.material.emissive.setScalar(0.34);
-    else if (!sel && c !== sobre) c.material.emissive.setHex(0x000000);
-  });
+      // Cartel de calle: nombre de la vía + ícono de ubicación, parado junto a la
+      // vereda como un cartel real. Es un sprite (siempre mirando a cámara)
+      // anclado a la posición de la calle en el mundo 3D a propósito: tiene que
+      // quedar SIEMPRE sobre la carretera del frente, sin importar cómo se
+      // oriente la cámara. Es clickeable (raycasting, ver BUCLE más abajo) y abre
+      // Google Maps en esa dirección — el ícono en el cartel es la pista visual
+      // de que se puede tocar.
+      // geometria.calle_nombre permite fijar el nombre a mano; si no está, se
+      // aproxima tomando la dirección hasta el primer número
+      // ("Bulevar 123, Barrio" → "Bulevar").
+      function crearCartelCalle(texto) {
+        const cv = document.createElement('canvas');
+        const ctx = cv.getContext('2d');
+        const fuente = '600 44px Inter, "Helvetica Neue", Arial, sans-serif';
+        ctx.font = fuente;
+        const anchoTexto = ctx.measureText(texto).width;
+        const iconoR = 15, iconoHueco = 24; // radio del pin + separación hasta el texto
+        cv.width = iconoR * 2 + iconoHueco + anchoTexto + 66;
+        cv.height = 84;
+        ctx.font = fuente;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        const r = cv.height / 2;
+        ctx.fillStyle = 'rgba(26,33,36,.88)';
+        ctx.beginPath();
+        ctx.moveTo(r, 0);
+        ctx.arcTo(cv.width, 0, cv.width, r, r);
+        ctx.arcTo(cv.width, cv.height, cv.width - r, cv.height, r);
+        ctx.arcTo(0, cv.height, 0, r, r);
+        ctx.arcTo(0, 0, r, 0, r);
+        ctx.closePath();
+        ctx.fill();
 
-  render.render(escena, camara);
-}
-animar();
+        // Pin de ubicación (círculo + punta + agujero central "recortado" con
+        // destination-out, para que se vea hueco como un ícono de mapa real).
+        const cx = 24 + iconoR, cy = cv.height / 2;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(cx, cy - iconoR * 0.15, iconoR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cx - iconoR * 0.75, cy + iconoR * 0.55);
+        ctx.quadraticCurveTo(cx, cy + iconoR * 1.9, cx + iconoR * 0.75, cy + iconoR * 0.55);
+        ctx.closePath();
+        ctx.fill();
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(cx, cy - iconoR * 0.15, iconoR * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
 
-addEventListener('resize', () => {
-  camara.aspect = innerWidth/innerHeight;
-  camara.updateProjectionMatrix();
-  render.setSize(innerWidth, innerHeight);
-});
+        ctx.fillStyle = '#fff';
+        ctx.fillText(texto, cx + iconoR + iconoHueco + anchoTexto / 2, cv.height / 2 + 2);
 
-} // fin de iniciar()
+        const tex = new THREE.CanvasTexture(cv);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: tex, transparent: true, depthWrite: false, depthTest: true, sizeAttenuation: true,
+        }));
+        const escalaPx = 0.026;
+        sprite.scale.set(cv.width * escalaPx, cv.height * escalaPx, 1);
+        return sprite;
+      }
 
-(async () => {
-  const resultado = await cargarProyecto();
-  if (resultado.error === 'no-encontrado'){
-    mostrarErrorProyecto('Este edificio no existe o todavía no está publicado.');
-    return;
-  }
-  if (resultado.error){
-    document.getElementById('aviso').innerHTML =
-      '<b>No se pudo cargar el estado de las unidades.</b> Revisá la conexión y recargá la página.';
-    return;
-  }
-  pintarRedes(resultado.settings);
-  pintarAmenities(resultado.amenities);
-  pintarLegal(resultado.settings.textos);
-  pintarRenders(resultado.renders);
-  iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias);
-})();
-</script>
+      const NOMBRE_CALLE = geo.calle_nombre || (proyecto.direccion || '').replace(/\s*\d.*$/, '') || proyecto.nombre;
+      const cartelCalle = crearCartelCalle(NOMBRE_CALLE);
+      cartelCalle.position.set(LARGO_CALLE / 2 - 4, 1.7, BORDE_FRENTE - VEREDA);
+      const consultaMapaCalle = [proyecto.direccion, proyecto.ciudad, proyecto.pais].filter(Boolean).join(', ') || NOMBRE_CALLE;
+      cartelCalle.userData.mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(consultaMapaCalle);
+      escena.add(cartelCalle);
+
+      /* ============================================================
+         4. CÁMARA
+         ============================================================ */
+
+      const objetivo = new THREE.Vector3(0, ALTURA * 0.45, 0);
+      let radio = 96, theta = 0.7, phi = 1.15, arrastrando = false, ultimo = { x: 0, y: 0 }, tocado = false;
+
+      function ubicarCamara() {
+        phi = Math.max(0.18, Math.min(Math.PI / 2 + 0.16, phi));
+        camara.position.set(
+          objetivo.x + radio * Math.sin(phi) * Math.sin(theta),
+          objetivo.y + radio * Math.cos(phi),
+          objetivo.z + radio * Math.sin(phi) * Math.cos(theta)
+        );
+        camara.lookAt(objetivo);
+      }
+      ubicarCamara();
+
+      const lienzo = render.domElement;
+      lienzo.style.cursor = 'grab';
+      lienzo.addEventListener('pointerdown', e => {
+        arrastrando = true; tocado = true;
+        ultimo = { x: e.clientX, y: e.clientY };
+        lienzo.setPointerCapture(e.pointerId);
+      });
+      lienzo.addEventListener('pointerup', e => { arrastrando = false; lienzo.releasePointerCapture(e.pointerId); });
+      lienzo.addEventListener('pointermove', e => {
+        const dx = e.clientX - ultimo.x, dy = e.clientY - ultimo.y;
+        ultimo = { x: e.clientX, y: e.clientY };
+        if (arrastrando) { theta -= dx * 0.005; phi -= dy * 0.004; ubicarCamara(); }
+        raton.x = (e.clientX / innerWidth) * 2 - 1;
+        raton.y = -(e.clientY / innerHeight) * 2 + 1;
+        posRaton = { x: e.clientX, y: e.clientY };
+      });
+      lienzo.addEventListener('wheel', e => {
+        e.preventDefault(); tocado = true;
+        radio = Math.max(34, Math.min(190, radio + e.deltaY * 0.09));
+        ubicarCamara();
+      }, { passive: false });
+
+      /* ============================================================
+         5. INTERACCIÓN
+         ============================================================ */
+
+      const rayo = new THREE.Raycaster();
+      const raton = new THREE.Vector2(-2, -2);
+      let posRaton = { x: 0, y: 0 }, sobre = null, sobreCalle = false, elegida = null, separado = false, pisoAislado = null;
+      // Los valores de dormitorios (0 = monoambiente, 1, 2, 3...) salen de las
+      // unidades cargadas, no de una lista fija: cada edificio tiene su propia
+      // mezcla de tipologías.
+      const dormsDisponibles = [...new Set(UNIDADES.map(u => u.dorms))].sort((a, b) => a - b);
+      function etiquetaDorms(d) {
+        return d === 0 ? 'Monoambiente' : d === 1 ? '1 dormitorio' : d + ' dormitorios';
+      }
+      let fDorms = new Set(dormsDisponibles), fEstado = new Set(Object.keys(ESTADOS));
+
+      const tooltip = document.getElementById('tooltip');
+      const panel = document.getElementById('panel');
+
+      const pasa = u => fDorms.has(u.dorms) && fEstado.has(u.estado) &&
+        (pisoAislado === null || u.piso === pisoAislado);
+
+      function aplicar() {
+        cajas.forEach(c => {
+          const u = c.userData.unidad, ok = pasa(u);
+          c.userData.activa = ok;
+          c.material.opacity = ok ? (u.estado === 'disponible' ? 0.94 : 0.72) : 0.06;
+          c.material.color.copy(ok ? c.userData.colorBase : new THREE.Color(0x98A1A4));
+          c.castShadow = ok;
+          c.userData.borde.material.opacity = ok ? 0.26 : 0.04;
+        });
+        if (elegida && !pasa(elegida)) cerrar();
+        actualizarBadgeFiltros();
+      }
+
+      function chip(cont, texto, color, alTocar) {
+        const b = document.createElement('button');
+        b.className = 'chip';
+        b.setAttribute('aria-pressed', 'true');
+        b.innerHTML = (color ? '<span class="punto" style="background:' + color + '"></span>' : '') + texto;
+        b.addEventListener('click', () => {
+          const on = b.getAttribute('aria-pressed') !== 'true';
+          b.setAttribute('aria-pressed', on);
+          alTocar(on); aplicar();
+        });
+        cont.appendChild(b);
+      }
+      dormsDisponibles.forEach(d => chip(document.getElementById('f-dorms'), etiquetaDorms(d), null,
+        on => on ? fDorms.add(d) : fDorms.delete(d)));
+      Object.entries(ESTADOS).forEach(([k, e]) => chip(document.getElementById('f-estado'), e.nombre, e.color,
+        on => on ? fEstado.add(k) : fEstado.delete(k)));
+
+      const btnSep = document.getElementById('separar');
+      btnSep.addEventListener('click', () => {
+        separado = !separado;
+        btnSep.setAttribute('aria-pressed', separado);
+        pisosGrupo.forEach((g, i) => g.userData.objetivo = separado ? i * 2.5 : 0);
+        // Al explotar la torre gana altura: sin esto la cámara general queda
+        // encuadrada para la torre compacta y los pisos de arriba se cortan.
+        if (pisoAislado === null) {
+          tocado = true;
+          const extra = separado ? (pisosGrupo.length - 1) * 2.5 : 0;
+          objetivo.y = objetivoGeneral.y + extra / 2;
+          radio = radioGeneral + extra * 0.85;
+          ubicarCamara();
+        }
+      });
+
+      const riel = document.getElementById('pisos');
+      const infoPiso = document.getElementById('piso-info');
+      const objetivoGeneral = objetivo.clone(), radioGeneral = radio, phiGeneral = phi;
+      const botonesPiso = [];
+
+      // Ubica la cámara a la altura del piso elegido (o vuelve a la vista general del edificio).
+      function enfocarPiso(p) {
+        tocado = true;
+        if (p === null) { objetivo.copy(objetivoGeneral); radio = radioGeneral; phi = phiGeneral; }
+        else { objetivo.set(0, p * PASO + ALTO / 2, 0); radio = 72; phi = 1.28; }
+        ubicarCamara();
+      }
+
+      function actualizarInfoPiso() {
+        if (pisoAislado === null) { infoPiso.classList.remove('visible'); return; }
+        if (pisoAislado === 0) {
+          infoPiso.innerHTML = '<b>Planta baja</b><span>Ingreso al edificio · aún sin definir</span>';
+          infoPiso.classList.add('visible');
+          return;
+        }
+        const enPiso = UNIDADES.filter(u => u.piso === pisoAislado);
+        const disponibles = enPiso.filter(u => u.estado === 'disponible').length;
+        infoPiso.innerHTML =
+          '<b>Piso ' + pisoAislado + '</b>' +
+          '<span>' + (pisoAislado - 1) + ' piso' + (pisoAislado - 1 === 1 ? '' : 's') + ' por debajo · ' +
+          (PISOS - pisoAislado) + ' por encima</span>' +
+          '<span>' + enPiso.length + ' unidad' + (enPiso.length === 1 ? '' : 'es') +
+          (disponibles ? ' · ' + disponibles + ' disponible' + (disponibles === 1 ? '' : 's') : '') + '</span>';
+        infoPiso.classList.add('visible');
+      }
+
+      // En mobile el riel es una hoja que se abre desde un botón del header
+      // (ver #pisos-trigger); en desktop esos dos elementos quedan ocultos y sin
+      // efecto. cerrarHoja() es un no-op inofensivo en desktop.
+      const pisosTrigger = document.getElementById('pisos-trigger');
+      const pisosTriggerLabel = pisosTrigger.querySelector('.pt-label');
+      const pisosBackdrop = document.getElementById('pisos-backdrop');
+
+      function abrirHoja() {
+        cerrarFiltros();
+        riel.classList.add('abierto');
+        pisosBackdrop.classList.add('visible');
+        pisosTrigger.setAttribute('aria-expanded', 'true');
+      }
+      function cerrarHoja() {
+        riel.classList.remove('abierto');
+        pisosBackdrop.classList.remove('visible');
+        pisosTrigger.setAttribute('aria-expanded', 'false');
+      }
+      pisosTrigger.addEventListener('click', () => {
+        riel.classList.contains('abierto') ? cerrarHoja() : abrirHoja();
+      });
+      pisosBackdrop.addEventListener('click', cerrarHoja);
+
+      // Mismo mecanismo de hoja que el riel de pisos, para Tipología/Estado/
+      // Separar pisos: en desktop #filtros-trigger/#filtros-backdrop quedan
+      // ocultos y estas funciones son no-ops inofensivos.
+      const filtrosTrigger = document.getElementById('filtros-trigger');
+      const filtrosBackdrop = document.getElementById('filtros-backdrop');
+      const filtrosEl = document.getElementById('filtros');
+      const ftBadge = document.getElementById('ft-badge');
+
+      function abrirFiltros() {
+        cerrarHoja();
+        filtrosEl.classList.add('abierto');
+        filtrosBackdrop.classList.add('visible');
+        filtrosTrigger.setAttribute('aria-expanded', 'true');
+      }
+      function cerrarFiltros() {
+        filtrosEl.classList.remove('abierto');
+        filtrosBackdrop.classList.remove('visible');
+        filtrosTrigger.setAttribute('aria-expanded', 'false');
+      }
+      filtrosTrigger.addEventListener('click', () => {
+        filtrosEl.classList.contains('abierto') ? cerrarFiltros() : abrirFiltros();
+      });
+      filtrosBackdrop.addEventListener('click', cerrarFiltros);
+
+      // Badge con la cantidad de opciones excluidas (todo prendido por default
+      // = sin badge), para que se sepa desde afuera si hay un filtro activo sin
+      // tener que abrir la hoja.
+      function actualizarBadgeFiltros() {
+        const excluidos = (dormsDisponibles.length - fDorms.size) + (Object.keys(ESTADOS).length - fEstado.size);
+        ftBadge.textContent = excluidos;
+        ftBadge.hidden = excluidos === 0;
+      }
+
+      function actualizarRielPisos() {
+        botonesPiso.forEach((el, i) => el.setAttribute('aria-pressed', pisoAislado === i + 1));
+        btnPB.setAttribute('aria-pressed', pisoAislado === 0);
+        btnTodos.setAttribute('aria-pressed', pisoAislado === null);
+        pisosTriggerLabel.textContent =
+          pisoAislado === null ? 'Todos los pisos' : pisoAislado === 0 ? 'Planta baja' : 'Piso ' + pisoAislado;
+        actualizarInfoPiso();
+        cerrarHoja();
+      }
+      const btnPB = document.createElement('button');
+      btnPB.className = 'pisos-pb';
+      btnPB.textContent = 'PB';
+      btnPB.setAttribute('aria-pressed', 'false');
+      btnPB.addEventListener('click', () => {
+        pisoAislado = pisoAislado === 0 ? null : 0;
+        actualizarRielPisos();
+        enfocarPiso(pisoAislado);
+        aplicar();
+      });
+      riel.appendChild(btnPB);
+      for (let p = 1; p <= PISOS; p++) {
+        const b = document.createElement('button');
+        b.textContent = p;
+        b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', () => {
+          pisoAislado = pisoAislado === p ? null : p;
+          actualizarRielPisos();
+          enfocarPiso(pisoAislado);
+          aplicar();
+        });
+        botonesPiso.push(b);
+        riel.appendChild(b);
+      }
+      // "PISO" + TODOS van agrupados: en desktop es el bloque fijo (sticky) de
+      // arriba del riel; en mobile es la fila de cabecera de la hoja.
+      const fijoPisos = document.createElement('div');
+      fijoPisos.className = 'pisos-fijo';
+      const etiquetaPisos = document.createElement('span');
+      etiquetaPisos.className = 'pisos-etiqueta';
+      etiquetaPisos.textContent = 'PISO';
+      fijoPisos.appendChild(etiquetaPisos);
+      const btnTodos = document.createElement('button');
+      btnTodos.className = 'pisos-todos';
+      btnTodos.textContent = 'TODOS';
+      btnTodos.setAttribute('aria-pressed', 'true');
+      btnTodos.addEventListener('click', () => {
+        pisoAislado = null;
+        actualizarRielPisos();
+        enfocarPiso(null);
+        aplicar();
+      });
+      fijoPisos.appendChild(btnTodos);
+      riel.appendChild(fijoPisos);
+
+      /* ============================================================
+         Planta real de la tipología (subida por el cliente desde admin.html,
+         ver MEDIA_POR_TIPOLOGIA más arriba). Antes acá se dibujaba un esquema de
+         rectángulos a partir de m²/dorms — se sacó porque un esquema inventado
+         que no coincide con muros reales (diagonales, plantas en L, etc.) es
+         peor que avisar que la planta no está disponible todavía.
+         ============================================================ */
+
+      // Planta primero, después los renders de la tipología — mismo orden en el
+      // que se muestran y en el que se navega al ampliar con el lightbox.
+      function mediaDeUnidad(u) {
+        const media = (u.typologyId && MEDIA_POR_TIPOLOGIA[u.typologyId]) || { planta: [], render: [] };
+        return media.planta.length ? [media.planta[0], ...media.render] : media.render;
+      }
+
+      function pintarPlantaUnidad(u) {
+        const cont = document.getElementById('p-planta');
+        const items = mediaDeUnidad(u);
+        if (!items.length) {
+          cont.innerHTML = '<p class="planta-vacia">Planta no disponible todavía para esta unidad.</p>';
+          return;
+        }
+        cont.innerHTML = items.map((m, i) =>
+          '<img src="' + m.url + '" data-idx="' + i + '"' +
+          ' alt="' + (m.tipo === 'planta' ? 'Planta' : 'Render') + ' de la unidad ' + u.id + '">'
+        ).join('');
+        cont.querySelectorAll('img').forEach(img =>
+          img.addEventListener('click', () => galeria.abrir(items, Number(img.dataset.idx)))
+        );
+      }
+
+      // Tira de elevación junto al número de unidad: 11 marcas (PB + pisos 1–10),
+      // la del piso de la unidad elegida se destaca con el color de su estado.
+      // Mismo lenguaje visual que el riel de pisos (panel de ascensor).
+      function actualizarTiraPiso(u) {
+        const cont = document.getElementById('p-tira');
+        cont.innerHTML = '';
+        for (let p = 0; p <= PISOS; p++) {
+          const marca = document.createElement('i');
+          marca.className = 'p-tira-marca' + (p === u.piso ? ' activa' : '');
+          if (p === u.piso) marca.style.background = ESTADOS[u.estado].color;
+          cont.appendChild(marca);
+        }
+      }
+
+      // Lleva la cámara frente a la unidad, a la altura de su piso.
+      function enfocar(u) {
+        objetivo.set(0, u.piso * PASO + ALTO / 2, 0);
+        // Unidades con contorno propio no tienen col/frente utilizables para
+        // orientar la cámara — se deriva un ángulo equivalente del centroide
+        // (mismo criterio: signo de Z = lado frente/contrafrente, X = desplazamiento lateral).
+        theta = u._centro
+          ? (u._centro.z < 0 ? Math.PI : 0) - (u._centro.x / SEP_X) * 0.16
+          : (u.frente < 0 ? Math.PI : 0) - u.col * 0.16;
+        phi = 1.32;
+        radio = 62;
+        tocado = true;
+        ubicarCamara();
+      }
+
+      function linkDe(u) {
+        const propia = location.protocol.startsWith('http')
+          ? location.origin + location.pathname
+          : BASE;
+        return propia + '?p=' + encodeURIComponent(proyecto.slug) + '&u=' + u.id;
+      }
+
+      // En previsualizaciones (about:srcdoc) el historial no se puede tocar.
+      function marcarURL(consulta) {
+        try { history.replaceState(null, '', consulta); } catch (e) { /* sin historial */ }
+      }
+
+      // ?p=<slug> se preserva en la URL incluso al cerrar el panel — si no, un
+      // edificio que no sea el default perdería su slug de la barra y una
+      // recarga en ese momento resolvería al edificio equivocado.
+      function queryProyecto() {
+        return proyecto.slug === DEFAULT_SLUG ? '' : 'p=' + encodeURIComponent(proyecto.slug);
+      }
+
+      function abrir(u, mover) {
+        registrarEvento(proyecto.id, u.id);
+        elegida = u;
+        tooltip.style.opacity = 0; // en touch queda pegado en la última posición tocada
+        if (mover) enfocar(u);
+        const e = ESTADOS[u.estado];
+        document.getElementById('p-eyebrow').textContent = 'Piso ' + u.piso;
+        document.getElementById('p-unidad').textContent = u.id;
+        document.getElementById('p-estado-txt').textContent = e.nombre;
+        document.getElementById('p-color').style.background = e.color;
+        const pEstado = document.getElementById('p-estado');
+        pEstado.style.background = e.color + '1A';
+        pEstado.style.borderColor = e.color + '4D';
+        pEstado.style.color = e.color;
+        actualizarTiraPiso(u);
+        pintarPlantaUnidad(u);
+        document.getElementById('p-dorms').textContent = etiquetaDorms(u.dorms);
+        document.getElementById('p-m2').textContent = u.m2 + ' m²';
+        document.getElementById('p-orient').textContent = u.orient;
+        document.getElementById('p-precio').textContent = formatearPrecio(u.precio, proyecto.moneda, proyecto.locale);
+
+        const terrazaDt = document.getElementById('p-terraza-dt');
+        const terrazaDd = document.getElementById('p-terraza-dd');
+        terrazaDt.hidden = terrazaDd.hidden = !u.m2Terraza;
+        if (u.m2Terraza) terrazaDd.textContent = u.m2Terraza + ' m²';
+
+        const cocheraDt = document.getElementById('p-cochera-dt');
+        const cocheraDd = document.getElementById('p-cochera-dd');
+        cocheraDt.hidden = cocheraDd.hidden = !u.cocheraPrecio;
+        if (u.cocheraPrecio) cocheraDd.textContent = formatearPrecio(u.cocheraPrecio, proyecto.moneda, proyecto.locale) + ' (opcional)';
+        const fuente = document.getElementById('p-fuente');
+        fuente.textContent = u.estimado ? 'Dato estimado' : 'Dato publicado';
+        fuente.className = 'p-tag ' + (u.estimado ? 'p-tag-estimado' : 'p-tag-real');
+        fuente.title = u.estimado
+          ? 'Precio y superficie estimados — falta el dato real.'
+          : 'Precio y superficie publicados en el aviso.';
+        const texto = 'Hola, quiero consultar por la unidad ' + u.id + ' de ' + proyecto.nombre + ' (' +
+          etiquetaDorms(u.dorms).toLowerCase() + ', ' + u.m2 + ' m²). ' + linkDe(u);
+        document.getElementById('p-wa').href = settingsRow.whatsapp
+          ? 'https://wa.me/' + settingsRow.whatsapp + '?text=' + encodeURIComponent(texto)
+          : '#';
+
+        marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
+        panel.classList.add('abierto');
+      }
+
+      function cerrar() {
+        elegida = null;
+        panel.classList.remove('abierto');
+        const qp = queryProyecto();
+        marcarURL(location.pathname + (qp ? '?' + qp : ''));
+      }
+
+      const btnCopiar = document.getElementById('p-copiar');
+      const btnCopiarTxt = btnCopiar.querySelector('.bton-txt');
+      btnCopiar.addEventListener('click', async () => {
+        if (!elegida) return;
+        try { await navigator.clipboard.writeText(linkDe(elegida)); }
+        catch { return; }
+        btnCopiarTxt.textContent = 'Link copiado';
+        setTimeout(() => btnCopiarTxt.textContent = 'Copiar link de esta unidad', 1800);
+      });
+
+      document.getElementById('cerrar').addEventListener('click', cerrar);
+      addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+      lienzo.addEventListener('click', () => {
+        if (sobre) abrir(sobre.userData.unidad);
+        else if (sobreCalle) window.open(cartelCalle.userData.mapsUrl, '_blank', 'noopener');
+        else cerrar();
+      });
+
+      aplicar();
+
+      // ?u=703 abre el edificio con esa unidad seleccionada y la cámara frente a ella.
+      const pedida = new URLSearchParams(location.search).get('u');
+      if (pedida) {
+        const u = UNIDADES.find(x => String(x.id) === pedida);
+        if (u) abrir(u, true);
+      }
+
+      /* ============================================================
+         6. BUCLE
+         ============================================================ */
+
+      function animar() {
+        requestAnimationFrame(animar);
+        if (!tocado) { theta += 0.0013; ubicarCamara(); }
+
+        pisosGrupo.forEach((g, i) => {
+          const d = g.userData;
+          d.offset += (d.objetivo - d.offset) * 0.11;
+          g.position.y = i * PASO + d.offset;
+        });
+
+        rayo.setFromCamera(raton, camara);
+        const golpes = rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
+        const nuevo = golpes.length ? golpes[0].object : null;
+        if (nuevo !== sobre) {
+          if (sobre) sobre.material.emissive.setHex(0x000000);
+          sobre = nuevo;
+          lienzo.style.cursor = sobre ? 'pointer' : 'grab';
+          if (sobre) {
+            sobre.material.emissive.setScalar(0.22);
+            const u = sobre.userData.unidad;
+            tooltip.textContent = u.id + ' · ' + u.dorms + ' dorm · ' + u.m2 + ' m²';
+            tooltip.style.opacity = 1;
+          } else tooltip.style.opacity = 0;
+        }
+        if (sobre) { tooltip.style.left = posRaton.x + 'px'; tooltip.style.top = posRaton.y + 'px'; }
+
+        // Cartel de calle: mismo patrón de hover/tooltip que las unidades, pero
+        // sin emissive (es un sprite, no tiene material que resaltar) — solo
+        // cursor + tooltip para dejar claro que es clickeable.
+        const golpeCalle = sobre ? [] : rayo.intersectObject(cartelCalle, false);
+        const nuevoSobreCalle = golpeCalle.length > 0;
+        if (nuevoSobreCalle !== sobreCalle) {
+          sobreCalle = nuevoSobreCalle;
+          if (!sobre) lienzo.style.cursor = sobreCalle ? 'pointer' : 'grab';
+          if (sobreCalle) { tooltip.textContent = 'Ver en Google Maps'; tooltip.style.opacity = 1; }
+          else if (!sobre) tooltip.style.opacity = 0;
+        }
+        if (sobreCalle) { tooltip.style.left = posRaton.x + 'px'; tooltip.style.top = posRaton.y + 'px'; }
+
+        cajas.forEach(c => {
+          const sel = elegida && c.userData.unidad.id === elegida.id;
+          if (sel && c !== sobre) c.material.emissive.setScalar(0.34);
+          else if (!sel && c !== sobre) c.material.emissive.setHex(0x000000);
+        });
+
+        render.render(escena, camara);
+      }
+      animar();
+
+      addEventListener('resize', () => {
+        camara.aspect = innerWidth / innerHeight;
+        camara.updateProjectionMatrix();
+        render.setSize(innerWidth, innerHeight);
+      });
+
+    } // fin de iniciar()
+
+    (async () => {
+      const resultado = await cargarProyecto();
+      if (resultado.error === 'no-encontrado') {
+        mostrarErrorProyecto('Este edificio no existe o todavía no está publicado.');
+        return;
+      }
+      if (resultado.error) {
+        document.getElementById('aviso').innerHTML =
+          '<b>No se pudo cargar el estado de las unidades.</b> Revisá la conexión y recargá la página.';
+        return;
+      }
+      pintarRedes(resultado.settings);
+      pintarAmenities(resultado.amenities);
+      pintarLegal(resultado.settings.textos);
+      pintarRenders(resultado.renders);
+      iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias);
+    })();
+  </script>
 </body>
 </html>
