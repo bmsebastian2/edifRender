@@ -630,6 +630,31 @@
       background: rgba(192, 132, 41, .09)
     }
 
+    /* Estado de sol de la unidad elegida (ver actualizarSolUnidad()) — solo
+     aparece con el simulador prendido y una unidad abierta. */
+    .p-sol {
+      display: inline-flex;
+      margin: 10px 0 0;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 650;
+      border: 1px solid var(--linea);
+      width: fit-content
+    }
+
+    .p-sol-sol {
+      color: var(--verde);
+      border-color: rgba(47, 122, 104, .35);
+      background: rgba(47, 122, 104, .09)
+    }
+
+    .p-sol-sombra,
+    .p-sol-sin {
+      color: var(--suave);
+      background: rgba(84, 96, 101, .08)
+    }
+
     /* Planta/renders reales de la tipología (subidos desde admin.html) — ver
      pintarPlantaUnidad(). Varias imágenes posibles (planta + renders): se
      apilan con un margen fino entre cada una, y cada una abre el lightbox
@@ -865,6 +890,230 @@
       touch-action: none
     }
 
+    /* ============================================================
+       Simulador solar — apagado y oculto por default (ver tieneNorte() en
+       el script: sin lat/lon/norte_grados el botón nunca se muestra). El
+       trigger vive abajo al centro, el único hueco libre entre #filtros
+       (abajo-izquierda) y #renders-trigger (abajo-derecha), para no
+       competir por atención con nada que ya esté en pantalla. Abrir el
+       panel prende la simulación; cerrarlo la apaga y devuelve la luz de
+       siempre — no hay un switch aparte.
+       ============================================================ */
+    #sol-trigger {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--linea);
+      background: var(--papel);
+      color: var(--suave);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color .15s, background .15s, border-color .15s;
+    }
+
+    #sol-trigger:hover {
+      color: var(--tinta);
+      border-color: rgba(26, 33, 36, .32)
+    }
+
+    #sol-trigger[hidden] {
+      display: none
+    }
+
+    #sol-trigger[aria-pressed="true"] {
+      color: #fff;
+      background: var(--tinta);
+      border-color: var(--tinta)
+    }
+
+    #sol-backdrop {
+      display: none
+    }
+
+    #sol {
+      position: fixed;
+      left: 50%;
+      bottom: 68px;
+      z-index: 11;
+      width: 300px;
+      max-width: calc(100vw - 48px);
+      padding: 16px 18px 15px;
+      border-radius: 10px;
+      background: var(--papel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--linea);
+      box-shadow: 0 10px 30px rgba(20, 26, 28, .16);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 8px);
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    #sol.abierto {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, 0)
+    }
+
+    .sol-cabeza {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px
+    }
+
+    #sol-cerrar {
+      width: 22px;
+      height: 22px;
+      flex: none;
+      border: 1px solid var(--linea);
+      background: none;
+      border-radius: 50%;
+      color: var(--suave);
+      cursor: pointer;
+      line-height: 1;
+      padding: 0
+    }
+
+    .sol-hora-txt {
+      font-size: 24px;
+      font-weight: 650;
+      letter-spacing: -.01em;
+      font-variant-numeric: tabular-nums;
+      margin: 4px 0 0
+    }
+
+    .sol-lectura {
+      margin: 2px 0 12px;
+      font-size: 12px;
+      color: var(--suave);
+      font-variant-numeric: tabular-nums
+    }
+
+    .sol-slider-fila {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .sol-hora-ext {
+      font-size: 11px;
+      color: var(--suave);
+      font-variant-numeric: tabular-nums;
+      flex: none
+    }
+
+    /* El track es un mini "path" del sol: ámbar en los extremos (amanecer/
+     atardecer), casi blanco al mediodía — la misma lectura cálido→vertical
+     que describe cómo cambia la luz de la escena. El thumb toma el color
+     exacto de la luz direccional en ese instante (--sol-color, seteada
+     desde el script), así el control y la escena siempre están de acuerdo. */
+    #sol-hora {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(to right, #E2965A, #FFF6E8 50%, #E2965A);
+      outline: none;
+    }
+
+    #sol-hora::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--sol-color, #FFF6E8);
+      border: 2px solid var(--tinta);
+      cursor: pointer;
+    }
+
+    #sol-hora::-moz-range-thumb {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--sol-color, #FFF6E8);
+      border: 2px solid var(--tinta);
+      cursor: pointer;
+    }
+
+    #sol-hora:focus-visible::-webkit-slider-thumb {
+      outline: 2px solid var(--tinta);
+      outline-offset: 2px
+    }
+
+    .sol-aviso {
+      margin: 10px 0 0;
+      padding: 8px 10px;
+      border-radius: 5px;
+      background: rgba(192, 132, 41, .09);
+      border: 1px solid rgba(192, 132, 41, .3);
+      color: #8C6420;
+      font-size: 11.5px;
+      line-height: 1.4
+    }
+
+    .sol-fecha-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      margin-top: 12px;
+      padding: 7px 2px 0;
+      border: none;
+      border-top: 1px solid var(--linea);
+      background: none;
+      color: var(--suave);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .sol-fecha-trigger:hover {
+      color: var(--tinta)
+    }
+
+    .sol-fecha-trigger .chev {
+      transition: transform .2s ease;
+      flex: none
+    }
+
+    .sol-fecha-trigger[aria-expanded="true"] .chev {
+      transform: rotate(180deg)
+    }
+
+    #sol-fecha {
+      margin-top: 10px
+    }
+
+    #sol-fecha[hidden] {
+      display: none
+    }
+
+    #sol-fecha .fila {
+      margin-bottom: 8px
+    }
+
+    #sol-fecha-custom {
+      width: 100%;
+      padding: 7px 9px;
+      border-radius: 4px;
+      border: 1px solid var(--linea);
+      background: var(--papel);
+      color: var(--tinta);
+      font-family: inherit;
+      font-size: 12.5px;
+    }
+
     @media (max-width:860px) {
       #cabezal {
         max-width: none;
@@ -962,6 +1211,84 @@
 
       #renders-trigger span {
         display: none
+      }
+
+      /* Sol: mismo tratamiento de ícono cuadrado que renders-trigger, para
+       no competir por ancho en la barra inferior. El panel pasa a ser una
+       hoja como #filtros/#pisos, pero mucho más baja — el contenido
+       imprescindible es un slider, no una lista. */
+      #sol-trigger {
+        position: static;
+        left: auto;
+        bottom: auto;
+        transform: none;
+        flex: none;
+        width: 46px;
+        height: 46px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 8px;
+        box-shadow: 0 4px 14px rgba(20, 26, 28, .10);
+      }
+
+      #sol-trigger span {
+        display: none
+      }
+
+      #sol-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 19;
+        background: rgba(26, 33, 36, .35);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .2s ease;
+      }
+
+      #sol-backdrop.visible {
+        opacity: 1;
+        pointer-events: auto
+      }
+
+      #sol {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        width: auto;
+        max-width: none;
+        max-height: min(48vh, 380px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        border-radius: 14px 14px 0 0;
+        border-top: 1px solid var(--linea);
+        border-left: none;
+        box-shadow: 0 -10px 30px rgba(20, 26, 28, .16);
+        padding: 22px 18px calc(18px + env(safe-area-inset-bottom));
+        opacity: 1;
+        pointer-events: none;
+        transform: translate(0, 100%);
+        transition: transform .28s cubic-bezier(.22, .61, .36, 1);
+      }
+
+      #sol.abierto {
+        pointer-events: auto;
+        transform: translate(0, 0)
+      }
+
+      #sol::before {
+        content: "";
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--linea);
       }
 
       #filtros-backdrop {
@@ -1377,6 +1704,19 @@
           stroke-linejoin="round" />
       </svg>
     </button>
+
+    <!-- Oculto hasta que iniciar() confirme lat/lon/norte_grados (ver
+       tieneNorte() y CLAUDE.md) — sin esos tres datos el simulador no
+       aparece, nunca se muestra con un sol inventado. -->
+    <button id="sol-trigger" type="button" hidden aria-pressed="false" aria-expanded="false" aria-controls="sol">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.2" />
+        <path
+          d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.1 5.1l2.1 2.1M16.8 16.8l2.1 2.1M5.1 18.9l2.1-2.1M16.8 7.2l2.1-2.1" />
+      </svg>
+      <span>Sol</span>
+    </button>
   </div>
 
   <div id="filtros">
@@ -1389,6 +1729,39 @@
       <div class="fila" id="f-estado"></div>
     </div>
     <button id="separar" aria-pressed="false">Separar pisos</button>
+  </div>
+
+  <!-- Simulador solar: apagado por default (ver CSS #sol/#sol-trigger).
+     Abrir el panel prende la simulación, cerrarlo la apaga — no hay un
+     interruptor separado del panel mismo. -->
+  <div id="sol-backdrop"></div>
+  <div id="sol" role="dialog" aria-label="Simulador solar">
+    <div class="sol-cabeza">
+      <p class="p-eyebrow">Simulador solar</p>
+      <button id="sol-cerrar" type="button" aria-label="Apagar simulador solar">×</button>
+    </div>
+    <p class="sol-hora-txt" id="sol-hora-txt">—:—</p>
+    <p class="sol-lectura" id="sol-lectura">Azimut — · Altura —</p>
+    <div class="sol-slider-fila">
+      <span class="sol-hora-ext" id="sol-amanecer">—</span>
+      <input id="sol-hora" type="range" min="0" max="1439" value="720" step="1" aria-label="Hora del día">
+      <span class="sol-hora-ext" id="sol-atardecer">—</span>
+    </div>
+    <p class="sol-aviso" id="sol-aviso-noche" hidden>A esta hora no hay sol — el edificio se muestra en luz neutra.
+    </p>
+
+    <button id="sol-fecha-trigger" class="sol-fecha-trigger" type="button" aria-expanded="false"
+      aria-controls="sol-fecha">
+      <span id="sol-fecha-label">Hoy</span>
+      <svg class="chev" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+    </button>
+    <div id="sol-fecha" hidden>
+      <div class="fila" id="sol-fecha-chips"></div>
+      <input id="sol-fecha-custom" type="date" aria-label="Elegir otra fecha">
+    </div>
   </div>
 
   <!-- Galería de renders: modal simple, una imagen a la vez, con contador y
@@ -1425,6 +1798,11 @@
         <span class="p-tira-base">PB</span>
       </div>
     </div>
+    <!-- Solo visible con el simulador solar prendido (ver
+       actualizarSolUnidad()) — dice si ESTA unidad tiene sol directo en el
+       instante elegido, cruzando la dirección del sol contra la masa del
+       propio edificio (pisos/núcleo/otras unidades). -->
+    <p class="p-sol" id="p-sol" hidden></p>
     <figure class="planta" id="p-planta"></figure>
     <dl>
       <dt>Dormitorios</dt>
@@ -1508,17 +1886,21 @@
         .from('public_projects').select('*').eq('slug', SLUG).maybeSingle();
       if (eProyecto || !proyecto) return { error: 'no-encontrado' };
 
-      const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }] = await Promise.all([
+      const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }, { data: pais }] = await Promise.all([
         sb.from('public_units').select('*').eq('project_id', proyecto.id).order('id'),
         sb.from('public_settings').select('*').eq('project_id', proyecto.id).maybeSingle(),
         sb.from('public_amenities').select('*').eq('project_id', proyecto.id).order('orden'),
         sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'project').eq('tipo', 'render').order('orden'),
         sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'typology').order('orden'),
+        // La hora del simulador solar sale de acá, nunca del navegador del
+        // visitante (ver CLAUDE.md). `paises` es de lectura pública directa.
+        sb.from('paises').select('tz_offset_horas').eq('codigo', proyecto.pais).maybeSingle(),
       ]);
       if (eUnidades || !unidades) return { error: 'sin-datos' };
 
       return {
         proyecto,
+        tzOffsetHoras: pais ? pais.tz_offset_horas : 0,
         settings: settings || { instagram: '', youtube: '', sitio_web: '', whatsapp: '', textos: {} },
         amenities: amenities || [],
         renders: renders || [],
@@ -1537,6 +1919,104 @@
 
     function formatearPrecio(valor, moneda, locale) {
       return new Intl.NumberFormat(locale, { style: 'currency', currency: moneda, maximumFractionDigits: 0 }).format(valor);
+    }
+
+    /* ============================================================
+       SOL — posición solar por trigonometría esférica estándar (Spencer/
+       Cooper: ángulo del día, ecuación del tiempo, declinación, ángulo
+       horario). Sin librería nueva (CDN solo permite cdnjs/jsdelivr/
+       tailwind/jquery). Funciones puras, sin THREE ni DOM, para poder
+       validarlas sueltas contra tablas de amanecer/atardecer publicadas
+       antes de conectarlas a la escena — ver CLAUDE.md.
+       No hay rama especial para el hemisferio norte: el signo de `lat` y
+       de la declinación ya resuelven Managua solo. `fecha` siempre en UTC
+       (Date.UTC / string ISO de <input type=date>) y `minutosLocales`/
+       `tzOffsetHoras` en la hora de reloj del PROYECTO, nunca la del
+       navegador de quien mira la página.
+       ============================================================ */
+    function diaDelAnio(fecha) {
+      const inicioAnio = Date.UTC(fecha.getUTCFullYear(), 0, 1);
+      const hoyUTC = Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate());
+      return Math.round((hoyUTC - inicioAnio) / 86400000) + 1;
+    }
+
+    function anguloDelDia(fecha) {
+      const anio = fecha.getUTCFullYear();
+      const bisiesto = (anio % 4 === 0 && (anio % 100 !== 0 || anio % 400 === 0));
+      return 2 * Math.PI * (diaDelAnio(fecha) - 1) / (bisiesto ? 366 : 365);
+    }
+
+    function ecuacionDelTiempo(g) { // minutos
+      return 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
+        - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+    }
+
+    function declinacionSolar(g) { // radianes
+      return 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g)
+        - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g)
+        - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+    }
+
+    // Azimut (grados, 0-360 en sentido horario desde el norte geográfico) y
+    // altura (grados, negativa = bajo el horizonte) del sol para una
+    // latitud/longitud/fecha/hora dadas.
+    function posicionSolar(lat, lon, tzOffsetHoras, fecha, minutosLocales) {
+      const g = anguloDelDia(fecha);
+      const eqt = ecuacionDelTiempo(g);
+      const decl = declinacionSolar(g);
+      const latRad = lat * Math.PI / 180;
+
+      const offsetMin = eqt + 4 * lon - 60 * tzOffsetHoras;
+      const horaSolarVerdadera = ((minutosLocales + offsetMin) % 1440 + 1440) % 1440;
+      const haRad = (horaSolarVerdadera / 4 - 180) * Math.PI / 180;
+
+      const sinAlt = Math.sin(latRad) * Math.sin(decl) + Math.cos(latRad) * Math.cos(decl) * Math.cos(haRad);
+      const altRad = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+      const altitud = altRad * 180 / Math.PI;
+
+      let cosAz = (Math.sin(decl) - Math.sin(latRad) * sinAlt) / (Math.cos(latRad) * Math.cos(altRad));
+      cosAz = Math.max(-1, Math.min(1, cosAz));
+      let azimut = Math.acos(cosAz) * 180 / Math.PI;
+      if (haRad > 0) azimut = 360 - azimut;
+
+      return { altitud, azimut };
+    }
+
+    // Amanecer/atardecer del día (minutos de hora local, reloj del
+    // proyecto) — acota el slider a "del amanecer al atardecer", como pide
+    // el brief. Devuelve null si ese día no amanece o no anochece en esa
+    // latitud (no pasa en UY/NI, pero mejor no dividir por un NaN si algún
+    // día se carga un proyecto cerca de un polo).
+    function horarioSolar(lat, lon, tzOffsetHoras, fecha) {
+      const g = anguloDelDia(fecha);
+      const eqt = ecuacionDelTiempo(g);
+      const decl = declinacionSolar(g);
+      const latRad = lat * Math.PI / 180;
+      const cosHa0 = -Math.tan(latRad) * Math.tan(decl);
+      if (cosHa0 <= -1 || cosHa0 >= 1) return null;
+      const ha0Deg = Math.acos(cosHa0) * 180 / Math.PI;
+      const medioDiaSolar = 720 - 4 * lon - eqt + 60 * tzOffsetHoras;
+      return {
+        amanecer: Math.round(medioDiaSolar - ha0Deg * 4),
+        atardecer: Math.round(medioDiaSolar + ha0Deg * 4),
+      };
+    }
+
+    // Dirección unitaria (en el sistema de coordenadas del modelo, ver
+    // CLAUDE.md) desde el edificio HACIA el sol. norteGrados es el rumbo
+    // (0-360, horario desde el norte real) de la FACHADA AL FRENTE — el
+    // lado que da a la calle (eje -Z) — no el contrafrente: es el dato que
+    // cualquiera lee de un mapa mirando hacia dónde da la calle, nadie mide
+    // "hacia dónde mira la parte de atrás". El contrafrente (+Z) mira
+    // entonces a norteGrados+180, de ahí la resta de 180 acá.
+    function direccionSolModelo(altitud, azimut, norteGrados) {
+      const altRad = altitud * Math.PI / 180;
+      const phiRad = (azimut - norteGrados - 180) * Math.PI / 180;
+      return new THREE.Vector3(
+        Math.cos(altRad) * Math.sin(phiRad),
+        Math.sin(altRad),
+        Math.cos(altRad) * Math.cos(phiRad)
+      );
     }
 
     // Sesión anónima persistida en este navegador — sin esto no se puede
@@ -1734,7 +2214,7 @@
     // Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
     // adentro de iniciar() porque necesita esperar a que lleguen el proyecto y
     // las unidades desde Supabase antes de construir nada.
-    function iniciar(proyecto, settingsRow, UNIDADES, mediaTipologias) {
+    function iniciar(proyecto, settingsRow, UNIDADES, mediaTipologias, tzOffsetHoras) {
 
       // Media real por tipología (planta/renders subidos desde admin.html),
       // agrupada por typology_id y tipo — así abrir(u) resuelve en O(1) qué
@@ -1795,7 +2275,8 @@
       render.shadowMap.type = THREE.PCFSoftShadowMap;
       document.body.appendChild(render.domElement);
 
-      escena.add(new THREE.HemisphereLight(0xFFFFFF, 0xA6B0B3, 0.9));
+      const hemi = new THREE.HemisphereLight(0xFFFFFF, 0xA6B0B3, 0.9);
+      escena.add(hemi);
       const sol = new THREE.DirectionalLight(0xFFF6E8, 1.0);
       sol.position.set(-34, 58, 30);
       sol.castShadow = true;
@@ -1859,7 +2340,10 @@
       const matLosa = new THREE.MeshStandardMaterial({ color: 0xB4BBBD, roughness: 0.9 });
       const matNucleo = new THREE.MeshStandardMaterial({ color: 0xA5ADB0, roughness: 0.9 });
 
-      const pisosGrupo = [], cajas = [];
+      // Todo lo que puede taparle el sol a una unidad — losas, núcleo, PB, y
+      // (agregadas más abajo) el resto de las cajas — para el chequeo "¿esta
+      // unidad tiene sol ahora?" del panel (ver actualizarSolUnidad()).
+      const pisosGrupo = [], cajas = [], ocludoresSol = [];
 
       // Planta baja: nivel de ingreso, debajo del piso 1. Todavía no está
       // definido cómo se divide (local, hall, cocheras...), así que por ahora
@@ -1884,6 +2368,7 @@
 
       torre.add(pb);
       pisosGrupo.push(pb);
+      ocludoresSol.push(losaPB, volumenPB);
 
       for (let piso = 1; piso <= PISOS; piso++) {
         const g = new THREE.Group();
@@ -1899,6 +2384,7 @@
         nucleo.position.y = ALTO / 2;
         nucleo.castShadow = true;
         g.add(nucleo);
+        ocludoresSol.push(losa, nucleo);
 
         UNIDADES.filter(u => u.piso === piso).forEach(u => {
           // Unidad con contorno propio (units.geom.contorno, ver CLAUDE.md) en vez
@@ -1936,6 +2422,7 @@
         torre.add(g);
         pisosGrupo.push(g);
       }
+      ocludoresSol.push(...cajas);
       const ALTURA = (PISOS + 1) * PASO; // pisos + PB
 
       // Cartel de calle: nombre de la vía + ícono de ubicación, parado junto a la
@@ -2048,6 +2535,209 @@
         radio = Math.max(34, Math.min(190, radio + e.deltaY * 0.09));
         ubicarCamara();
       }, { passive: false });
+
+      /* ============================================================
+         SOL — apagado por default (ver tieneNorte()): sin lat/lon/
+         norte_grados el trigger queda hidden y nada de lo de acá se
+         conecta a un botón. Activarlo prende la luz calculada y agranda
+         la cámara de sombra a una esfera que cubre la torre entera desde
+         cualquier ángulo — así no hace falta volver a dimensionarla en
+         cada movimiento del slider, ni se corta con sol rasante. Al
+         apagarlo se vuelve exactamente a los valores con los que arrancó
+         la escena (solOriginal), que es la luz de siempre de ROSSO.
+         ============================================================ */
+      function tieneNorte() {
+        return proyecto.lat != null && proyecto.lon != null && geo.norte_grados != null;
+      }
+
+      const solOriginal = {
+        color: sol.color.clone(), intensity: sol.intensity, position: sol.position.clone(),
+        hemiIntensity: hemi.intensity,
+        sc: { left: sc.left, right: sc.right, top: sc.top, bottom: sc.bottom, near: sc.near, far: sc.far },
+      };
+      // Radio de la esfera que contiene la torre + el disco de base: una
+      // cámara ortográfica ajustada a esa esfera cubre el edificio sin
+      // recortes sea cual sea la dirección de la luz (la silueta de una
+      // esfera vista desde cualquier ángulo mide siempre lo mismo).
+      const centroSombraSol = new THREE.Vector3(0, ALTURA / 2, 0);
+      const radioSombraSol = Math.sqrt(30 * 30 + 30 * 30 + (ALTURA / 2) * (ALTURA / 2)) * 1.08;
+      const distanciaSol = radioSombraSol * 2.4;
+      sol.target.position.copy(centroSombraSol);
+      escena.add(sol.target);
+
+      let solActivo = false;
+      let ultimoSol = { altitud: 0, azimut: 0 };
+      const rayoSol = new THREE.Raycaster();
+
+      function aplicarSol(fecha, minutosLocales) {
+        const { altitud, azimut } = posicionSolar(proyecto.lat, proyecto.lon, tzOffsetHoras, fecha, minutosLocales);
+        ultimoSol = { altitud, azimut };
+        document.getElementById('sol-lectura').textContent =
+          'Azimut ' + Math.round(azimut) + '° · Altura ' + Math.round(altitud) + '°';
+        const avisoNoche = document.getElementById('sol-aviso-noche');
+        if (altitud <= 0) {
+          sol.intensity = 0;
+          hemi.intensity = solOriginal.hemiIntensity;
+          avisoNoche.hidden = false;
+        } else {
+          avisoNoche.hidden = true;
+          const dir = direccionSolModelo(altitud, azimut, geo.norte_grados);
+          sol.position.copy(centroSombraSol).addScaledVector(dir, distanciaSol);
+          // Cálido y rasante cerca del horizonte, blanco y vertical al
+          // mediodía — la ambiente baja en la misma proporción para no
+          // perder el contraste que hace legibles las sombras al amanecer.
+          const factor = Math.max(0.4, Math.sin(altitud * Math.PI / 180));
+          sol.color.set(0xFFA660).lerp(new THREE.Color(0xFFF6E8), Math.min(1, altitud / 45));
+          sol.intensity = solOriginal.intensity * factor;
+          hemi.intensity = solOriginal.hemiIntensity * factor;
+        }
+        document.getElementById('sol-hora').style.setProperty('--sol-color', '#' + sol.color.getHexString());
+        actualizarSolUnidad();
+      }
+
+      // ¿La unidad elegida tiene sol directo en este instante? Un solo rayo
+      // desde el centro de su caja hacia el sol, contra todo lo demás que
+      // pueda taparlo (losas, núcleo, otras unidades) — ver ocludoresSol.
+      // Solo detecta autosombra del propio edificio: no sabe nada de
+      // construcciones vecinas, así que es un "sí hay sol" confiable y un
+      // "no hay sol" que puede ser optimista.
+      function actualizarSolUnidad() {
+        const el = document.getElementById('p-sol');
+        if (!solActivo || !elegida) { el.hidden = true; return; }
+        if (ultimoSol.altitud <= 0) {
+          el.textContent = 'Sin sol a esta hora en todo el edificio.';
+          el.className = 'p-sol p-sol-sin';
+          el.hidden = false;
+          return;
+        }
+        const caja = cajas.find(c => c.userData.unidad.id === elegida.id);
+        if (!caja) { el.hidden = true; return; }
+        const dir = direccionSolModelo(ultimoSol.altitud, ultimoSol.azimut, geo.norte_grados);
+        const origen = caja.getWorldPosition(new THREE.Vector3()).addScaledVector(dir, 0.1);
+        rayoSol.set(origen, dir);
+        const ocluido = rayoSol.intersectObjects(ocludoresSol.filter(o => o !== caja), false).length > 0;
+        el.textContent = ocluido ? 'No recibe sol directo a esta hora.' : 'Recibe sol directo ahora.';
+        el.className = 'p-sol ' + (ocluido ? 'p-sol-sombra' : 'p-sol-sol');
+        el.hidden = false;
+      }
+
+      function formatoHoraSol(minutos) {
+        const h = Math.floor(minutos / 60), m = Math.round(minutos % 60);
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      }
+
+      const sliderHoraSol = document.getElementById('sol-hora');
+      const etiquetaHoraSol = document.getElementById('sol-hora-txt');
+      const etiquetaAmanecer = document.getElementById('sol-amanecer');
+      const etiquetaAtardecer = document.getElementById('sol-atardecer');
+      const etiquetaFechaSol = document.getElementById('sol-fecha-label');
+
+      let fechaSol = new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()));
+
+      function onSliderSolCambio() {
+        const minutos = Number(sliderHoraSol.value);
+        etiquetaHoraSol.textContent = formatoHoraSol(minutos);
+        if (solActivo) aplicarSol(fechaSol, minutos);
+      }
+      sliderHoraSol.addEventListener('input', onSliderSolCambio);
+
+      // Fija el día elegido, recalcula amanecer/atardecer (los bordes del
+      // slider) y conserva la hora actual si sigue entrando en ese rango.
+      function fijarFechaSol(fecha, etiqueta) {
+        fechaSol = fecha;
+        etiquetaFechaSol.textContent = etiqueta;
+        const horario = horarioSolar(proyecto.lat, proyecto.lon, tzOffsetHoras, fecha);
+        if (!horario) return; // no pasa en las latitudes soportadas hoy (UY/NI)
+        sliderHoraSol.min = horario.amanecer;
+        sliderHoraSol.max = horario.atardecer;
+        etiquetaAmanecer.textContent = formatoHoraSol(horario.amanecer);
+        etiquetaAtardecer.textContent = formatoHoraSol(horario.atardecer);
+        const actual = Number(sliderHoraSol.value);
+        const dentroDeRango = actual >= horario.amanecer && actual <= horario.atardecer;
+        sliderHoraSol.value = dentroDeRango ? actual : Math.round((horario.amanecer + horario.atardecer) / 2);
+        onSliderSolCambio();
+      }
+
+      // Las etiquetas de estación dependen del hemisferio: el 21 de junio es
+      // invierno en Montevideo pero verano en Managua (mismas dos fechas
+      // físicas, nombre de estación al revés) — si no se ajusta, un
+      // vendedor en Nicaragua termina mostrando "Verano" para el día que
+      // menos sol tiene, justo el error de copy que más desconfianza genera.
+      const ANIO_REF_SOL = new Date().getUTCFullYear();
+      const hemisferioNorteSol = (proyecto.lat || 0) > 0;
+      const FECHAS_FIJAS_SOL = [
+        { etiqueta: (hemisferioNorteSol ? 'Verano' : 'Invierno') + ' · 21 jun', mes: 5, dia: 21 },
+        { etiqueta: 'Equinoccio · 21 mar', mes: 2, dia: 21 },
+        { etiqueta: (hemisferioNorteSol ? 'Invierno' : 'Verano') + ' · 21 dic', mes: 11, dia: 21 },
+      ];
+      const contFechaChipsSol = document.getElementById('sol-fecha-chips');
+      const inputFechaCustomSol = document.getElementById('sol-fecha-custom');
+      FECHAS_FIJAS_SOL.forEach(f => {
+        const b = document.createElement('button');
+        b.className = 'chip';
+        b.textContent = f.etiqueta;
+        b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', () => {
+          contFechaChipsSol.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
+          b.setAttribute('aria-pressed', 'true');
+          inputFechaCustomSol.value = '';
+          fijarFechaSol(new Date(Date.UTC(ANIO_REF_SOL, f.mes, f.dia)), f.etiqueta);
+        });
+        contFechaChipsSol.appendChild(b);
+      });
+      inputFechaCustomSol.addEventListener('change', () => {
+        if (!inputFechaCustomSol.value) return;
+        contFechaChipsSol.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
+        const fecha = new Date(inputFechaCustomSol.value);
+        const etiqueta = fecha.toLocaleDateString('es-UY', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+        fijarFechaSol(fecha, etiqueta);
+      });
+
+      const fechaTriggerSol = document.getElementById('sol-fecha-trigger');
+      const fechaPanelSol = document.getElementById('sol-fecha');
+      fechaTriggerSol.addEventListener('click', () => {
+        const abrir = fechaPanelSol.hidden;
+        fechaPanelSol.hidden = !abrir;
+        fechaTriggerSol.setAttribute('aria-expanded', String(abrir));
+      });
+
+      const solTrigger = document.getElementById('sol-trigger');
+      const solPanel = document.getElementById('sol');
+      const solBackdrop = document.getElementById('sol-backdrop');
+
+      function activarSol(on) {
+        solActivo = on;
+        solTrigger.setAttribute('aria-pressed', String(on));
+        solTrigger.setAttribute('aria-expanded', String(on));
+        solPanel.classList.toggle('abierto', on);
+        solBackdrop.classList.toggle('visible', on);
+        if (on) {
+          sc.left = -radioSombraSol; sc.right = radioSombraSol;
+          sc.top = radioSombraSol; sc.bottom = -radioSombraSol;
+          sc.near = Math.max(0.1, distanciaSol - radioSombraSol - 4);
+          sc.far = distanciaSol + radioSombraSol + 4;
+          sc.updateProjectionMatrix();
+          aplicarSol(fechaSol, Number(sliderHoraSol.value));
+        } else {
+          sol.color.copy(solOriginal.color);
+          sol.intensity = solOriginal.intensity;
+          sol.position.copy(solOriginal.position);
+          hemi.intensity = solOriginal.hemiIntensity;
+          sc.left = solOriginal.sc.left; sc.right = solOriginal.sc.right;
+          sc.top = solOriginal.sc.top; sc.bottom = solOriginal.sc.bottom;
+          sc.near = solOriginal.sc.near; sc.far = solOriginal.sc.far;
+          sc.updateProjectionMatrix();
+          actualizarSolUnidad();
+        }
+      }
+      solTrigger.addEventListener('click', () => activarSol(!solActivo));
+      document.getElementById('sol-cerrar').addEventListener('click', () => activarSol(false));
+      solBackdrop.addEventListener('click', () => activarSol(false));
+
+      if (tieneNorte()) {
+        solTrigger.hidden = false;
+        fijarFechaSol(fechaSol, 'Hoy');
+      }
 
       /* ============================================================
          5. INTERACCIÓN
@@ -2381,6 +3071,7 @@
 
         marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
         panel.classList.add('abierto');
+        actualizarSolUnidad();
       }
 
       function cerrar() {
@@ -2388,6 +3079,7 @@
         panel.classList.remove('abierto');
         const qp = queryProyecto();
         marcarURL(location.pathname + (qp ? '?' + qp : ''));
+        actualizarSolUnidad();
       }
 
       const btnCopiar = document.getElementById('p-copiar');
@@ -2493,7 +3185,7 @@
       pintarAmenities(resultado.amenities);
       pintarLegal(resultado.settings.textos);
       pintarRenders(resultado.renders);
-      iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias);
+      iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias, resultado.tzOffsetHoras);
     })();
   </script>
 </body>

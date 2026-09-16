@@ -106,6 +106,49 @@ has to follow (see also `README.md`'s alta runbook):
   `col`/`frente` grid and rectangular boxes. That's every one of ROSSO's ~70 units right
   now, and stays that way until ROSSO's data is deliberately migrated.
 
+## Solar simulator: `projects.lat`/`lon`, `paises.tz_offset_horas`, `geometria.norte_grados`
+
+`index.html` can move a real sun over the model (declination/equation-of-time/hour-angle
+math computed in-file, no library — see the `posicionSolar`/`horarioSolar` functions near
+`iniciar()`) and cast the shadows that result. It needs three pieces of data, added by
+`supabase-migration-solar.sql`, and **hides the whole control (`tieneNorte()`) unless all
+three are present** — never guesses a default, since a wrong sun is worse than no sun:
+
+- **`projects.lat` / `projects.lon`** (numeric, signed decimal degrees) — Montevideo is
+  `-34.88, -56.16`; Managua is `12.13, -86.25`. Editable from `admin.html`'s own
+  column-level grant (same tier as `direccion`/`ciudad`), but there's no `admin.html` UI
+  for it yet — set directly in Supabase, like `geometria` itself.
+- **`paises.tz_offset_horas`** (integer hours from UTC, no DST modeled) — a property of
+  the country, not the project, matching how `moneda`/`nombre` already work per-country.
+  UY is `-3`, NI is `-6`. The sun's clock always reads this value, never the visitor's
+  browser timezone.
+- **`projects.geometria.norte_grados`** (number, degrees) — inside the same `geometria`
+  jsonb that already holds `losa_contorno`/`nucleo_contorno`, not a new column.
+  **Convention**: the compass bearing (0–360, clockwise from true north) that the
+  building's **frente** faces — the street-facing side, the model's **-Z axis** —
+  *not* the contrafrente (+Z). Altamira's is `45` (frente facing northeast). This is
+  deliberately the front, not the back: it's the direction anyone will actually read off
+  a map or a site plan ("which way does the front face"), never the back — asking for the
+  contrafrente's bearing invites someone to enter the front's bearing by mistake, which is
+  a silent 180° flip (exactly what happened once already: a facade that should get
+  morning sun only lit up near sunset).
+  **How to measure it**: open the building's real address in Google Maps and read the
+  compass bearing of the street it fronts (e.g. Altamira: sighted along Lorenzo Batlle).
+  Do **not** use a rosa de los vientos printed on a PDF floor plan — those are frequently
+  drawn schematically/not-to-scale and are not a reliable source for this angle.
+  Get this wrong and the shadows will be confidently wrong in a way that's easy to
+  miss — always sanity-check a freshly-entered value: at sunrise the sun should read as
+  roughly perpendicular to the frente when the frente's bearing is close to the sunrise
+  azimuth, and the frente should stay lit through solar noon whenever `|azimut -
+  norte_grados| < 90°`.
+
+The math itself (`posicionSolar`) takes signed `lat`/`lon` and works for either
+hemisphere with no special-casing — Nicaragua's sun being northward in its summer falls
+out of the trig automatically as long as `lat` is entered with the correct sign.
+
+**ROSSO has none of these three set**, so this feature does not change how ROSSO
+renders — same as any other building that doesn't opt in.
+
 ## Adapting this to a different building
 
 Since this file is meant to be copied into a new project for another building, the
