@@ -3,6 +3,11 @@
 -- esta sección. Ver el hilo de diseño en el chat (2026-09-16) para el
 -- porqué de cada decisión — resumen abajo en cada bloque.
 --
+-- ORDEN: correr supabase-migration-financiacion.sql ANTES que este archivo
+-- (ver el porqué en la sección 3, la vista public_projects). lista-espera
+-- no toca public_projects, así que puede ir antes o después de cualquiera
+-- de los dos.
+--
 -- Idempotente: se puede correr varias veces.
 
 -- ============================================================
@@ -88,11 +93,21 @@ create trigger obra_fotos_audit before insert on obra_fotos
 -- resto de las tablas de projects (ver supabase-migration-multitenant.sql).
 -- Filtran por `p.publicado and p.avance_habilitado`: si el desarrollador
 -- apaga el toggle, estas vistas quedan vacías sin tocar RLS ni borrar nada.
+--
+-- REQUIERE correr supabase-migration-financiacion.sql ANTES que este
+-- archivo: Postgres no deja sacar columnas de una vista con `create or
+-- replace view` (error 42P16), solo agregar al final — así que esta
+-- redefinición de public_projects tiene que incluir TODAS las columnas que
+-- ya le sumaron las migraciones anteriores (lat/lon de -solar, fecha_ocupacion
+-- de -financiacion), en el mismo orden en que se agregaron, y recién
+-- después appendear avance_habilitado. Si esto vuelve a explotar con
+-- "cannot drop columns from view", es que se corrió fuera de orden o falta
+-- correr alguna migración previa.
 -- ============================================================
 create or replace view public_projects as
 select p.id, p.slug, p.nombre, p.direccion, p.ciudad, p.pais, p.entrega, p.pisos,
-       p.muestra_totales, p.moneda, p.locale, p.geometria, p.avance_habilitado,
-       o.nombre as desarrolla
+       p.muestra_totales, p.moneda, p.locale, p.geometria, o.nombre as desarrolla,
+       p.lat, p.lon, p.fecha_ocupacion, p.avance_habilitado
 from projects p join orgs o on o.id = p.org_id
 where p.publicado;
 
