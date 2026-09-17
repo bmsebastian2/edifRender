@@ -309,6 +309,22 @@
       border-color: var(--tinta)
     }
 
+    #obra-toggle {
+      margin-top: 8px;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid var(--linea);
+      background: var(--papel);
+      color: var(--suave)
+    }
+
+    #obra-toggle[aria-pressed="true"] {
+      color: #fff;
+      background: var(--tinta);
+      border-color: var(--tinta)
+    }
+
     /* Riel de pisos: columna fija a la derecha. Con muchos pisos no entra
      entero en alto de viewport, así que se cap-ea la altura y el resto
      scrollea — "PISO" + TODOS quedan pegados arriba y PB pegado abajo,
@@ -354,6 +370,13 @@
       color: var(--tinta);
       font-weight: 650;
       border-right-color: var(--tinta)
+    }
+
+    /* Piso sin construir todavía (ver pisosConstruidos en el script): solo
+     atenúa, nunca un color — para no inventar un segundo lenguaje de color
+     que compita con ESTADOS (disponible/reservada/vendida). */
+    #pisos button.piso-sin-construir {
+      opacity: .45
     }
 
     #pisos .pisos-fijo {
@@ -445,6 +468,11 @@
 
     #piso-info span {
       display: block
+    }
+
+    .piso-obra-aviso {
+      color: var(--suave);
+      font-style: italic
     }
 
     #panel {
@@ -630,6 +658,128 @@
       background: rgba(192, 132, 41, .09)
     }
 
+    /* Simulador de financiación — entre el precio y los botones de acción.
+     Oculto por completo si el proyecto no tiene fecha_ocupacion/entrega_min/
+     max/default cargados (ver tieneFinanciacion() en el script): nunca con
+     valores default inventados, ver CLAUDE.md. */
+    .p-financiacion {
+      margin: 6px 0 20px;
+      padding: 16px 16px 14px;
+      border: 1px solid var(--linea);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .5)
+    }
+
+    .p-fin-fila {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px
+    }
+
+    .p-fin-fila label {
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--suave);
+      text-transform: uppercase;
+      letter-spacing: .06em
+    }
+
+    .p-fin-pct {
+      font-size: 13.5px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      text-align: right
+    }
+
+    /* Deslizador táctil dentro de una hoja con scroll (panel en mobile):
+     touch-action: none evita que arrastrar el thumb también arrastre la
+     hoja — mismo recurso que ya usa <canvas> para no perder el gesto de
+     órbita contra el scroll de la página. */
+    #p-fin-entrega {
+      width: 100%;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--linea);
+      outline: none;
+      touch-action: none;
+      margin: 0
+    }
+
+    #p-fin-entrega::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: var(--verde);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+      cursor: pointer
+    }
+
+    #p-fin-entrega::-moz-range-thumb {
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: var(--verde);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+      cursor: pointer
+    }
+
+    #p-fin-entrega:focus-visible::-webkit-slider-thumb {
+      outline: 2px solid var(--tinta);
+      outline-offset: 2px
+    }
+
+    .p-fin-cuota {
+      margin-top: 4px;
+      padding-top: 12px;
+      border-top: 1px solid var(--linea);
+      display: flex;
+      flex-direction: column;
+      gap: 2px
+    }
+
+    .p-fin-cuota-num {
+      font-size: 26px;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15
+    }
+
+    .p-fin-cuota-txt {
+      font-size: 12px;
+      color: var(--suave)
+    }
+
+    .p-fin-saldo {
+      margin: 10px 0 0;
+      font-size: 12.5px;
+      color: var(--suave)
+    }
+
+    .p-fin-ajuste {
+      margin: 8px 0 0;
+      font-size: 11.5px;
+      color: var(--suave)
+    }
+
+    /* Aviso legal del simulador: mismo tratamiento visual que .nota (borde +
+     color suave + 12px) a propósito — tiene que leerse igual de claro que
+     cualquier otro texto del panel, no esconderse como letra chica. */
+    .p-fin-disclaimer {
+      margin: 12px 0 0;
+      padding-top: 12px;
+      border-top: 1px solid var(--linea);
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--suave)
+    }
+
     /* Estado de sol de la unidad elegida (ver actualizarSolUnidad()) — solo
      aparece con el simulador prendido y una unidad abierta. */
     .p-sol {
@@ -737,6 +887,99 @@
 
     .bton svg {
       flex: none
+    }
+
+    /* Lista de espera — reemplaza .acciones-panel entera cuando la unidad
+     está vendida/reservada (ver actualizarEsperaPanel()), mismo margin-top
+     que ese bloque para que el panel no cambie de alto al abrir otra unidad. */
+    .p-espera {
+      margin-top: 22px
+    }
+
+    .p-espera-tit {
+      margin: 0 0 4px;
+      font-size: 15px;
+      font-weight: 650;
+      color: var(--tinta)
+    }
+
+    .p-espera-sub {
+      margin: 0 0 14px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--suave)
+    }
+
+    .p-espera-campo {
+      display: block;
+      margin-bottom: 10px
+    }
+
+    .p-espera-campo span {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 11.5px;
+      font-weight: 650;
+      color: var(--suave);
+      text-transform: uppercase;
+      letter-spacing: .06em
+    }
+
+    .p-espera-campo input {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--linea);
+      background: var(--papel);
+      color: var(--tinta);
+      font-family: inherit;
+      font-size: 14px
+    }
+
+    .p-espera-campo input:focus-visible {
+      outline: 2px solid var(--tinta);
+      outline-offset: 1px
+    }
+
+    #p-espera-enviar {
+      width: 100%;
+      margin-top: 2px
+    }
+
+    .p-espera-error {
+      margin: 10px 0 0;
+      font-size: 12px;
+      color: #B3413A
+    }
+
+    .p-espera-legal {
+      margin: 14px 0 0;
+      padding-top: 12px;
+      border-top: 1px solid var(--linea);
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: var(--suave)
+    }
+
+    .p-espera-ok {
+      padding: 16px;
+      border: 1px solid rgba(47, 122, 104, .3);
+      border-radius: 10px;
+      background: rgba(47, 122, 104, .08)
+    }
+
+    .p-espera-ok-tit {
+      margin: 0 0 4px;
+      font-size: 15px;
+      font-weight: 650;
+      color: var(--verde)
+    }
+
+    .p-espera-ok-sub {
+      margin: 0 0 14px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--suave)
     }
 
     .nota {
@@ -884,6 +1127,200 @@
       padding: 5px 12px;
       border-radius: 20px;
       font-variant-numeric: tabular-nums;
+    }
+
+    /* ============================================================
+       Avance de obra: pantalla propia (no un panel lateral) sobre una
+       superficie clara — se lee como una página, no como un visor de
+       fotos. Deliberadamente no usa --verde/--ambar/--gris (colores de
+       ESTADOS): todo acá es tinta/suave/papel, el mismo lenguaje neutro
+       que ya usan los filtros y el resto del chrome.
+       ============================================================ */
+    #avance-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 32;
+      background: var(--fondo);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #avance-modal[hidden] {
+      display: none
+    }
+
+    #avance-envoltorio {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 76px 22px 90px;
+    }
+
+    #avance-cerrar {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      z-index: 33;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--linea);
+      background: var(--papel);
+      color: var(--tinta);
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    #avance-cabeza .p-eyebrow {
+      margin: 0 0 10px;
+    }
+
+    #avance-pct-fila {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+
+    #avance-pct {
+      font-size: 42px;
+      font-weight: 650;
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+      flex: none;
+    }
+
+    #avance-barra {
+      flex: 1;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--linea);
+      overflow: hidden;
+    }
+
+    #avance-barra-relleno {
+      display: block;
+      height: 100%;
+      background: var(--tinta);
+      border-radius: 4px;
+      transition: width .3s;
+    }
+
+    #avance-actualizado {
+      margin: 10px 0 0;
+    }
+
+    .avance-stale {
+      margin: 12px 0 0;
+      padding: 11px 13px;
+      border-radius: 5px;
+      background: var(--papel);
+      border: 1px solid var(--linea);
+      border-left: 3px solid var(--ambar);
+      font-size: 12.5px;
+      color: var(--suave);
+    }
+
+    .avance-nota {
+      margin: 22px 0 0;
+      font-size: 12.5px;
+      font-style: italic;
+      color: var(--suave);
+    }
+
+    .avance-subtit {
+      margin: 34px 0 14px;
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--suave);
+      font-weight: 650;
+    }
+
+    #avance-timeline {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    #avance-timeline li {
+      position: relative;
+      padding: 0 0 20px 24px;
+      border-left: 1.5px solid var(--linea);
+    }
+
+    #avance-timeline li:last-child {
+      border-left-color: transparent;
+      padding-bottom: 0;
+    }
+
+    #avance-timeline li::before {
+      content: '';
+      position: absolute;
+      left: -5px;
+      top: 3px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--fondo);
+      border: 1.5px solid var(--suave);
+    }
+
+    #avance-timeline li.hito-cumplido::before {
+      background: var(--tinta);
+      border-color: var(--tinta);
+    }
+
+    #avance-timeline .hito-nombre {
+      font-weight: 600;
+      display: block;
+    }
+
+    #avance-timeline .hito-fecha {
+      display: block;
+      font-size: 12.5px;
+      color: var(--suave);
+      margin-top: 2px;
+    }
+
+    .avance-fotos-mes {
+      margin-bottom: 26px;
+    }
+
+    .avance-fotos-mes:last-child {
+      margin-bottom: 0;
+    }
+
+    .avance-mes-tit {
+      font-size: 13px;
+      font-weight: 650;
+      margin: 0 0 10px;
+      text-transform: capitalize;
+    }
+
+    .avance-mes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 6px;
+    }
+
+    .avance-mes-grid img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 4px;
+      display: block;
+      background: var(--linea);
+      cursor: pointer;
+    }
+
+    @media (max-width: 480px) {
+      #avance-envoltorio {
+        padding: 68px 16px 70px
+      }
+
+      #avance-pct {
+        font-size: 34px
+      }
     }
 
     canvas {
@@ -1696,6 +2133,17 @@
       <span>Ver renders</span>
     </button>
 
+    <!-- Oculto hasta que pintarAvance() confirme avance_habilitado y que haya
+       al menos un hito o una foto cargados — mismo criterio que
+       renders-trigger: no mostrar una puerta a una sección vacía. -->
+    <button id="avance-trigger" type="button" hidden aria-haspopup="dialog" aria-controls="avance-modal">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 21h18M6 21V10l4-3 4 3v11M14 21V6l4-2v17" />
+      </svg>
+      <span>Avance de obra</span>
+    </button>
+
     <button id="filtros-trigger" type="button" aria-expanded="false" aria-controls="filtros">
       <span>Filtros</span>
       <span id="ft-badge" class="ft-badge" hidden></span>
@@ -1729,6 +2177,11 @@
       <div class="fila" id="f-estado"></div>
     </div>
     <button id="separar" aria-pressed="false">Separar pisos</button>
+    <!-- Oculto hasta que iniciar() confirme que hay al menos un piso marcado
+       como construido (hito categoria='estructura' con fecha_real) — ver
+       pisosConstruidos. Sin eso, ningún proyecto muestra un toggle que no
+       tiene nada que hacer. -->
+    <button id="obra-toggle" type="button" aria-pressed="false" hidden>Ver solo lo construido</button>
   </div>
 
   <!-- Simulador solar: apagado por default (ver CSS #sol/#sol-trigger).
@@ -1784,6 +2237,37 @@
     <span id="renders-contador"></span>
   </div>
 
+  <!-- Avance de obra: sección propia, no un panel — pantalla completa sobre
+     una superficie clara para leer (no el overlay oscuro de renders, que es
+     un visor de fotos). Se entra desde #avance-trigger, se vuelve con
+     #avance-cerrar o Escape (ver JS). -->
+  <div id="avance-modal" role="dialog" aria-modal="true" aria-label="Avance de obra" hidden>
+    <div id="avance-envoltorio">
+      <button id="avance-cerrar" type="button" aria-label="Cerrar">×</button>
+      <header id="avance-cabeza">
+        <p class="p-eyebrow">Avance de obra</p>
+        <div id="avance-pct-fila">
+          <span id="avance-pct">—%</span>
+          <div id="avance-barra"><i id="avance-barra-relleno"></i></div>
+        </div>
+        <p id="avance-actualizado" class="sub"></p>
+        <p id="avance-stale" class="avance-stale" hidden></p>
+      </header>
+      <p class="avance-nota">Las fechas son estimadas y pueden variar — no son un compromiso de entrega.</p>
+
+      <section id="avance-timeline-cont">
+        <h3 class="avance-subtit">Hitos</h3>
+        <ol id="avance-timeline"></ol>
+      </section>
+
+      <section id="avance-fotos-cont">
+        <h3 class="avance-subtit">Fotos</h3>
+        <div id="avance-fotos"></div>
+        <p id="avance-sin-fotos" class="sub" hidden>Todavía no hay fotos cargadas.</p>
+      </section>
+    </div>
+  </div>
+
   <aside id="panel" aria-live="polite">
     <button id="cerrar" aria-label="Cerrar">×</button>
     <div class="p-cabeza">
@@ -1820,7 +2304,26 @@
       <p id="p-precio"></p>
       <span id="p-fuente" class="p-tag"></span>
     </div>
-    <div class="acciones-panel">
+
+    <!-- Simulador de financiación — hidden hasta que tieneFinanciacion()
+       confirme fecha_ocupacion + entrega_min/max/default (ver CLAUDE.md). -->
+    <div class="p-financiacion" id="p-financiacion" hidden>
+      <div class="p-fin-fila">
+        <label for="p-fin-entrega">Entrega</label>
+        <span class="p-fin-pct"><span id="p-fin-entrega-pct">—%</span> · <span id="p-fin-entrega-monto"></span></span>
+      </div>
+      <input type="range" id="p-fin-entrega" min="0" max="100" step="1" value="0" aria-label="Porcentaje de entrega">
+      <div class="p-fin-cuota">
+        <span class="p-fin-cuota-num" id="p-fin-cuota-monto"></span>
+        <span class="p-fin-cuota-txt" id="p-fin-cuota-detalle"></span>
+      </div>
+      <p class="p-fin-saldo" id="p-fin-saldo" hidden></p>
+      <p class="p-fin-ajuste" id="p-fin-ajuste" hidden></p>
+      <p class="p-fin-disclaimer">Simulación estimativa, sujeta a confirmación del desarrollador. No constituye
+        una oferta ni una reserva de la unidad.</p>
+    </div>
+
+    <div class="acciones-panel" id="acciones-panel">
       <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1837,6 +2340,38 @@
         </svg>
         <span class="bton-txt">Copiar link de esta unidad</span>
       </button>
+    </div>
+
+    <!-- Lista de espera: ocupa exactamente el lugar de .acciones-panel
+       cuando la unidad está vendida/reservada (nunca crece el panel), ver
+       actualizarEsperaPanel(). Nunca aparece sobre 'disponible'/'sin_dato'. -->
+    <div class="p-espera" id="p-espera" hidden>
+      <form id="p-espera-form">
+        <p class="p-espera-tit">¿Te interesa si se libera?</p>
+        <p class="p-espera-sub">Dejá tu contacto y el equipo de ventas te avisa apenas esta unidad
+          vuelva a estar disponible.</p>
+        <label class="p-espera-campo">
+          <span>Nombre</span>
+          <input type="text" id="p-espera-nombre" autocomplete="name" maxlength="200" required>
+        </label>
+        <label class="p-espera-campo">
+          <span>Email o teléfono</span>
+          <input type="text" id="p-espera-contacto" autocomplete="email" maxlength="200" required>
+        </label>
+        <button type="submit" class="bton bton-p" id="p-espera-enviar">
+          <span class="bton-txt">Avisarme si se libera</span>
+        </button>
+        <p class="p-espera-error" id="p-espera-error" hidden></p>
+        <p class="p-espera-legal">Esto no reserva la unidad ni da prioridad de compra — es solo un
+          aviso. Tu contacto lo recibe el equipo de ventas del proyecto para escribirte por esta
+          unidad, nada más.</p>
+      </form>
+      <div class="p-espera-ok" id="p-espera-ok" hidden>
+        <p class="p-espera-ok-tit">Listo, quedaste anotado.</p>
+        <p class="p-espera-ok-sub">Te avisamos apenas esta unidad se libere.</p>
+        <button type="button" class="bton bton-s" id="p-espera-similares">Ver unidades disponibles
+          similares</button>
+      </div>
     </div>
     <div id="p-edificio">
       <p class="p-edificio-tit">Amenities del edificio</p>
@@ -1886,7 +2421,7 @@
         .from('public_projects').select('*').eq('slug', SLUG).maybeSingle();
       if (eProyecto || !proyecto) return { error: 'no-encontrado' };
 
-      const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }, { data: pais }] = await Promise.all([
+      const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }, { data: pais }, { data: hitosObra }, { data: fotosObra }] = await Promise.all([
         sb.from('public_units').select('*').eq('project_id', proyecto.id).order('id'),
         sb.from('public_settings').select('*').eq('project_id', proyecto.id).maybeSingle(),
         sb.from('public_amenities').select('*').eq('project_id', proyecto.id).order('orden'),
@@ -1895,16 +2430,22 @@
         // La hora del simulador solar sale de acá, nunca del navegador del
         // visitante (ver CLAUDE.md). `paises` es de lectura pública directa.
         sb.from('paises').select('tz_offset_horas').eq('codigo', proyecto.pais).maybeSingle(),
+        // Vacío si avance_habilitado está apagado (la vista pública ya filtra
+        // por eso) — no hace falta pedir proyecto.avance_habilitado aparte.
+        sb.from('public_obra_hitos').select('*').eq('project_id', proyecto.id).order('orden'),
+        sb.from('public_obra_fotos').select('*').eq('project_id', proyecto.id).order('fecha', { ascending: false }),
       ]);
       if (eUnidades || !unidades) return { error: 'sin-datos' };
 
       return {
         proyecto,
         tzOffsetHoras: pais ? pais.tz_offset_horas : 0,
-        settings: settings || { instagram: '', youtube: '', sitio_web: '', whatsapp: '', textos: {} },
+        settings: settings || { instagram: '', youtube: '', sitio_web: '', whatsapp: '', textos: {}, financiacion: {} },
         amenities: amenities || [],
         renders: renders || [],
         mediaTipologias: mediaTipologias || [],
+        hitosObra: hitosObra || [],
+        fotosObra: fotosObra || [],
         unidades: unidades.map(r => ({
           id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
           dorms: r.dorms, m2: Number(r.m2), orient: r.orientacion, precio: Number(r.precio),
@@ -2052,6 +2593,18 @@
       });
     }
 
+    // Qué porcentaje de entrega elige la gente en el simulador de
+    // financiación — misma base de demanda que registrarEvento(), separada
+    // por tipo para no mezclarse con los clics simples (ver admin.html).
+    function registrarEventoSimulacion(projectId, unitId, pctEntrega) {
+      sb.from('events').insert({
+        project_id: projectId, unit_id: unitId, tipo: 'simulacion', pct_entrega: pctEntrega,
+        sesion: obtenerSesion(), origen: obtenerOrigen(),
+      }).then(({ error }) => {
+        if (error) console.warn('No se pudo registrar la simulación', error);
+      });
+    }
+
     // URL pública de la demo. Se usa como fallback para compartir y en los
     // links por unidad, para cuando la página se sirve desde about:srcdoc.
     const BASE = 'https://armadoporcota.vercel.app/';
@@ -2135,6 +2688,98 @@
       trigger.addEventListener('click', () => galeria.abrir(lista, 0));
     }
 
+    // Avance de obra: trigger + pantalla propia, ocultos hasta que el
+    // proyecto tenga avance_habilitado Y haya al menos un hito o una foto —
+    // mismo criterio que renders-trigger, nunca se abre la puerta a una
+    // sección vacía (y la vista pública ya deja hitos/fotos vacíos si el
+    // desarrollador apaga el toggle, así que esta condición alcanza sola).
+    function pintarAvance(proyecto, hitos, fotos) {
+      if (!hitos.length && !fotos.length) return;
+      const locale = proyecto.locale || 'es-UY';
+
+      const pesoTotal = hitos.reduce((acc, h) => acc + Number(h.peso), 0);
+      const pesoCumplido = hitos.filter(h => h.fecha_real).reduce((acc, h) => acc + Number(h.peso), 0);
+      const pct = pesoTotal > 0 ? Math.round((pesoCumplido / pesoTotal) * 100) : 0;
+      document.getElementById('avance-pct').textContent = pct + '%';
+      document.getElementById('avance-barra-relleno').style.width = pct + '%';
+
+      // "Última actualización" es el máximo entre cuándo se tocó un hito y
+      // cuándo se subió una foto — nunca una columna aparte que pueda
+      // desincronizarse de los datos reales.
+      const fechas = [...hitos.map(h => h.actualizado_en), ...fotos.map(f => f.subida_en)]
+        .filter(Boolean).map(f => new Date(f).getTime());
+      const ultima = fechas.length ? new Date(Math.max(...fechas)) : null;
+      document.getElementById('avance-actualizado').textContent = ultima
+        ? 'Última actualización: ' + ultima.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
+        : 'Todavía sin actualizaciones.';
+      const DIAS_DESACTUALIZADO = 45;
+      const diasSinTocar = ultima ? (Date.now() - ultima.getTime()) / 86400000 : Infinity;
+      const elStale = document.getElementById('avance-stale');
+      elStale.hidden = diasSinTocar < DIAS_DESACTUALIZADO;
+      elStale.textContent = 'Hace más de ' + DIAS_DESACTUALIZADO +
+        ' días que no se carga novedades acá — puede no reflejar el estado actual de la obra.';
+
+      const timeline = document.getElementById('avance-timeline');
+      timeline.innerHTML = hitos.map(h => {
+        const cumplido = !!h.fecha_real;
+        const fechaTxt = cumplido
+          ? 'Cumplido · ' + new Date(h.fecha_real).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
+          : h.fecha_estimada
+            ? 'Estimado · ' + new Date(h.fecha_estimada).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
+            : 'Sin fecha estimada';
+        return '<li class="' + (cumplido ? 'hito-cumplido' : 'hito-pendiente') + '">' +
+          '<span class="hito-nombre">' + h.nombre + (h.piso != null ? ' · Piso ' + h.piso : '') + '</span>' +
+          '<span class="hito-fecha">' + fechaTxt + '</span></li>';
+      }).join('') || '<li class="hito-pendiente"><span class="hito-nombre">Todavía no hay hitos cargados.</span></li>';
+
+      // Agrupadas por mes a partir de `fecha` (la de la foto, no la de
+      // carga) — vienen ordenadas de más nueva a más vieja desde cargarProyecto().
+      const cont = document.getElementById('avance-fotos');
+      cont.innerHTML = '';
+      document.getElementById('avance-sin-fotos').hidden = fotos.length > 0;
+      const grupos = new Map();
+      fotos.forEach(f => {
+        const d = new Date(f.fecha);
+        const clave = d.getFullYear() + '-' + d.getMonth();
+        if (!grupos.has(clave)) grupos.set(clave, { fecha: d, items: [] });
+        grupos.get(clave).items.push(f);
+      });
+      [...grupos.values()].forEach(grupo => {
+        const bloque = document.createElement('div');
+        bloque.className = 'avance-fotos-mes';
+        const tit = document.createElement('p');
+        tit.className = 'avance-mes-tit';
+        tit.textContent = grupo.fecha.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+        bloque.appendChild(tit);
+        const grid = document.createElement('div');
+        grid.className = 'avance-mes-grid';
+        grupo.items.forEach((f, i) => {
+          const img = document.createElement('img');
+          img.src = f.url;
+          img.alt = 'Avance de obra, ' + tit.textContent;
+          img.loading = 'lazy';
+          img.addEventListener('click', () => galeria.abrir(grupo.items, i));
+          grid.appendChild(img);
+        });
+        bloque.appendChild(grid);
+        cont.appendChild(bloque);
+      });
+
+      const trigger = document.getElementById('avance-trigger');
+      const modal = document.getElementById('avance-modal');
+      function cerrar() {
+        modal.hidden = true;
+        document.removeEventListener('keydown', alTeclado);
+      }
+      function alTeclado(e) { if (e.key === 'Escape') cerrar(); }
+      trigger.hidden = false;
+      trigger.addEventListener('click', () => {
+        modal.hidden = false;
+        document.addEventListener('keydown', alTeclado);
+      });
+      document.getElementById('avance-cerrar').addEventListener('click', cerrar);
+    }
+
     const btnCompartir = document.getElementById('red-compartir');
     const avisoCompartir = document.getElementById('compartir-aviso');
     let avisoCompartirTimeout;
@@ -2214,7 +2859,7 @@
     // Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
     // adentro de iniciar() porque necesita esperar a que lleguen el proyecto y
     // las unidades desde Supabase antes de construir nada.
-    function iniciar(proyecto, settingsRow, UNIDADES, mediaTipologias, tzOffsetHoras) {
+    function iniciar(proyecto, settingsRow, UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra) {
 
       // Media real por tipología (planta/renders subidos desde admin.html),
       // agrupada por typology_id y tipo — así abrir(u) resuelve en O(1) qué
@@ -2755,11 +3400,26 @@
       }
       let fDorms = new Set(dormsDisponibles), fEstado = new Set(Object.keys(ESTADOS));
 
+      // Vinculación con el avance de obra (ver CLAUDE.md / diseño en el
+      // chat): un piso cuenta como construido si tiene un hito
+      // categoria='estructura' para ese `piso` con fecha_real cumplida.
+      // Vacío si el desarrollador nunca marcó ningún hito así — el toggle
+      // de abajo ni se muestra en ese caso, nunca se adivina qué está
+      // construido. Atenúa las unidades exactamente como cualquier otro
+      // filtro (aplicar()), así nunca inventa un segundo color de estado.
+      const pisosConstruidos = new Set(
+        (hitosObra || [])
+          .filter(h => h.categoria === 'estructura' && h.piso != null && h.fecha_real)
+          .map(h => h.piso)
+      );
+      let verSoloConstruido = false;
+
       const tooltip = document.getElementById('tooltip');
       const panel = document.getElementById('panel');
 
       const pasa = u => fDorms.has(u.dorms) && fEstado.has(u.estado) &&
-        (pisoAislado === null || u.piso === pisoAislado);
+        (pisoAislado === null || u.piso === pisoAislado) &&
+        (!verSoloConstruido || pisosConstruidos.has(u.piso));
 
       function aplicar() {
         cajas.forEach(c => {
@@ -2785,11 +3445,38 @@
           alTocar(on); aplicar();
         });
         cont.appendChild(b);
+        return b;
       }
-      dormsDisponibles.forEach(d => chip(document.getElementById('f-dorms'), etiquetaDorms(d), null,
+      // Guardados por valor para poder sincronizar su aria-pressed cuando
+      // "ver unidades similares" cambia los filtros por código (ver
+      // mostrarSimilares()), no solo cuando el visitante los toca a mano.
+      const chipsDorms = {}, chipsEstado = {};
+      dormsDisponibles.forEach(d => chipsDorms[d] = chip(document.getElementById('f-dorms'), etiquetaDorms(d), null,
         on => on ? fDorms.add(d) : fDorms.delete(d)));
-      Object.entries(ESTADOS).forEach(([k, e]) => chip(document.getElementById('f-estado'), e.nombre, e.color,
+      Object.entries(ESTADOS).forEach(([k, e]) => chipsEstado[k] = chip(document.getElementById('f-estado'), e.nombre, e.color,
         on => on ? fEstado.add(k) : fEstado.delete(k)));
+
+      // "Ver unidades disponibles similares" desde la lista de espera: misma
+      // cantidad de dormitorios + disponibles, resaltadas atenuando el resto
+      // (mismo mecanismo que los chips de filtro, ver aplicar()/pasa()).
+      function mostrarSimilares(u) {
+        fDorms = new Set([u.dorms]);
+        fEstado = new Set(['disponible']);
+        Object.entries(chipsDorms).forEach(([d, b]) => b.setAttribute('aria-pressed', Number(d) === u.dorms));
+        Object.entries(chipsEstado).forEach(([k, b]) => b.setAttribute('aria-pressed', k === 'disponible'));
+        cerrar();
+        aplicar();
+      }
+
+      const btnObra = document.getElementById('obra-toggle');
+      if (pisosConstruidos.size > 0) {
+        btnObra.hidden = false;
+        btnObra.addEventListener('click', () => {
+          verSoloConstruido = !verSoloConstruido;
+          btnObra.setAttribute('aria-pressed', verSoloConstruido);
+          aplicar();
+        });
+      }
 
       const btnSep = document.getElementById('separar');
       btnSep.addEventListener('click', () => {
@@ -2829,8 +3516,10 @@
         }
         const enPiso = UNIDADES.filter(u => u.piso === pisoAislado);
         const disponibles = enPiso.filter(u => u.estado === 'disponible').length;
+        const sinConstruir = pisosConstruidos.size > 0 && !pisosConstruidos.has(pisoAislado);
         infoPiso.innerHTML =
           '<b>Piso ' + pisoAislado + '</b>' +
+          (sinConstruir ? '<span class="piso-obra-aviso">Todavía no construido</span>' : '') +
           '<span>' + (pisoAislado - 1) + ' piso' + (pisoAislado - 1 === 1 ? '' : 's') + ' por debajo · ' +
           (PISOS - pisoAislado) + ' por encima</span>' +
           '<span>' + enPiso.length + ' unidad' + (enPiso.length === 1 ? '' : 'es') +
@@ -2918,6 +3607,7 @@
         const b = document.createElement('button');
         b.textContent = p;
         b.setAttribute('aria-pressed', 'false');
+        if (pisosConstruidos.size > 0 && !pisosConstruidos.has(p)) b.classList.add('piso-sin-construir');
         b.addEventListener('click', () => {
           pisoAislado = pisoAislado === p ? null : p;
           actualizarRielPisos();
@@ -3027,6 +3717,182 @@
         return proyecto.slug === DEFAULT_SLUG ? '' : 'p=' + encodeURIComponent(proyecto.slug);
       }
 
+      /* ============================================================
+         FINANCIACIÓN — deslizador de entrega dentro del panel de unidad.
+         Apagado y oculto por default (ver tieneFinanciacion()): sin
+         fecha_ocupacion + entrega_min/max/default cargados el simulador ni
+         aparece, nunca con valores default inventados — ver CLAUDE.md.
+         `saldo_pct`/`ajuste_indice` son opcionales DENTRO del simulador:
+         solo ocultan su propia línea, no lo apagan entero.
+         ============================================================ */
+      const finCfg = settingsRow.financiacion || {};
+      function tieneFinanciacion() {
+        return proyecto.fecha_ocupacion != null
+          && finCfg.entrega_min != null && finCfg.entrega_max != null && finCfg.entrega_default != null;
+      }
+
+      // Cantidad de cuotas mensuales entre hoy y la fecha de ocupación del
+      // proyecto — nunca un número fijo, sale de la fecha real cargada en
+      // projects.fecha_ocupacion (no de projects.entrega, que es copy libre).
+      function cuotasHasta(fechaISO) {
+        const hoy = new Date();
+        const fin = new Date(fechaISO + 'T00:00:00');
+        let meses = (fin.getFullYear() - hoy.getFullYear()) * 12 + (fin.getMonth() - hoy.getMonth());
+        if (fin.getDate() < hoy.getDate()) meses--;
+        return Math.max(meses, 1);
+      }
+
+      function calcularFinanciacion(u, entregaPct) {
+        const saldoPct = finCfg.saldo_pct || 0;
+        const cantidadCuotas = cuotasHasta(proyecto.fecha_ocupacion);
+        const entregaMonto = u.precio * entregaPct / 100;
+        const saldoMonto = u.precio * saldoPct / 100;
+        const cuotaMensual = (u.precio - entregaMonto - saldoMonto) / cantidadCuotas;
+        return { entregaPct, saldoPct, cantidadCuotas, entregaMonto, saldoMonto, cuotaMensual };
+      }
+
+      const finSlider = document.getElementById('p-fin-entrega');
+      let finActual = null; // último desglose calculado — lo usan el link de WhatsApp y el evento
+
+      function pintarFinanciacion(u, entregaPct) {
+        const f = calcularFinanciacion(u, entregaPct);
+        document.getElementById('p-fin-entrega-pct').textContent = f.entregaPct + '%';
+        document.getElementById('p-fin-entrega-monto').textContent = formatearPrecio(f.entregaMonto, proyecto.moneda, proyecto.locale);
+        document.getElementById('p-fin-cuota-monto').textContent = formatearPrecio(f.cuotaMensual, proyecto.moneda, proyecto.locale);
+        const etiquetaFecha = new Intl.DateTimeFormat(proyecto.locale, { month: 'long', year: 'numeric' })
+          .format(new Date(proyecto.fecha_ocupacion + 'T00:00:00'));
+        document.getElementById('p-fin-cuota-detalle').textContent = f.cantidadCuotas + ' cuotas mensuales hasta ' + etiquetaFecha;
+        const saldoEl = document.getElementById('p-fin-saldo');
+        saldoEl.hidden = !f.saldoPct;
+        if (f.saldoPct) saldoEl.textContent = 'Saldo contra entrega de llaves: ' + formatearPrecio(f.saldoMonto, proyecto.moneda, proyecto.locale);
+        const ajusteEl = document.getElementById('p-fin-ajuste');
+        ajusteEl.hidden = !(finCfg.mostrar_ajuste && finCfg.ajuste_indice);
+        if (!ajusteEl.hidden) ajusteEl.textContent = 'Cuotas ajustadas por ' + finCfg.ajuste_indice + '.';
+        return f;
+      }
+
+      function actualizarFinanciacionPanel(u) {
+        const finPanel = document.getElementById('p-financiacion');
+        if (!tieneFinanciacion()) { finPanel.hidden = true; finActual = null; return; }
+        finPanel.hidden = false;
+        finSlider.min = finCfg.entrega_min;
+        finSlider.max = finCfg.entrega_max;
+        finSlider.value = finCfg.entrega_default;
+        finActual = pintarFinanciacion(u, Number(finSlider.value));
+      }
+
+      finSlider.addEventListener('input', () => {
+        if (!elegida || !tieneFinanciacion()) return;
+        finActual = pintarFinanciacion(elegida, Number(finSlider.value));
+        actualizarLinkWA(elegida);
+      });
+      // 'change' (no 'input'): un evento por elección soltada, no uno por
+      // cada pixel arrastrado durante el gesto.
+      finSlider.addEventListener('change', () => {
+        if (!elegida || !finActual) return;
+        registrarEventoSimulacion(proyecto.id, elegida.id, finActual.entregaPct);
+      });
+
+      // Arma el texto de WhatsApp; si hay una simulación activa, suma la
+      // entrega y la cuota elegidas para que el vendedor arranque la
+      // conversación sabiendo el presupuesto del visitante.
+      function actualizarLinkWA(u) {
+        let texto = 'Hola, quiero consultar por la unidad ' + u.id + ' de ' + proyecto.nombre + ' (' +
+          etiquetaDorms(u.dorms).toLowerCase() + ', ' + u.m2 + ' m²). ' + linkDe(u);
+        if (finActual) {
+          texto += ' Simulé una entrega del ' + finActual.entregaPct + '% (' +
+            formatearPrecio(finActual.entregaMonto, proyecto.moneda, proyecto.locale) + ') y una cuota mensual de ' +
+            formatearPrecio(finActual.cuotaMensual, proyecto.moneda, proyecto.locale) + '.';
+        }
+        document.getElementById('p-wa').href = settingsRow.whatsapp
+          ? 'https://wa.me/' + settingsRow.whatsapp + '?text=' + encodeURIComponent(texto)
+          : '#';
+      }
+
+      /* ------------------------------------------------------------
+         Lista de espera — solo sobre unidades vendidas/reservadas (nunca
+         'disponible'/'sin_dato', ver CLAUDE.md). Reemplaza .acciones-panel
+         entera para que el panel no cambie de alto (ver CSS de .p-espera).
+         ------------------------------------------------------------ */
+      const accionesPanel = document.getElementById('acciones-panel');
+      const espera = document.getElementById('p-espera');
+      const esperaForm = document.getElementById('p-espera-form');
+      const esperaOk = document.getElementById('p-espera-ok');
+      const esperaError = document.getElementById('p-espera-error');
+      const esperaEnviar = document.getElementById('p-espera-enviar');
+      const noDisponible = u => u.estado === 'vendido' || u.estado === 'reservado';
+
+      // Unidades a las que este navegador ya se anotó — para no pedirle de
+      // nuevo el nombre/contacto si vuelve a abrir la misma unidad más
+      // tarde (el insert de todos modos quedaría bloqueado por el índice
+      // único de dedup en Supabase; esto solo evita mostrarle el form).
+      function esperaLocal() {
+        try { return new Set(JSON.parse(localStorage.getItem('cota_espera') || '[]')); }
+        catch { return new Set(); }
+      }
+      function marcarEsperaLocal(unitId) {
+        try {
+          const s = esperaLocal(); s.add(unitId);
+          localStorage.setItem('cota_espera', JSON.stringify([...s]));
+        } catch { /* sin localStorage no hay memoria entre visitas, no es bloqueante */ }
+      }
+
+      function actualizarEsperaPanel(u) {
+        const mostrar = noDisponible(u);
+        accionesPanel.hidden = mostrar;
+        espera.hidden = !mostrar;
+        if (!mostrar) return;
+        const yaAnotado = esperaLocal().has(u.id);
+        esperaForm.hidden = yaAnotado;
+        esperaOk.hidden = !yaAnotado;
+        if (!yaAnotado) {
+          esperaForm.reset();
+          esperaError.hidden = true;
+          esperaEnviar.disabled = false;
+        }
+      }
+
+      esperaForm.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (!elegida) return;
+        const nombre = document.getElementById('p-espera-nombre').value.trim();
+        const contacto = document.getElementById('p-espera-contacto').value.trim();
+        if (!nombre || !contacto) return;
+        esperaEnviar.disabled = true;
+        esperaError.hidden = true;
+        const { error } = await sb.from('leads').insert({
+          project_id: proyecto.id, unit_id: elegida.id, tipo: 'espera',
+          nombre, contacto, sesion: obtenerSesion(), origen: obtenerOrigen(),
+        });
+        // 23505 = unique_violation: ya estaba anotado a esta unidad desde
+        // esta sesión — se trata igual que un envío exitoso.
+        if (error && error.code !== '23505') {
+          esperaEnviar.disabled = false;
+          esperaError.textContent = error.code === 'P0001'
+            ? 'Dejaste varios contactos en poco tiempo — probá de nuevo en unos minutos.'
+            : 'No pudimos guardar tu contacto. Probá de nuevo.';
+          esperaError.hidden = false;
+          return;
+        }
+        marcarEsperaLocal(elegida.id);
+        esperaForm.hidden = true;
+        esperaOk.hidden = false;
+      });
+
+      document.getElementById('p-espera-similares').addEventListener('click', () => {
+        if (elegida) mostrarSimilares(elegida);
+      });
+
+      // En mobile el panel es una hoja con scroll propio (#panel, ver CSS);
+      // el teclado tapa la mitad inferior de la pantalla y con ella el botón
+      // de enviar, que queda debajo de los campos. Lo trae a la vista dentro
+      // de esa misma hoja una vez que el teclado terminó de animarse.
+      esperaForm.querySelectorAll('input').forEach(input => {
+        input.addEventListener('focus', () => {
+          setTimeout(() => esperaEnviar.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 300);
+        });
+      });
+
       function abrir(u, mover) {
         registrarEvento(proyecto.id, u.id);
         elegida = u;
@@ -3063,11 +3929,9 @@
         fuente.title = u.estimado
           ? 'Precio y superficie estimados — falta el dato real.'
           : 'Precio y superficie publicados en el aviso.';
-        const texto = 'Hola, quiero consultar por la unidad ' + u.id + ' de ' + proyecto.nombre + ' (' +
-          etiquetaDorms(u.dorms).toLowerCase() + ', ' + u.m2 + ' m²). ' + linkDe(u);
-        document.getElementById('p-wa').href = settingsRow.whatsapp
-          ? 'https://wa.me/' + settingsRow.whatsapp + '?text=' + encodeURIComponent(texto)
-          : '#';
+        actualizarFinanciacionPanel(u);
+        actualizarLinkWA(u);
+        actualizarEsperaPanel(u);
 
         marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
         panel.classList.add('abierto');
@@ -3185,7 +4049,8 @@
       pintarAmenities(resultado.amenities);
       pintarLegal(resultado.settings.textos);
       pintarRenders(resultado.renders);
-      iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias, resultado.tzOffsetHoras);
+      pintarAvance(resultado.proyecto, resultado.hitosObra, resultado.fotosObra);
+      iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias, resultado.tzOffsetHoras, resultado.hitosObra);
     })();
   </script>
 </body>

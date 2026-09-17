@@ -102,6 +102,11 @@
     padding:5px 9px;font-size:12px;color:var(--suave)}
   .btn-borrar:hover{color:#B3413A;border-color:#B3413A}
   .modificado{font-size:11.5px;color:var(--suave)}
+  .btn-ver-contactos{border:1px solid var(--linea);background:#fff;border-radius:4px;cursor:pointer;
+    padding:5px 9px;font-size:12px;color:var(--suave)}
+  .btn-ver-contactos:hover{color:var(--tinta);border-color:var(--tinta)}
+  .fila-detalle td{background:var(--fondo);padding:10px 14px;font-size:12.5px}
+  .fila-detalle div+div{margin-top:4px}
 
   .grid-imagenes{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px}
   .tarjeta-imagen{background:var(--papel);border:1px solid var(--linea);border-radius:6px;overflow:hidden}
@@ -128,6 +133,10 @@
   @media (max-width:640px){ .tipologia-media{grid-template-columns:1fr} }
   .tipologia-media h4{margin:0 0 8px;font-size:11.5px;color:var(--suave);font-weight:600;
     text-transform:uppercase;letter-spacing:.03em}
+  .avance-toggle-fila{display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer}
+  .tarjeta-obra-acciones{display:flex;flex-direction:column;gap:6px;padding:6px 8px}
+  .tarjeta-obra-acciones input.tarjeta-fecha{width:100%;padding:6px 8px;border:1px solid var(--linea);
+    border-radius:4px;font:inherit;font-size:12.5px}
   .dropzone{border:1.5px dashed var(--linea);border-radius:6px;padding:10px;text-align:center;
     color:var(--suave);font-size:12px;margin-bottom:10px}
   .dropzone.dropzone-activa{border-color:var(--verde);background:rgba(47,122,104,.06);color:var(--verde)}
@@ -192,6 +201,7 @@
     <button class="tab" role="tab" aria-selected="false" data-tab="amenities" type="button">Amenities</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="tipologias" type="button">Tipologías</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="imagenes" type="button">Imágenes</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="avance" type="button">Avance de obra</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="redes" type="button">Redes</button>
   </div>
 
@@ -233,6 +243,18 @@
           <table>
             <thead><tr><th>Unidad</th><th>Piso</th><th>Dorms</th><th>Orientación</th><th class="num">Consultas</th></tr></thead>
             <tbody id="filas-top"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="tarjeta-stat">
+        <h3>Lista de espera</h3>
+        <p class="sub" style="margin:0 0 12px">Gente que dejó su contacto en una unidad vendida o
+          reservada para que le avisemos si se libera. Al reactivar una unidad con espera, se
+          muestra un aviso con los contactos en el momento.</p>
+        <div class="tabla-envoltorio">
+          <table>
+            <thead><tr><th>Unidad</th><th>Piso</th><th>Estado</th><th class="num">Interesados</th><th></th></tr></thead>
+            <tbody id="filas-espera"></tbody>
           </table>
         </div>
       </div>
@@ -280,6 +302,62 @@
     <input id="input-imagen" type="file" accept="image/*" multiple hidden>
     <span id="imagen-subiendo" class="subiendo" hidden>Subiendo…</span>
     <p id="imagenes-contador" class="sub" style="margin:10px 0 0"></p>
+  </section>
+
+  <section id="panel-avance" hidden>
+    <label class="avance-toggle-fila">
+      <input type="checkbox" id="avance-habilitado-check">
+      Publicar avance de obra en la página pública
+    </label>
+    <p class="sub" style="margin:6px 0 20px">
+      Con esto apagado, la sección no se muestra al público aunque haya hitos y fotos cargados —
+      útil si todavía no querés mostrar un atraso. Las fechas siempre se muestran como estimadas,
+      nunca como compromiso de entrega.
+    </p>
+
+    <div class="tarjeta-stat" style="margin-bottom:24px">
+      <h3>Avance general</h3>
+      <p id="avance-pct-preview" style="font-size:26px;color:var(--tinta);font-weight:650;margin:4px 0 0">—%</p>
+      <p class="sub" style="margin:4px 0 0">
+        Se calcula solo a partir de los hitos con fecha real cargada abajo — no se edita a mano.
+      </p>
+    </div>
+
+    <h3 style="margin:0 0 10px">Hitos</h3>
+    <div id="cargando-hitos">Cargando hitos…</div>
+    <div class="tabla-envoltorio">
+      <table id="tabla-hitos" hidden>
+        <thead>
+          <tr>
+            <th></th><th>Nombre</th><th>Categoría</th><th class="num">Piso</th><th class="num">Peso</th>
+            <th>Estimada</th><th>Real</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="filas-hitos"></tbody>
+      </table>
+    </div>
+    <form id="form-hito-nuevo" class="form-tipologia-nueva">
+      <input id="nuevo-hito-nombre" class="campo-nombre" type="text" placeholder="Nombre (ej. Estructura piso 4)" required>
+      <select id="nuevo-hito-categoria" title="Categoría">
+        <option value="general">General</option>
+        <option value="estructura">Estructura (vincula con el modelo 3D)</option>
+      </select>
+      <input id="nuevo-hito-piso" class="campo-num" type="number" step="1" placeholder="Piso" title="Piso (opcional — dejalo vacío para un hito general)">
+      <input id="nuevo-hito-peso" class="campo-num" type="number" min="0.01" step="0.01" value="1" placeholder="Peso" title="Peso en el cálculo del % de avance">
+      <input id="nuevo-hito-estimada" type="date" title="Fecha estimada">
+      <button type="submit">Agregar hito</button>
+    </form>
+
+    <h3 style="margin:34px 0 10px">Fotos</h3>
+    <p class="sub" style="margin:0 0 16px">
+      Se agrupan por mes en la página pública, usando la fecha de la foto — se toma de los metadatos
+      de la imagen cuando están disponibles; si no, queda la fecha de hoy, editable acá al lado de cada foto.
+    </p>
+    <div id="dropzone-obra" class="dropzone">Arrastrá una o más fotos acá, o subilas con el botón de abajo.</div>
+    <div id="grid-obra-fotos" class="grid-imagenes"></div>
+    <label id="btn-subir-obra-foto" class="btn-subir" for="input-obra-foto">Subir foto…</label>
+    <input id="input-obra-foto" type="file" accept="image/*" multiple hidden>
+    <span id="obra-foto-subiendo" class="subiendo" hidden>Subiendo…</span>
   </section>
 
   <section id="panel-redes" hidden>
@@ -393,6 +471,7 @@ function cargarTab(tab){
   if (tab === 'amenities') cargarAmenities();
   if (tab === 'tipologias') cargarTipologias();
   if (tab === 'imagenes') cargarImagenes();
+  if (tab === 'avance') cargarAvance();
   if (tab === 'redes') cargarRedes();
 }
 
@@ -436,6 +515,7 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.getElementById('panel-amenities').hidden = t.dataset.tab !== 'amenities';
   document.getElementById('panel-tipologias').hidden = t.dataset.tab !== 'tipologias';
   document.getElementById('panel-imagenes').hidden = t.dataset.tab !== 'imagenes';
+  document.getElementById('panel-avance').hidden = t.dataset.tab !== 'avance';
   document.getElementById('panel-redes').hidden = t.dataset.tab !== 'redes';
   cargarTab(t.dataset.tab);
 }));
@@ -550,7 +630,7 @@ function pintarUnidades(unidades){
       opt.selected = k === u.estado;
       select.appendChild(opt);
     });
-    select.addEventListener('change', () => cambiarEstado(u.id, select.value, select));
+    select.addEventListener('change', () => cambiarEstado(u.id, u.estado, select.value, select));
     tr.lastElementChild.appendChild(select);
     tbody.appendChild(tr);
   });
@@ -595,12 +675,28 @@ document.getElementById('btn-asignar-lote').addEventListener('click', async () =
   cargarUnidades();
 });
 
-async function cambiarEstado(id, nuevoEstado, select){
+async function cambiarEstado(id, estadoPrevio, nuevoEstado, select){
   select.disabled = true;
   const { error } = await sb.from('units').update({ estado: nuevoEstado })
     .eq('id', id).eq('project_id', PROYECTO_ACTUAL.id);
   if (error){ alert('No se pudo actualizar: ' + error.message); select.disabled = false; return; }
+  // Reactivación: si había gente en lista de espera, es el único momento en
+  // que ese dato vale algo (tres semanas después, no sirve de nada) — se
+  // avisa acá mismo, con los contactos a mano, para que el vendedor escriba
+  // él. Nunca se manda nada automático (ver CLAUDE.md de esta feature).
+  const reactivada = nuevoEstado === 'disponible' && (estadoPrevio === 'vendido' || estadoPrevio === 'reservado');
+  if (reactivada) await avisarListaEspera(id);
   cargarUnidades();
+}
+
+async function avisarListaEspera(unitId){
+  const { data, error } = await sb.from('leads').select('nombre, contacto, creado_en')
+    .eq('project_id', PROYECTO_ACTUAL.id).eq('unit_id', unitId).eq('tipo', 'espera')
+    .order('creado_en');
+  if (error || !data || !data.length) return;
+  const lista = data.map(l => '- ' + l.nombre + ' — ' + l.contacto).join('\n');
+  alert('La unidad ' + unitId + ' tiene ' + data.length + ' persona' + (data.length === 1 ? '' : 's') +
+    ' esperando que se libere:\n\n' + lista);
 }
 
 // Guarda m2_terraza o cochera_precio al salir del campo. Vacío = null (sin dato).
@@ -626,11 +722,13 @@ function barra(cont, filas){
 let demandaCargada = false;
 async function cargarDemanda(){
   if (demandaCargada) return;
-  const [{ data: unidades, error: e1 }, { data: eventos, error: e2 }] = await Promise.all([
+  const [{ data: unidades, error: e1 }, { data: eventos, error: e2 }, { data: esperas, error: e3 }] = await Promise.all([
     sb.from('units').select('*').eq('project_id', PROYECTO_ACTUAL.id),
-    sb.from('events').select('unit_id').eq('project_id', PROYECTO_ACTUAL.id),
+    sb.from('events').select('unit_id').eq('project_id', PROYECTO_ACTUAL.id).eq('tipo', 'click'),
+    sb.from('leads').select('unit_id, nombre, contacto, creado_en')
+      .eq('project_id', PROYECTO_ACTUAL.id).eq('tipo', 'espera').order('creado_en'),
   ]);
-  if (e1 || e2){
+  if (e1 || e2 || e3){
     document.getElementById('cargando-demanda').textContent = 'No se pudo cargar la demanda.';
     return;
   }
@@ -674,6 +772,36 @@ async function cargarDemanda(){
         '<td>' + r.u.orientacion + '</td><td class="num">' + r.n + '</td></tr>'
       ).join('')
     : '<tr><td colspan="5">Todavía no hay consultas registradas.</td></tr>';
+
+  // Lista de espera: cuántos interesados tiene cada unidad vendida/reservada
+  // y quiénes son — el conteo es dato de precio (si tiene varios, probablemente
+  // esté barata), los contactos se ven al expandir la fila.
+  const esperaPorUnidad = {};
+  (esperas || []).forEach(l => (esperaPorUnidad[l.unit_id] = esperaPorUnidad[l.unit_id] || []).push(l));
+  const unidadesConEspera = Object.keys(esperaPorUnidad)
+    .map(id => ({ u: unidadesPorId[id], lista: esperaPorUnidad[id] }))
+    .filter(r => r.u)
+    .sort((a, b) => b.lista.length - a.lista.length);
+  document.getElementById('filas-espera').innerHTML = unidadesConEspera.length
+    ? unidadesConEspera.map((r, i) => {
+        const e = ESTADOS[r.u.estado] || ESTADOS.sin_dato;
+        const detalleId = 'espera-detalle-' + i;
+        const contactos = r.lista.map(l =>
+          '<div>' + l.nombre + ' — ' + l.contacto +
+          ' <span class="modificado">(' + new Date(l.creado_en).toLocaleDateString('es-UY') + ')</span></div>'
+        ).join('');
+        return '<tr><td>' + r.u.id + '</td><td>' + r.u.piso + '</td>' +
+          '<td><span class="estado"><span class="punto" style="background:' + e.color + '"></span>' + e.nombre + '</span></td>' +
+          '<td class="num">' + r.lista.length + '</td>' +
+          '<td><button type="button" class="btn-ver-contactos" data-target="' + detalleId + '">Ver contactos</button></td></tr>' +
+          '<tr id="' + detalleId + '" class="fila-detalle" hidden><td colspan="5">' + contactos + '</td></tr>';
+      }).join('')
+    : '<tr><td colspan="5">Nadie en lista de espera todavía.</td></tr>';
+  document.querySelectorAll('#filas-espera .btn-ver-contactos').forEach(b => b.addEventListener('click', () => {
+    const fila = document.getElementById(b.dataset.target);
+    fila.hidden = !fila.hidden;
+    b.textContent = fila.hidden ? 'Ver contactos' : 'Ocultar';
+  }));
 
   document.getElementById('cargando-demanda').hidden = true;
   document.getElementById('stats').hidden = false;
@@ -1057,6 +1185,345 @@ document.getElementById('input-imagen').addEventListener('change', async (ev) =>
     cargarImagenes();
   });
 });
+
+/* ============================================================
+   Avance de obra: hitos (fechas estimadas/reales, % calculado solo) +
+   fotos agrupadas por mes en la página pública + el toggle que decide si
+   el proyecto publica esta sección. Ver supabase-migration-avance-obra.sql.
+   ============================================================ */
+
+async function cargarAvance(){
+  document.getElementById('avance-habilitado-check').checked = !!PROYECTO_ACTUAL.avance_habilitado;
+
+  const [{ data: hitos, error: eHitos }, { data: fotos, error: eFotos }] = await Promise.all([
+    sb.from('obra_hitos').select('*').eq('project_id', PROYECTO_ACTUAL.id).order('orden'),
+    sb.from('obra_fotos').select('*').eq('project_id', PROYECTO_ACTUAL.id).order('fecha', { ascending: false }),
+  ]);
+  if (eHitos){ alert('No se pudieron cargar los hitos: ' + eHitos.message); return; }
+  if (eFotos){ alert('No se pudieron cargar las fotos: ' + eFotos.message); return; }
+
+  document.getElementById('cargando-hitos').hidden = true;
+  document.getElementById('tabla-hitos').hidden = false;
+  pintarHitos(hitos || []);
+  pintarFotosObra(fotos || []);
+}
+
+document.getElementById('avance-habilitado-check').addEventListener('change', async (ev) => {
+  const { error } = await sb.from('projects').update({ avance_habilitado: ev.target.checked })
+    .eq('id', PROYECTO_ACTUAL.id);
+  if (error){
+    alert('No se pudo guardar: ' + error.message);
+    ev.target.checked = !ev.target.checked;
+    return;
+  }
+  PROYECTO_ACTUAL.avance_habilitado = ev.target.checked;
+});
+
+function actualizarPctAvance(lista){
+  const pesoTotal = lista.reduce((acc, h) => acc + Number(h.peso), 0);
+  const pesoCumplido = lista.filter(h => h.fecha_real).reduce((acc, h) => acc + Number(h.peso), 0);
+  const pct = pesoTotal > 0 ? Math.round((pesoCumplido / pesoTotal) * 100) : 0;
+  document.getElementById('avance-pct-preview').textContent = pct + '%';
+}
+
+function pintarHitos(lista){
+  actualizarPctAvance(lista);
+  const tbody = document.getElementById('filas-hitos');
+  tbody.innerHTML = '';
+  lista.forEach((h, i) => tbody.appendChild(crearFilaHito(h, i, lista)));
+}
+
+function crearFilaHito(h, i, lista){
+  const tr = document.createElement('tr');
+
+  const tdFlechas = document.createElement('td');
+  tdFlechas.className = 'amenity-flechas';
+  const btnArriba = document.createElement('button');
+  btnArriba.type = 'button'; btnArriba.textContent = '↑'; btnArriba.disabled = i === 0;
+  btnArriba.addEventListener('click', () => moverHito(lista, i, -1));
+  const btnAbajo = document.createElement('button');
+  btnAbajo.type = 'button'; btnAbajo.textContent = '↓'; btnAbajo.disabled = i === lista.length - 1;
+  btnAbajo.addEventListener('click', () => moverHito(lista, i, 1));
+  tdFlechas.append(btnArriba, btnAbajo);
+  tr.appendChild(tdFlechas);
+
+  const tdNombre = document.createElement('td');
+  const inputNombre = document.createElement('input');
+  inputNombre.className = 'input-texto';
+  inputNombre.value = h.nombre;
+  inputNombre.addEventListener('change', () => guardarHito(h.id, { nombre: inputNombre.value.trim() }));
+  tdNombre.appendChild(inputNombre);
+  tr.appendChild(tdNombre);
+
+  const tdCategoria = document.createElement('td');
+  const selCategoria = document.createElement('select');
+  [['general', 'General'], ['estructura', 'Estructura']].forEach(([valor, texto]) => {
+    const op = document.createElement('option');
+    op.value = valor; op.textContent = texto; op.selected = h.categoria === valor;
+    selCategoria.appendChild(op);
+  });
+  selCategoria.addEventListener('change', () => guardarHito(h.id, { categoria: selCategoria.value }));
+  tdCategoria.appendChild(selCategoria);
+  tr.appendChild(tdCategoria);
+
+  const tdPiso = document.createElement('td');
+  const inputPiso = document.createElement('input');
+  inputPiso.type = 'number'; inputPiso.step = '1'; inputPiso.className = 'tipologia-num';
+  inputPiso.value = h.piso ?? '';
+  inputPiso.addEventListener('change', () =>
+    guardarHito(h.id, { piso: inputPiso.value === '' ? null : Number(inputPiso.value) }));
+  tdPiso.appendChild(inputPiso);
+  tr.appendChild(tdPiso);
+
+  const tdPeso = document.createElement('td');
+  const inputPeso = document.createElement('input');
+  inputPeso.type = 'number'; inputPeso.min = '0.01'; inputPeso.step = '0.01'; inputPeso.className = 'tipologia-num';
+  inputPeso.value = h.peso;
+  inputPeso.addEventListener('change', () => guardarHito(h.id, { peso: Number(inputPeso.value) }));
+  tdPeso.appendChild(inputPeso);
+  tr.appendChild(tdPeso);
+
+  const tdEstimada = document.createElement('td');
+  const inputEstimada = document.createElement('input');
+  inputEstimada.type = 'date';
+  inputEstimada.value = h.fecha_estimada || '';
+  inputEstimada.addEventListener('change', () =>
+    guardarHito(h.id, { fecha_estimada: inputEstimada.value || null }));
+  tdEstimada.appendChild(inputEstimada);
+  tr.appendChild(tdEstimada);
+
+  const tdReal = document.createElement('td');
+  const inputReal = document.createElement('input');
+  inputReal.type = 'date';
+  inputReal.value = h.fecha_real || '';
+  inputReal.addEventListener('change', () => guardarHito(h.id, { fecha_real: inputReal.value || null }));
+  tdReal.appendChild(inputReal);
+  tr.appendChild(tdReal);
+
+  const tdBorrar = document.createElement('td');
+  const btnBorrar = document.createElement('button');
+  btnBorrar.type = 'button'; btnBorrar.className = 'btn-borrar'; btnBorrar.textContent = 'Eliminar';
+  btnBorrar.addEventListener('click', () => borrarHito(h.id));
+  tdBorrar.appendChild(btnBorrar);
+  tr.appendChild(tdBorrar);
+
+  return tr;
+}
+
+async function guardarHito(id, cambios){
+  const { error } = await sb.from('obra_hitos').update(cambios).eq('id', id).eq('project_id', PROYECTO_ACTUAL.id);
+  if (error){ alert('No se pudo guardar: ' + error.message); return; }
+  cargarAvance();
+}
+
+// Mismo criterio que moverAmenity: swapea el `orden` con el vecino.
+async function moverHito(lista, i, dir){
+  const actual = lista[i], otro = lista[i + dir];
+  if (!otro) return;
+  const { error: e1 } = await sb.from('obra_hitos').update({ orden: otro.orden })
+    .eq('id', actual.id).eq('project_id', PROYECTO_ACTUAL.id);
+  const { error: e2 } = await sb.from('obra_hitos').update({ orden: actual.orden })
+    .eq('id', otro.id).eq('project_id', PROYECTO_ACTUAL.id);
+  if (e1 || e2){ alert('No se pudo reordenar'); }
+  cargarAvance();
+}
+
+async function borrarHito(id){
+  if (!confirm('¿Eliminar este hito?')) return;
+  const { error } = await sb.from('obra_hitos').delete().eq('id', id).eq('project_id', PROYECTO_ACTUAL.id);
+  if (error){ alert('No se pudo eliminar: ' + error.message); return; }
+  cargarAvance();
+}
+
+document.getElementById('form-hito-nuevo').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const nombre = document.getElementById('nuevo-hito-nombre').value.trim();
+  if (!nombre) return;
+  const piso = document.getElementById('nuevo-hito-piso').value;
+  const peso = document.getElementById('nuevo-hito-peso').value;
+  const { data: existentes } = await sb.from('obra_hitos').select('orden')
+    .eq('project_id', PROYECTO_ACTUAL.id).order('orden', { ascending: false }).limit(1);
+  const siguienteOrden = existentes && existentes.length ? existentes[0].orden + 1 : 1;
+  const { error } = await sb.from('obra_hitos').insert({
+    project_id: PROYECTO_ACTUAL.id,
+    nombre,
+    categoria: document.getElementById('nuevo-hito-categoria').value,
+    piso: piso === '' ? null : Number(piso),
+    peso: peso === '' ? 1 : Number(peso),
+    fecha_estimada: document.getElementById('nuevo-hito-estimada').value || null,
+    orden: siguienteOrden,
+  });
+  if (error){ alert('No se pudo agregar: ' + error.message); return; }
+  ev.target.reset();
+  document.getElementById('nuevo-hito-peso').value = '1';
+  cargarAvance();
+});
+
+// Fotos de avance de obra — mismo bucket "renders" que la galería del
+// proyecto, prefijo nuevo "<project_id>/obra/<uuid>.jpg" (ver
+// supabase-migration-avance-obra.sql, sección 5: las políticas de Storage
+// ya existentes solo miran el primer segmento de la ruta). Siempre JPEG,
+// misma razón que los renders de proyecto (son fotos, no dibujos de línea).
+// Sin tope de cantidad a propósito: es un álbum que crece un par de fotos
+// por mes durante años, no una galería curada de 12 renders.
+async function subirUnaFotoObra(file, estadoEl){
+  if (!file.type.startsWith('image/')){
+    alert('Elegí un archivo de imagen: ' + file.name);
+    return;
+  }
+  estadoEl.hidden = false;
+  estadoEl.textContent = 'Leyendo fecha…';
+  const fechaExif = await extraerFechaExif(file);
+
+  estadoEl.textContent = 'Optimizando…';
+  let comprimida;
+  try { comprimida = await comprimirImagen(file, 'image/jpeg'); }
+  catch (e){ alert('No se pudo procesar ' + file.name + ': ' + e.message); estadoEl.hidden = true; return; }
+
+  estadoEl.textContent = 'Subiendo…';
+  const ruta = PROYECTO_ACTUAL.id + '/obra/' + crypto.randomUUID() + '.jpg';
+  const { error: eSubida } = await sb.storage.from('renders').upload(ruta, comprimida, { contentType: 'image/jpeg' });
+  if (eSubida){ alert('No se pudo subir ' + file.name + ': ' + eSubida.message); estadoEl.hidden = true; return; }
+  const { data: pub } = sb.storage.from('renders').getPublicUrl(ruta);
+
+  const fila = { project_id: PROYECTO_ACTUAL.id, url: pub.publicUrl };
+  if (fechaExif) fila.fecha = fechaExif;
+  const { error: eInsert } = await sb.from('obra_fotos').insert(fila);
+  if (eInsert){
+    await sb.storage.from('renders').remove([ruta]);
+    alert('No se pudo guardar ' + file.name + ': ' + eInsert.message);
+  }
+}
+
+async function subirVariasFotosObra(files){
+  const estado = document.getElementById('obra-foto-subiendo');
+  const btn = document.getElementById('btn-subir-obra-foto');
+  btn.setAttribute('aria-disabled', 'true');
+  for (const file of files){
+    await subirUnaFotoObra(file, estado);
+  }
+  estado.hidden = true;
+  btn.removeAttribute('aria-disabled');
+  cargarAvance();
+}
+
+function pintarFotosObra(lista){
+  const cont = document.getElementById('grid-obra-fotos');
+  cont.innerHTML = '';
+  document.getElementById('sin-obra-fotos')?.remove();
+  if (!lista.length){
+    cont.insertAdjacentHTML('afterend', '<p class="sin-imagenes" id="sin-obra-fotos">Todavía no hay fotos cargadas.</p>');
+    return;
+  }
+  lista.forEach(f => cont.appendChild(crearTarjetaObraFoto(f)));
+}
+
+function crearTarjetaObraFoto(f){
+  const tarjeta = document.createElement('div');
+  tarjeta.className = 'tarjeta-imagen';
+
+  const img = document.createElement('img');
+  img.src = f.url; img.alt = ''; img.loading = 'lazy';
+  tarjeta.appendChild(img);
+
+  const acciones = document.createElement('div');
+  acciones.className = 'tarjeta-obra-acciones';
+
+  const fecha = document.createElement('input');
+  fecha.type = 'date'; fecha.className = 'tarjeta-fecha'; fecha.value = f.fecha;
+  fecha.addEventListener('change', async () => {
+    const { error } = await sb.from('obra_fotos').update({ fecha: fecha.value }).eq('id', f.id);
+    if (error){ alert('No se pudo guardar la fecha: ' + error.message); return; }
+    cargarAvance();
+  });
+  acciones.appendChild(fecha);
+
+  const btnBorrar = document.createElement('button');
+  btnBorrar.type = 'button'; btnBorrar.className = 'btn-borrar'; btnBorrar.textContent = 'Eliminar';
+  btnBorrar.addEventListener('click', () => borrarFotoObra(f));
+  acciones.appendChild(btnBorrar);
+
+  tarjeta.appendChild(acciones);
+  return tarjeta;
+}
+
+async function borrarFotoObra(f){
+  if (!confirm('¿Eliminar esta foto?')) return;
+  const path = pathDeRender(f.url);
+  if (path) await sb.storage.from('renders').remove([path]);
+  const { error } = await sb.from('obra_fotos').delete().eq('id', f.id);
+  if (error){ alert('No se pudo eliminar: ' + error.message); return; }
+  cargarAvance();
+}
+
+activarDropzone(document.getElementById('dropzone-obra'), (files) => subirVariasFotosObra(files));
+
+document.getElementById('input-obra-foto').addEventListener('change', (ev) => {
+  const files = Array.from(ev.target.files || []);
+  ev.target.value = '';
+  if (files.length) subirVariasFotosObra(files);
+});
+
+// Lector EXIF mínimo, sin librería (ver CLAUDE.md): busca el segmento APP1
+// "Exif" de un JPEG y el tag DateTimeOriginal (0x9003), con DateTime de
+// IFD0 (0x0132) como respaldo. Devuelve "YYYY-MM-DD" o null si el archivo
+// no es JPEG, no trae EXIF, o el parseo no calza — nunca tira: quien llama
+// (subirUnaFotoObra) cae a la fecha de hoy que ya pone el default de la
+// columna si `fila.fecha` queda sin setear.
+async function extraerFechaExif(file){
+  if (file.type !== 'image/jpeg') return null;
+  try {
+    // El EXIF vive en los primeros KB del archivo — no hace falta leerlo entero.
+    const buf = await file.slice(0, 128 * 1024).arrayBuffer();
+    const view = new DataView(buf);
+    if (view.getUint16(0) !== 0xFFD8) return null; // no es un JPEG válido
+    let offset = 2;
+    while (offset < view.byteLength - 4){
+      const marker = view.getUint16(offset);
+      if ((marker & 0xFF00) !== 0xFF00) break;
+      if (marker === 0xFFD9 || marker === 0xFFDA) break; // fin de archivo / datos de imagen: no hay más metadata
+      const segLen = view.getUint16(offset + 2);
+      if (marker === 0xFFE1 && offset + 10 <= view.byteLength &&
+          view.getUint32(offset + 4) === 0x45786966 && view.getUint16(offset + 8) === 0x0000){
+        return leerFechaTiff(view, offset + 10);
+      }
+      offset += 2 + segLen;
+    }
+  } catch { /* cae al fallback de fecha de hoy */ }
+  return null;
+}
+
+function leerFechaTiff(view, tiffStart){
+  const little = view.getUint16(tiffStart) === 0x4949;
+  const g16 = o => view.getUint16(o, little);
+  const g32 = o => view.getUint32(o, little);
+  const leerIFD = (ifdOffset) => {
+    const n = g16(ifdOffset);
+    const entradas = {};
+    for (let i = 0; i < n; i++) entradas[g16(ifdOffset + 2 + i * 12)] = ifdOffset + 2 + i * 12;
+    return entradas;
+  };
+  const leerString = (eo) => {
+    const count = g32(eo + 4);
+    const valOffset = count <= 4 ? eo + 8 : tiffStart + g32(eo + 8);
+    let s = '';
+    for (let i = 0; i < count - 1; i++) s += String.fromCharCode(view.getUint8(valOffset + i));
+    return s;
+  };
+  const parsear = (s) => {
+    const m = /^(\d{4}):(\d{2}):(\d{2})/.exec(s);
+    return m ? m[1] + '-' + m[2] + '-' + m[3] : null;
+  };
+  const ifd0 = leerIFD(tiffStart + g32(tiffStart + 4));
+  // Preferimos DateTimeOriginal (Exif IFD, tag 0x8769 en IFD0 apunta ahí);
+  // si no está, DateTime de IFD0 sirve igual.
+  if (ifd0[0x8769]){
+    const exifIfd = leerIFD(tiffStart + g32(ifd0[0x8769] + 8));
+    if (exifIfd[0x9003]) return parsear(leerString(exifIfd[0x9003]));
+  }
+  if (ifd0[0x0132]) return parsear(leerString(ifd0[0x0132]));
+  return null;
+}
 
 /* ============================================================
    Tipologías: alta/baja/rename + planta y renders de cada una.
