@@ -68,9 +68,125 @@
       max-width: 330px
     }
 
+    #cabezal-panel {
+      background: var(--papel);
+      border: 1px solid var(--linea);
+      border-radius: 10px;
+      padding: 14px 16px;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 10px 26px rgba(0, 0, 0, .10);
+    }
+
+    .cb-marca {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .cb-marca svg {
+      flex: none;
+      color: var(--verde)
+    }
+
+    .cb-titulo {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-wrap: wrap;
+      line-height: 1.15;
+    }
+
+    .cb-dev {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--suave)
+    }
+
+    .cb-direccion {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin: 9px 0 0;
+    }
+
+    .cb-direccion svg {
+      flex: none;
+      color: var(--suave);
+      margin-top: 1px;
+    }
+
+    .cb-direccion span {
+      font-size: 12.5px;
+      color: var(--suave);
+      line-height: 1.4;
+    }
+
+    .cb-datos {
+      display: flex;
+      align-items: center;
+      margin-top: 11px;
+      padding-top: 11px;
+      border-top: 1px solid var(--linea);
+      flex-wrap: wrap;
+      row-gap: 8px;
+    }
+
+    .cb-dato {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cb-dato svg {
+      flex: none;
+      color: var(--suave)
+    }
+
+    .cb-dato-txt {
+      font-size: 12.5px;
+      color: var(--suave);
+      white-space: nowrap;
+    }
+
+    .cb-dato-txt b {
+      color: var(--tinta);
+      font-weight: 650;
+    }
+
+    .cb-dato-entrega {
+      align-items: flex-start
+    }
+
+    .cb-dato-entrega .cb-dato-txt {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .cb-etiqueta {
+      font-size: 9.5px;
+      font-weight: 650;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--gris);
+    }
+
+    .cb-dato-entrega b {
+      font-size: 12.5px
+    }
+
+    .cb-div {
+      width: 1px;
+      height: 20px;
+      background: var(--linea);
+      margin: 0 12px;
+      flex: none;
+    }
+
     #aviso {
-      margin-top: 18px;
-      padding: 13px 15px;
+      margin-top: 14px;
+      padding: 12px 15px;
       border-radius: 5px;
       background: var(--papel);
       border: 1px solid var(--linea);
@@ -78,8 +194,74 @@
       font-size: 13px;
     }
 
-    #aviso b {
-      font-weight: 600
+    #aviso .punto {
+      border-radius: 50%
+    }
+
+    /* Lista vertical (desktop): una fila por estado, con su nombre — hay
+     lugar de sobra, así que se lee completo. */
+    .aviso-lista {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .aviso-fila {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .aviso-label {
+      flex: 1;
+      color: var(--suave);
+    }
+
+    .aviso-cant {
+      font-weight: 650;
+      color: var(--tinta);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Compacta (mobile): una barra proporcional + leyenda de una línea, sin
+     el nombre del estado — ver la media query de abajo por qué. Oculta en
+     desktop, donde gana la lista. */
+    .aviso-compacto {
+      display: none;
+    }
+
+    .aviso-barra {
+      display: flex;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      background: var(--linea);
+    }
+
+    .aviso-barra span {
+      display: block;
+    }
+
+    .aviso-leyenda {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      margin-top: 8px;
+    }
+
+    .aviso-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12.5px;
+      font-weight: 650;
+      color: var(--tinta);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .aviso-item .punto {
+      width: 7px;
+      height: 7px;
     }
 
     /* Envoltorio puramente de layout: en desktop no debe existir como caja
@@ -1561,6 +1743,39 @@
         font-size: 19px
       }
 
+      /* Los divisores verticales entre pisos/unidades/entrega asumen que las
+       tres celdas entran en un renglón; en mobile pueden envolver a una
+       segunda línea y un divisor colgando al final de un renglón envuelto
+       se ve como un error. Más simple: en mobile no hay divisores, el gap
+       solo ya separa cada celda. */
+      .cb-datos {
+        gap: 10px 14px
+      }
+
+      .cb-div {
+        display: none
+      }
+
+      /* El desglose apilado en 4 renglones altos tapa demasiado edificio en
+       mobile (ver CLAUDE.md: la escena manda). Acá no entra la lista de
+       filas — entra la barra proporcional con su leyenda en una sola
+       línea, mucho más baja y menos genérica que repetir la misma celda
+       cuatro veces. El nombre del estado se saca de la vista (el color ya
+       lo identifica, y el nombre completo sigue en los chips "Estado" de
+       más abajo) pero sigue en el DOM para lectores de pantalla vía
+       aria-label en cada ítem de la leyenda. */
+      #aviso {
+        padding: 10px 14px
+      }
+
+      .aviso-lista {
+        display: none
+      }
+
+      .aviso-compacto {
+        display: block
+      }
+
       /* Filtros: en desktop es un panel siempre visible abajo a la izquierda;
        en mobile eso significaba Tipología + Estado + "Separar pisos"
        ocupando permanentemente un tercio de la pantalla y tapando el
@@ -2039,9 +2254,63 @@
 <body>
 
   <header id="cabezal">
-    <h1 id="h1-proyecto">ROSSO by Block</h1>
-    <p class="sub" id="sub-proyecto">Ana Monterroso de Lavalleja 2162, Cordón · 10 pisos · 78 unidades · entrega marzo
-      2028</p>
+    <div id="cabezal-panel">
+      <div class="cb-marca">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="5" y="3" width="11" height="18"></rect>
+          <path d="M16 10l4 2v9h-4"></path>
+          <path d="M8 7h1M11 7h1M8 11h1M11 11h1M8 15h1M11 15h1"></path>
+        </svg>
+        <div class="cb-titulo">
+          <h1 id="h1-proyecto">ROSSO</h1>
+          <span class="cb-dev" id="cb-dev"></span>
+        </div>
+      </div>
+      <p class="cb-direccion" id="cb-direccion" hidden>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 21s7-6.6 7-12a7 7 0 1 0-14 0c0 5.4 7 12 7 12z"></path>
+          <circle cx="12" cy="9" r="2.4"></circle>
+        </svg>
+        <span id="cb-direccion-txt"></span>
+      </p>
+      <div class="cb-datos" id="cb-datos" hidden>
+        <div class="cb-dato" id="cb-dato-pisos" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="16" height="4.2"></rect>
+            <rect x="4" y="9.9" width="16" height="4.2"></rect>
+            <rect x="4" y="15.8" width="16" height="4.2"></rect>
+          </svg>
+          <span class="cb-dato-txt"><b id="cb-pisos-valor"></b> pisos</span>
+        </div>
+        <span class="cb-div" id="cb-div-1" hidden></span>
+        <div class="cb-dato" id="cb-dato-unidades" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="7.2" height="7.2" rx="1"></rect>
+            <rect x="13.3" y="3.5" width="7.2" height="7.2" rx="1"></rect>
+            <rect x="3.5" y="13.3" width="7.2" height="7.2" rx="1"></rect>
+            <rect x="13.3" y="13.3" width="7.2" height="7.2" rx="1"></rect>
+          </svg>
+          <span class="cb-dato-txt"><b id="cb-unidades-valor"></b> unidades</span>
+        </div>
+        <span class="cb-div" id="cb-div-2" hidden></span>
+        <div class="cb-dato cb-dato-entrega" id="cb-dato-entrega" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.5" y="5" width="17" height="15" rx="2"></rect>
+            <path d="M3.5 9.5h17"></path>
+            <path d="M8 3v4M16 3v4"></path>
+          </svg>
+          <span class="cb-dato-txt">
+            <span class="cb-etiqueta">Entrega</span>
+            <b id="cb-entrega-valor"></b>
+          </span>
+        </div>
+      </div>
+    </div>
     <div id="aviso">Cargando estado de las unidades…</div>
     <button id="pisos-trigger" type="button" aria-expanded="false" aria-controls="pisos">
       <span class="pt-label">Todos los pisos</span>
@@ -2871,15 +3140,46 @@
       });
 
       document.getElementById('h1-proyecto').textContent = proyecto.nombre;
-      document.getElementById('sub-proyecto').textContent =
-        [proyecto.direccion, proyecto.ciudad].filter(Boolean).join(', ') + ' · ' + proyecto.pisos + ' pisos · ' +
-        UNIDADES.length + ' unidades' + (proyecto.entrega ? ' · entrega ' + proyecto.entrega : '');
+
+      const cbDev = document.getElementById('cb-dev');
+      cbDev.hidden = !proyecto.desarrolla;
+      if (proyecto.desarrolla) cbDev.textContent = 'by ' + proyecto.desarrolla;
+
+      const direccionTxt = [proyecto.direccion, proyecto.ciudad].filter(Boolean).join(', ');
+      document.getElementById('cb-direccion').hidden = !direccionTxt;
+      document.getElementById('cb-direccion-txt').textContent = direccionTxt;
+
+      // Cada celda depende solo de su propio dato — si falta, se saca junto
+      // con el divisor de al lado, nunca queda un guion ni una línea
+      // colgando entre dos celdas (ver CLAUDE.md/brief del cabezal).
+      const hayPisos = !!proyecto.pisos, hayUnidades = !!UNIDADES.length, hayEntrega = !!proyecto.entrega;
+      document.getElementById('cb-dato-pisos').hidden = !hayPisos;
+      document.getElementById('cb-pisos-valor').textContent = proyecto.pisos;
+      document.getElementById('cb-dato-unidades').hidden = !hayUnidades;
+      document.getElementById('cb-unidades-valor').textContent = UNIDADES.length;
+      document.getElementById('cb-dato-entrega').hidden = !hayEntrega;
+      document.getElementById('cb-entrega-valor').textContent = proyecto.entrega || '';
+      document.getElementById('cb-div-1').hidden = !(hayPisos && (hayUnidades || hayEntrega));
+      document.getElementById('cb-div-2').hidden = !(hayUnidades && hayEntrega);
+      document.getElementById('cb-datos').hidden = !(hayPisos || hayUnidades || hayEntrega);
 
       if (proyecto.muestra_totales) {
-        const publicadas = UNIDADES.filter(u => u.estado !== 'sin_dato').length;
+        const conteos = Object.entries(ESTADOS).map(([k, e]) =>
+          ({ nombre: e.nombre, color: e.color, cantidad: UNIDADES.filter(u => u.estado === k).length }));
         document.getElementById('aviso').innerHTML =
-          '<b>' + publicadas + ' de ' + UNIDADES.length + ' unidades</b> tienen estado publicado hoy. ' +
-          'Las otras ' + (UNIDADES.length - publicadas) + ' aparecen en gris: nadie sabe si están disponibles.';
+          '<div class="aviso-lista">' + conteos.map(e =>
+            '<div class="aviso-fila"><span class="punto" style="background:' + e.color + '"></span>' +
+            '<span class="aviso-label">' + e.nombre + '</span><span class="aviso-cant">' + e.cantidad + '</span></div>'
+          ).join('') + '</div>' +
+          '<div class="aviso-compacto">' +
+            '<div class="aviso-barra">' + conteos.map(e =>
+              '<span style="flex:' + e.cantidad + ';background:' + e.color + '"></span>'
+            ).join('') + '</div>' +
+            '<div class="aviso-leyenda">' + conteos.map(e =>
+              '<span class="aviso-item" aria-label="' + e.nombre + ': ' + e.cantidad + ' unidades">' +
+              '<span class="punto" style="background:' + e.color + '"></span>' + e.cantidad + '</span>'
+            ).join('') + '</div>' +
+          '</div>';
       } else {
         document.getElementById('aviso').hidden = true;
       }
@@ -2909,8 +3209,12 @@
       const ORIGEN_PLACA = { x: 0, z: 0 };
 
       const escena = new THREE.Scene();
-      escena.background = new THREE.Color(0xDEE2E4);
-      escena.fog = new THREE.Fog(0xDEE2E4, 130, 280);
+      // Color plano de reserva nomás por si algo falla al compilar el shader
+      // del cielo (ver CIELO más abajo) — en uso normal la esfera del cielo
+      // tapa esto siempre. El color real de niebla/fondo lo pone
+      // aplicarCielo() en cada actualización del sol.
+      escena.background = new THREE.Color(0xE7EAEA);
+      escena.fog = new THREE.Fog(0xE7EAEA, 130, 280);
 
       const camara = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 600);
       const render = new THREE.WebGLRenderer({ antialias: true });
@@ -2918,6 +3222,15 @@
       render.setSize(innerWidth, innerHeight);
       render.shadowMap.enabled = true;
       render.shadowMap.type = THREE.PCFSoftShadowMap;
+      // Se probó ACESFilmicToneMapping para que el resplandor del sol en el
+      // cielo no se queme contra el resto de la escena, pero visiblemente
+      // apagaba el blanco de la losa/núcleo/base (todo el edificio se veía
+      // "oscurecido" comparado con la versión de siempre) para un problema
+      // — highlights quemados — que en la práctica no llegó a darse (el
+      // glow del sol quedó bastante sutil, ver más abajo). Se prioriza que
+      // el edificio se siga viendo como toda la vida; si el glow llega a
+      // quemarse en algún ángulo, conviene resolverlo bajando uGlowStrength
+      // o el propio color del glow antes de volver a probar tone mapping.
       document.body.appendChild(render.domElement);
 
       const hemi = new THREE.HemisphereLight(0xFFFFFF, 0xA6B0B3, 0.9);
@@ -2930,18 +3243,157 @@
       sc.left = -46; sc.right = 46; sc.top = 64; sc.bottom = -26; sc.near = 5; sc.far = 170;
       escena.add(sol);
 
+      // Cielo: esfera invertida enorme (centrada en el origen, no en la
+      // cámara — el radio orbital de la cámara es un orden de magnitud menor
+      // que el radio de la esfera, así que la aproximación no se nota) con un
+      // shader que pinta un degrade cenit/horizonte + nubes procedurales +
+      // resplandor de sol, todo por código (sin texturas/HDRI: el CSP solo
+      // permite scripts de cdnjs). Los uniforms los actualiza aplicarCielo()
+      // cada vez que se mueve el sol — ver sección SOL más abajo. En
+      // pantallas chicas se usa una sola octava de ruido para las nubes,
+      // más liviano.
+      // Calidad completa (domain warp + capa de detalle) en pantallas
+      // grandes; en chicas se cae a un solo fbm de 2 octavas — el warp
+      // implica ~3 llamadas a fbm en vez de 1, no vale la pena en un celular
+      // de gama baja.
+      const CIELO_ALTA = innerWidth >= 760;
+      const materialCielo = new THREE.ShaderMaterial({
+        uniforms: {
+          uZenith: { value: new THREE.Color(0x8FA6B3) },
+          uHorizon: { value: new THREE.Color(0xE7EAEA) },
+          uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+          uSunGlow: { value: new THREE.Color(0xFFF6E8) },
+          uGlowStrength: { value: 1 },
+          uTime: { value: 0 },
+        },
+        vertexShader: `
+          varying vec3 vDir;
+          void main() {
+            vDir = normalize(position);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          #define OCTAVAS ${CIELO_ALTA ? 3 : 2}
+          ${CIELO_ALTA ? '#define NUBES_DETALLADAS' : ''}
+          uniform vec3 uZenith, uHorizon, uSunDir, uSunGlow;
+          uniform float uGlowStrength, uTime;
+          varying vec3 vDir;
+          float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float ruido(vec2 p) {
+            vec2 i = floor(p), f = fract(p);
+            float a = hash(i), b = hash(i + vec2(1.0, 0.0)), c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));
+            vec2 u = f * f * (3.0 - 2.0 * f);
+            return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+          }
+          float fbm(vec2 p) {
+            float v = 0.0, amp = 0.5, ampTotal = 0.0;
+            for (int i = 0; i < OCTAVAS; i++) { v += amp * ruido(p); ampTotal += amp; p *= 2.02; amp *= 0.5; }
+            // Sin normalizar, v nunca pasa de ~0.75 con 2 octavas (0.5+0.25) y
+            // el smoothstep de las nubes de abajo casi nunca se dispara:
+            // quedan invisibles. Con esto v vuelve a cubrir 0-1.
+            return v / ampTotal;
+          }
+          void main() {
+            vec3 dir = normalize(vDir);
+            float h = clamp(dir.y, 0.0, 1.0);
+            vec3 cielo = mix(uHorizon, uZenith, pow(h, 0.55));
+
+            // Nubes: proyección esférica (longitud/altura), no sobre un
+            // plano de piso — probado contra la cámara real de esta escena:
+            // proyectar sobre un plano colapsa casi a un degradé 1D cuando
+            // el cielo visible es una franja angosta cerca del horizonte
+            // (el caso normal acá, cámara mirando el edificio desde arriba),
+            // porque el movimiento horizontal de cámara mueve mucho la
+            // proyección y el vertical casi nada. atan()/dir.y no tienen ese
+            // problema y tampoco dividen por nada (sin riesgo de NaN).
+            float lon = atan(dir.z, dir.x);
+            vec2 uv = vec2(lon * 2.0 + uTime * 0.02, dir.y * 7.0);
+            #ifdef NUBES_DETALLADAS
+              // Domain warp: se distorsiona la muestra con otro ruido antes
+              // de leer el fbm principal — sin esto las nubes salían como
+              // manchas redondeadas y borrosas (fue justo el reclamo:
+              // "nubes muy abstractas"). Esto da siluetas más recortadas,
+              // con una capa extra de alta frecuencia para el detalle fino
+              // del borde.
+              vec2 warp = vec2(fbm(uv * 0.5 + 37.0), fbm(uv * 0.5 + 59.0));
+              float base = fbm(uv + warp * 0.9);
+              float detalle = fbm(uv * 3.3 + 11.0);
+              float n = base * 0.75 + detalle * 0.25;
+            #else
+              float n = fbm(uv);
+            #endif
+            // El corte de abajo no es "no aparecen bajo el horizonte
+            // geométrico" (dir.y<0 todavía es cielo visible desde una
+            // cámara elevada mirando hacia abajo, ver CLAUDE.md de cámara) —
+            // es sólo para no pintar nubes en el hemisferio de la esfera que
+            // nunca se ve (mirando derecho para abajo).
+            float cobertura = smoothstep(0.34, 0.46, n);
+            float nubes = cobertura * smoothstep(-0.9, -0.6, dir.y);
+
+            // Las nubes se iluminan del lado del sol (más cálidas/claras
+            // cerca de uSunDir) y quedan más oscuras del lado contrario —
+            // sin esto el cielo se leía plano y no quedaba claro de dónde
+            // venía la luz (otro reclamo directo).
+            float luzNube = pow(max(dot(dir, uSunDir), -0.5) * 0.5 + 0.5, 1.6);
+            vec3 nubeSombra = mix(uZenith, vec3(0.35, 0.38, 0.44), 0.55);
+            vec3 nubeLuz = mix(uSunGlow, vec3(1.0, 0.97, 0.92), 0.3);
+            vec3 colorNube = mix(nubeSombra, nubeLuz, luzNube);
+            cielo = mix(cielo, colorNube, nubes);
+
+            // Resplandor del sol: halo ancho + núcleo chico y brillante
+            // encima, para que se note claramente de dónde viene la luz sin
+            // llegar a un disco duro. clamp al final evita que el halo queme
+            // a blanco puro un cuarto de pantalla si el sol queda cerca del
+            // centro de cámara.
+            float sunDot = max(dot(dir, uSunDir), 0.0);
+            float halo = pow(sunDot, 26.0) * 0.18;
+            float nucleo = pow(sunDot, 300.0) * 1.2;
+            cielo += uSunGlow * (halo + nucleo) * uGlowStrength;
+
+            gl_FragColor = vec4(clamp(cielo, 0.0, 1.0), 1.0);
+          }
+        `,
+        side: THREE.BackSide,
+        depthWrite: false,
+        fog: false,
+      });
+      const cielo = new THREE.Mesh(new THREE.SphereGeometry(500, 24, 16), materialCielo);
+      escena.add(cielo);
+
+      // Disco de base: textura de canto generada en canvas (gradiente claro→oscuro
+      // de arriba hacia abajo) para que el borde se lea como una placa apoyada y
+      // no como un círculo pintado — hace también de "sombra de contacto" barata
+      // (sin geometría ni pasada de render extra) que despega el disco del cielo
+      // de fondo. La tapa usa el tono de "terreno", que las zonas de calle/vereda
+      // de abajo tapan donde corresponde.
+      function crearTexturaCanto() {
+        const cv = document.createElement('canvas');
+        cv.width = 4; cv.height = 64;
+        const ctx = cv.getContext('2d');
+        const grad = ctx.createLinearGradient(0, 0, 0, cv.height);
+        grad.addColorStop(0, '#B3B9BB');
+        grad.addColorStop(1, '#7C8385');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        return new THREE.CanvasTexture(cv);
+      }
+      const matCanto = new THREE.MeshStandardMaterial({ map: crearTexturaCanto(), roughness: 0.95 });
+      const matTerreno = new THREE.MeshStandardMaterial({ color: 0xA9AF9E, roughness: 0.95 });
       const base = new THREE.Mesh(
         new THREE.CylinderGeometry(30, 30, 1.2, 72),
-        new THREE.MeshStandardMaterial({ color: 0xD1D6D8, roughness: 0.95 })
+        [matCanto, matTerreno, matTerreno]
       );
       base.position.y = -0.6;
       base.receiveShadow = true;
       escena.add(base);
 
       // Calle: franja de asfalto frente al edificio (lado "frente", ver NOMBRE_CALLE
-      // más abajo) con línea de carril discontinua, para que quede claro a simple
-      // vista que ese lado da a una vía vehicular y no es un lado cualquiera.
+      // más abajo), vereda elevada con cordón (escalón real, no pintado) y línea de
+      // carril discontinua + bordes, para que quede claro a simple vista que ese
+      // lado da a una vía vehicular y no es un lado cualquiera.
       const ANCHO_CALLE = calleCfg.ancho ?? 8, LARGO_CALLE = calleCfg.largo ?? 44, VEREDA = calleCfg.vereda ?? 2;
+      const VEREDA_ALTO = calleCfg.vereda_alto ?? 0.12;
       const BORDE_FRENTE = -(SEP_Z + PROF / 2);
       const Z_CALLE = BORDE_FRENTE - VEREDA - ANCHO_CALLE / 2;
 
@@ -2954,13 +3406,19 @@
       calle.receiveShadow = true;
       escena.add(calle);
 
-      const cordon = new THREE.Mesh(
-        new THREE.PlaneGeometry(LARGO_CALLE, 0.25),
-        new THREE.MeshStandardMaterial({ color: 0xF2F3F4, roughness: 0.8 })
+      // Vereda + cordón en una sola malla: el volumen del box ES el escalón (cara
+      // de arriba = vereda, cara que mira a la calzada = cordón, vía material por
+      // cara) — así la diferencia de altura proyecta sombra real, no un color
+      // plano fingiéndola.
+      const matVereda = new THREE.MeshStandardMaterial({ color: 0xCBCFCF, roughness: 0.9 });
+      const matCordonCara = new THREE.MeshStandardMaterial({ color: 0xF2F3F4, roughness: 0.8 });
+      const vereda = new THREE.Mesh(
+        new THREE.BoxGeometry(LARGO_CALLE, VEREDA_ALTO, VEREDA),
+        [matVereda, matVereda, matVereda, matVereda, matVereda, matCordonCara]
       );
-      cordon.rotation.x = -Math.PI / 2;
-      cordon.position.set(0, 0.021, BORDE_FRENTE - VEREDA);
-      escena.add(cordon);
+      vereda.position.set(0, VEREDA_ALTO / 2, BORDE_FRENTE - VEREDA / 2);
+      vereda.castShadow = vereda.receiveShadow = true;
+      escena.add(vereda);
 
       const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
       const matGuion = new THREE.MeshStandardMaterial({ color: 0xEDEFEF, roughness: 0.6 });
@@ -2970,6 +3428,13 @@
         guion.position.set(x, 0.03, Z_CALLE);
         escena.add(guion);
       }
+
+      // Línea de borde del lado opuesto a la vereda (el que no tiene cordón) —
+      // continua, no discontinua, como el borde real de una calzada.
+      const bordeCalzada = new THREE.Mesh(new THREE.PlaneGeometry(LARGO_CALLE, 0.12), matGuion);
+      bordeCalzada.rotation.x = -Math.PI / 2;
+      bordeCalzada.position.set(0, 0.03, Z_CALLE - ANCHO_CALLE / 2 + 0.15);
+      escena.add(bordeCalzada);
 
       /* ============================================================
          3. TORRE
@@ -3070,42 +3535,117 @@
       ocludoresSol.push(...cajas);
       const ALTURA = (PISOS + 1) * PASO; // pisos + PB
 
-      // Cartel de calle: nombre de la vía + ícono de ubicación, parado junto a la
-      // vereda como un cartel real. Es un sprite (siempre mirando a cámara)
-      // anclado a la posición de la calle en el mundo 3D a propósito: tiene que
-      // quedar SIEMPRE sobre la carretera del frente, sin importar cómo se
-      // oriente la cámara. Es clickeable (raycasting, ver BUCLE más abajo) y abre
-      // Google Maps en esa dirección — el ícono en el cartel es la pista visual
-      // de que se puede tocar.
-      // geometria.calle_nombre permite fijar el nombre a mano; si no está, se
-      // aproxima tomando la dirección hasta el primer número
-      // ("Bulevar 123, Barrio" → "Bulevar").
-      function crearCartelCalle(texto) {
+      // Cartel de calle: objeto de la propia maqueta, apoyado sobre la
+      // calzada — no una superposición HTML. Un plano con una textura de
+      // canvas 2D (pill + pin + texto + sombra falsa ya dibujada adentro),
+      // rotado como cualquier otra cosa de la escena. Geometría fija, no se
+      // actualiza en el BUCLE: gira con la cámara si alguien orbita del
+      // todo alrededor del edificio (es, en los hechos, texto pintado sobre
+      // el piso), pero se diseñó para leerse bien desde el ángulo con el
+      // que arranca la página. No participa del raycasting de clics (nunca
+      // se agrega a `cajas`).
+      //
+      // geometria.calle_nombre permite fijar el nombre a mano. Si no está, se
+      // extrae de projects.direccion: se corta en la primera coma (separa el
+      // barrio), se saca un número que venga adelante o atrás, y si lo que
+      // queda tiene pinta de esquina ("Calle A esquina Calle B", ambiguo sobre
+      // cuál lado es el frente) o quedó vacío, no se muestra nada — preferible
+      // ningún cartel a uno mal recortado.
+      function extraerNombreCalle(direccion) {
+        if (!direccion) return null;
+        let s = direccion.trim();
+        const coma = s.indexOf(',');
+        if (coma !== -1) s = s.slice(0, coma);
+        s = s.replace(/^\s*\d+\s*/, '').replace(/\s*\d.*$/, '').trim();
+        if (/\besq\.?\b|\besquina\b/i.test(s)) return null;
+        return s.length >= 3 ? s : null;
+      }
+      const NOMBRE_CALLE = geo.calle_nombre || extraerNombreCalle(proyecto.direccion);
+      // Del otro lado de la calzada respecto del edificio, sobre el pasto,
+      // cerca del borde del disco — no pegado al cordón de la vereda del
+      // edificio. Así queda en primer plano respecto de la torre desde la
+      // cámara por defecto, y su cara (mirando hacia afuera, lejos del
+      // edificio) encara hacia el punto de vista en vez de hacia la fachada.
+      // Declarado acá (y no adentro del if de abajo) porque el árbol más
+      // cercano tiene que esquivarlo aunque el cálculo del cartel en sí sea
+      // condicional a NOMBRE_CALLE.
+      const CARTEL_X = -(LARGO_CALLE / 2 - 4);
+      // Sobre la calzada misma (no cruzando al pasto del otro lado) — más
+      // cerca del borde lejano que del cordón de la vereda, para no quedar
+      // pegado a la línea de auto/vereda del lado del edificio.
+      const CARTEL_Z = Z_CALLE - ANCHO_CALLE * 0.22;
+      // Declarado acá (no con `const` adentro del if de abajo) porque
+      // INTERACCIÓN/BUCLE más abajo necesitan poder chequear "¿hay cartel?"
+      // (sigue siendo null si no hay NOMBRE_CALLE — nunca truena, solo no
+      // hace nada clickeable).
+      let cartelCalle = null;
+
+      if (NOMBRE_CALLE) {
+        // Canvas bien sobreescalado (px por metro final, no un tamaño fijo)
+        // para que el texto se vea nítido en escorzo — el ángulo en que
+        // siempre se lo va a mirar, nunca de frente.
+        const PX_POR_METRO = 340;
+        const ALTO_CARTEL_M = ANCHO_CALLE * 0.28;
+
+        function trazarPildora(c, x, y, w, h, r) {
+          c.beginPath();
+          c.moveTo(x + r, y);
+          c.arcTo(x + w, y, x + w, y + r, r);
+          c.arcTo(x + w, y + h, x + w - r, y + h, r);
+          c.arcTo(x, y + h, x, y + h - r, r);
+          c.arcTo(x, y, x + r, y, r);
+          c.closePath();
+        }
+
         const cv = document.createElement('canvas');
         const ctx = cv.getContext('2d');
-        const fuente = '600 44px Inter, "Helvetica Neue", Arial, sans-serif';
-        ctx.font = fuente;
-        const anchoTexto = ctx.measureText(texto).width;
-        const iconoR = 15, iconoHueco = 24; // radio del pin + separación hasta el texto
-        cv.width = iconoR * 2 + iconoHueco + anchoTexto + 66;
-        cv.height = 84;
-        ctx.font = fuente;
+        const alto = Math.round(ALTO_CARTEL_M * PX_POR_METRO);
+        const padH = alto * 0.62;
+        const iconoR = alto * 0.19, iconoHueco = alto * 0.28;
+        ctx.font = '500 ' + Math.round(alto * 0.4) + 'px Inter, "Helvetica Neue", Arial, sans-serif';
+        const anchoTexto = ctx.measureText(NOMBRE_CALLE).width;
+        const ancho = Math.round(padH * 2 + iconoR * 2 + iconoHueco + anchoTexto);
+        cv.width = ancho;
+        cv.height = alto;
+        ctx.font = '500 ' + Math.round(alto * 0.4) + 'px Inter, "Helvetica Neue", Arial, sans-serif';
         ctx.textBaseline = 'middle';
-        ctx.textAlign = 'center';
-        const r = cv.height / 2;
-        ctx.fillStyle = 'rgba(26,33,36,.88)';
-        ctx.beginPath();
-        ctx.moveTo(r, 0);
-        ctx.arcTo(cv.width, 0, cv.width, r, r);
-        ctx.arcTo(cv.width, cv.height, cv.width - r, cv.height, r);
-        ctx.arcTo(0, cv.height, 0, r, r);
-        ctx.arcTo(0, 0, r, 0, r);
-        ctx.closePath();
+
+        // Todo el dibujo de acá para abajo queda boca abajo a pedido (pin y
+        // texto invertidos) — se hace acá, en el canvas 2D, en vez de con
+        // un giro de 180° en 3D (rotateOnWorldAxis) como se probó antes,
+        // porque ese giro en 3D también invertía de qué lado se levanta la
+        // inclinación (ver INCLINACION_CARTEL más abajo): quedaba siempre
+        // levantado del lado contrario al edificio, sin forma de separar
+        // "para dónde lee" de "para dónde se levanta" usando una sola
+        // rotación. Achicando el problema al 2D, la orientación 3D del
+        // cartel queda intacta (se levanta del lado del edificio) y esto
+        // solo cambia los píxeles impresos en la píldora.
+        ctx.translate(ancho, alto);
+        ctx.rotate(Math.PI);
+
+        // Sombra de contacto: un óvalo difuso corrido hacia abajo-y-al-costado,
+        // no un box-shadow — así se lee como apoyado sobre el asfalto, no
+        // flotando, sin depender de sombras dinámicas de escena (ver más
+        // abajo por qué el material del plano es no-lit).
+        ctx.save();
+        ctx.filter = 'blur(' + Math.round(alto * 0.08) + 'px)';
+        ctx.fillStyle = 'rgba(0,0,0,.45)';
+        const rSombra = alto / 2;
+        const offX = alto * 0.05, offY = alto * 0.09;
+        trazarPildora(ctx, offX, offY, ancho, alto, rSombra);
+        ctx.fill();
+        ctx.restore();
+
+        trazarPildora(ctx, 0, 0, ancho, alto, alto / 2);
+        ctx.fillStyle = 'rgba(41,44,46,.92)';
         ctx.fill();
 
-        // Pin de ubicación (círculo + punta + agujero central "recortado" con
-        // destination-out, para que se vea hueco como un ícono de mapa real).
-        const cx = 24 + iconoR, cy = cv.height / 2;
+        // Pin de ubicación: mismo trazo que el ícono del panel (círculo +
+        // punta + agujero recortado), en blanco. Va del lado izquierdo de
+        // la píldora y el texto lo sigue hacia la derecha — orden natural
+        // (ícono, después el nombre), como en la referencia que pasó el
+        // cliente vista desde arriba.
+        const cx = padH * 0.55 + iconoR, cy = alto / 2;
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.arc(cx, cy - iconoR * 0.15, iconoR, 0, Math.PI * 2);
@@ -3122,31 +3662,207 @@
         ctx.fill();
         ctx.restore();
 
-        ctx.fillStyle = '#fff';
-        ctx.fillText(texto, cx + iconoR + iconoHueco + anchoTexto / 2, cv.height / 2 + 2);
+        ctx.fillStyle = '#f7f7f7';
+        ctx.fillText(NOMBRE_CALLE, cx + iconoR + iconoHueco, cy + alto * 0.02);
 
-        const tex = new THREE.CanvasTexture(cv);
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: tex, transparent: true, depthWrite: false, depthTest: true, sizeAttenuation: true,
-        }));
-        const escalaPx = 0.026;
-        sprite.scale.set(cv.width * escalaPx, cv.height * escalaPx, 1);
-        return sprite;
+        const texCartelCalle = new THREE.CanvasTexture(cv);
+        texCartelCalle.anisotropy = render.capabilities.getMaxAnisotropy();
+
+        // Geometría con el borde de apoyo en y=0 (en vez de centrada, que es
+        // el default de PlaneGeometry) para que el `rotation.x` de abajo
+        // haga bisagra sobre ese borde — el que toca la calzada.
+        const anchoCartelM = ALTO_CARTEL_M * (ancho / alto);
+        const geoCartelCalle = new THREE.PlaneGeometry(anchoCartelM, ALTO_CARTEL_M);
+        geoCartelCalle.translate(0, -ALTO_CARTEL_M / 2, 0);
+
+        // Inclinado, no acostado — subido de 12° a 25° a pedido, y siempre
+        // levantado del lado del edificio (el signo de abajo). Este es el
+        // techo real: se probó 26°/27°/28° y en los tres ya se ve de canto
+        // desde la cámara inicial y no se lee nada — 25° es lo más alto que
+        // se sostiene legible. El
+        // "girado 180°" que se ve en pantalla (pin y texto invertidos)
+        // queda resuelto arriba, en el canvas 2D — no acá — así esta
+        // rotación no tiene que pelear con esa otra a la vez. `side:
+        // FrontSide` explícito — con DoubleSide se vería el dorso (texto en
+        // espejo) mirando hacia el edificio, que es justo el lado que
+        // tiene que quedar vacío.
+        const INCLINACION_CARTEL = THREE.MathUtils.degToRad(25);
+        cartelCalle = new THREE.Mesh(
+          geoCartelCalle,
+          new THREE.MeshBasicMaterial({
+            map: texCartelCalle, transparent: true, side: THREE.FrontSide,
+            polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+          })
+        );
+        cartelCalle.rotation.x = -INCLINACION_CARTEL - Math.PI / 2;
+        // Corrido hacia el borde del disco (mismo costado que ya despejaba el
+        // rayo cámara→cartel de la propia torre, ver debajo) y apoyado unos
+        // milímetros sobre la calzada — el polygonOffset de arriba hace el
+        // resto del trabajo anti-parpadeo a cámara rasante.
+        cartelCalle.position.set(CARTEL_X, 0.035, CARTEL_Z);
+        // Clickeable — abre Google Maps con la dirección del proyecto (no
+        // solo el nombre de la calle, para no ambigüar con otra ciudad).
+        // El hover/click en sí vive en INTERACCIÓN/BUCLE más abajo
+        // (sobreCalle), este objeto solo lleva el dato que usan.
+        const consultaMapaCalle = [proyecto.direccion, proyecto.ciudad, proyecto.pais].filter(Boolean).join(', ') || NOMBRE_CALLE;
+        cartelCalle.userData.mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(consultaMapaCalle);
+        escena.add(cartelCalle);
+      }
+      // Arbolado y autos: contexto urbano, deliberadamente apagado para no
+      // competir con los colores de estado de las unidades. Semilla
+      // determinística (hash del nombre del proyecto) para que la disposición
+      // no cambie entre recargas — árboles que "saltan" en cada visita se leen
+      // como un bug, no como variedad.
+      function hashTexto(t) {
+        let h = 2166136261;
+        for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return h >>> 0;
+      }
+      function prngSemilla(semilla) {
+        return function () {
+          semilla |= 0; semilla = (semilla + 0x6D2B79F5) | 0;
+          let t = Math.imul(semilla ^ (semilla >>> 15), 1 | semilla);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+      const azar = prngSemilla(hashTexto(proyecto.nombre || 'rosso'));
+
+      // Posiciones de árbol: una fila pegada al cordón (sobre la vereda, y0 =
+      // VEREDA_ALTO) y una segunda, más salteada, sobre el pasto del otro lado
+      // de la calzada (y0 = 0) — separación regular con jitter para que no se
+      // vea una grilla, y un filtro final por radio para no salirse del disco.
+      // Altura de copa acotada (ver más abajo) para que ningún árbol tape una
+      // unidad de piso 1 (~3.3m de altura de piso).
+      let posicionesArbol = [];
+      const margenX = 2.5;
+      for (let x = -LARGO_CALLE / 2 + margenX; x < LARGO_CALLE / 2 - margenX; x += 3.2 + azar() * 1.4) {
+        posicionesArbol.push({
+          x: x + (azar() - 0.5) * 0.6,
+          z: BORDE_FRENTE - VEREDA + 0.4 + (azar() - 0.5) * 0.3,
+          y0: VEREDA_ALTO,
+          s: 0.8 + azar() * 0.25,
+        });
+      }
+      const zPasto = Z_CALLE - ANCHO_CALLE / 2;
+      for (let x = -LARGO_CALLE / 2 + margenX * 1.6; x < LARGO_CALLE / 2 - margenX * 1.6; x += 5 + azar() * 2.5) {
+        if (azar() < 0.5) continue; // salteado, no una segunda fila completa
+        posicionesArbol.push({
+          x: x + (azar() - 0.5) * 1.2,
+          z: zPasto - 1.5 - azar() * 3,
+          y0: 0,
+          s: 0.8 + azar() * 0.25,
+        });
+      }
+      posicionesArbol = posicionesArbol.filter(p => p.x * p.x + p.z * p.z <= 27 * 27);
+      // El cartel, inclinado, ocupa más espacio real que un punto — un árbol
+      // pegado a la fila del cordón caía justo delante y lo tapaba a media
+      // altura. 3.2m de radio de exclusión (el cartel mide ~2m de alto ya
+      // inclinado) alcanza para despejarlo sin abrir un hueco notorio en la
+      // hilera de árboles.
+      if (NOMBRE_CALLE) {
+        posicionesArbol = posicionesArbol.filter(p =>
+          (p.x - CARTEL_X) ** 2 + (p.z - CARTEL_Z) ** 2 > 3.2 * 3.2);
+      }
+      // Pantallas chicas: la mitad de los árboles y sin sombra propia (más
+      // abajo, castShadow = CIELO_ALTA) — el edificio ya es el grueso del costo
+      // de sombra, esto es para no sumarle nada en celular.
+      if (!CIELO_ALTA) posicionesArbol = posicionesArbol.filter((_, i) => i % 2 === 0);
+
+      if (posicionesArbol.length) {
+        const geoTronco = new THREE.CylinderGeometry(0.08, 0.12, 1.6, 6);
+        const matTronco = new THREE.MeshStandardMaterial({ color: 0x8A7B6C, roughness: 0.9 });
+        const meshTroncos = new THREE.InstancedMesh(geoTronco, matTronco, posicionesArbol.length);
+        meshTroncos.castShadow = CIELO_ALTA;
+        meshTroncos.receiveShadow = true;
+
+        // Copa = 2-3 lóbulos irregulares superpuestos en vez de una esfera
+        // única — sin librerías de merge de geometría (three.js r128 nomás,
+        // sin examples/jsm), cada lóbulo es su propio InstancedMesh con un
+        // offset local fijo, combinado con la matriz del árbol en el loop de
+        // abajo. 3-4 draw calls en total para todos los árboles del proyecto.
+        const lobulos = [
+          { geo: new THREE.IcosahedronGeometry(0.75, 0), color: 0x8FA083, dx: 0, dy: 2.0, dz: 0 },
+          { geo: new THREE.IcosahedronGeometry(0.6, 0), color: 0x7C9070, dx: 0.45, dy: 1.85, dz: 0.25 },
+          { geo: new THREE.IcosahedronGeometry(0.55, 0), color: 0x9BAE8E, dx: -0.4, dy: 1.9, dz: -0.3 },
+        ];
+        const meshesCopa = lobulos.map(l => {
+          const m = new THREE.InstancedMesh(l.geo,
+            new THREE.MeshStandardMaterial({ color: l.color, roughness: 0.85 }), posicionesArbol.length);
+          m.castShadow = CIELO_ALTA;
+          return m;
+        });
+
+        const dummy = new THREE.Object3D();
+        posicionesArbol.forEach((p, i) => {
+          dummy.position.set(p.x, p.y0 + 0.8 * p.s, p.z);
+          dummy.rotation.y = azar() * Math.PI * 2;
+          dummy.scale.setScalar(p.s);
+          dummy.updateMatrix();
+          meshTroncos.setMatrixAt(i, dummy.matrix);
+
+          lobulos.forEach((l, li) => {
+            dummy.position.set(p.x + l.dx * p.s, p.y0 + l.dy * p.s, p.z + l.dz * p.s);
+            dummy.rotation.y = azar() * Math.PI * 2;
+            dummy.scale.setScalar(p.s);
+            dummy.updateMatrix();
+            meshesCopa[li].setMatrixAt(i, dummy.matrix);
+          });
+        });
+        meshTroncos.instanceMatrix.needsUpdate = true;
+        meshesCopa.forEach(m => m.instanceMatrix.needsUpdate = true);
+        escena.add(meshTroncos, ...meshesCopa);
       }
 
-      const NOMBRE_CALLE = geo.calle_nombre || (proyecto.direccion || '').replace(/\s*\d.*$/, '') || proyecto.nombre;
-      const cartelCalle = crearCartelCalle(NOMBRE_CALLE);
-      cartelCalle.position.set(LARGO_CALLE / 2 - 4, 1.7, BORDE_FRENTE - VEREDA);
-      const consultaMapaCalle = [proyecto.direccion, proyecto.ciudad, proyecto.pais].filter(Boolean).join(', ') || NOMBRE_CALLE;
-      cartelCalle.userData.mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(consultaMapaCalle);
-      escena.add(cartelCalle);
+      // Autos: solo aportan escala, así que van quietos (sin animación) y en
+      // colores neutros y desaturados para no competir con el verde/ámbar/rojo
+      // de estado. Pocos (2-3) — no justifica InstancedMesh.
+      function crearAuto(colorCarroceria) {
+        const grupo = new THREE.Group();
+        const cuerpo = new THREE.Mesh(
+          new THREE.BoxGeometry(4.0, 0.55, 1.8),
+          new THREE.MeshStandardMaterial({ color: colorCarroceria, roughness: 0.5, metalness: 0.15 })
+        );
+        cuerpo.position.y = 0.35;
+        cuerpo.castShadow = cuerpo.receiveShadow = true;
+        grupo.add(cuerpo);
+
+        const cabina = new THREE.Mesh(
+          new THREE.BoxGeometry(2.0, 0.42, 1.5),
+          new THREE.MeshStandardMaterial({ color: 0x2A3033, roughness: 0.3, metalness: 0.2 })
+        );
+        cabina.position.set(-0.2, 0.83, 0);
+        cabina.castShadow = true;
+        grupo.add(cabina);
+
+        const geoRueda = new THREE.CylinderGeometry(0.28, 0.28, 0.22, 10);
+        const matRueda = new THREE.MeshStandardMaterial({ color: 0x24282A, roughness: 0.8 });
+        [[1.25, 0.85], [1.25, -0.85], [-1.25, 0.85], [-1.25, -0.85]].forEach(([x, z]) => {
+          const rueda = new THREE.Mesh(geoRueda, matRueda);
+          rueda.rotation.x = Math.PI / 2;
+          rueda.position.set(x, 0.28, z);
+          grupo.add(rueda);
+        });
+        return grupo;
+      }
+
+      [
+        { color: 0x8B9296, x: -LARGO_CALLE * 0.18, lado: 1 },
+        { color: 0xB7BCBE, x: LARGO_CALLE * 0.05, lado: -1 },
+        { color: 0x6E767A, x: LARGO_CALLE * 0.28, lado: 1 },
+      ].forEach(c => {
+        const auto = crearAuto(c.color);
+        auto.position.set(c.x, 0.02, Z_CALLE + c.lado * ANCHO_CALLE / 4);
+        auto.rotation.y = c.lado > 0 ? 0 : Math.PI;
+        escena.add(auto);
+      });
 
       /* ============================================================
          4. CÁMARA
          ============================================================ */
 
       const objetivo = new THREE.Vector3(0, ALTURA * 0.45, 0);
-      let radio = 96, theta = 0.7, phi = 1.15, arrastrando = false, ultimo = { x: 0, y: 0 }, tocado = false;
+      let radio = 96, theta = -0.7, phi = 1.15, arrastrando = false, ultimo = { x: 0, y: 0 }, tocado = false;
 
       function ubicarCamara() {
         phi = Math.max(0.18, Math.min(Math.PI / 2 + 0.16, phi));
@@ -3195,6 +3911,60 @@
         return proyecto.lat != null && proyecto.lon != null && geo.norte_grados != null;
       }
 
+      // Paleta del cielo: misma lógica de "cálido y rasante cerca del
+      // horizonte, frío arriba, gris apagado de noche" que ya usa sol.color
+      // más abajo, pero además tiene que quedar lejos del ocre de
+      // ESTADOS.reservado (#C08429) y del ladrillo de ESTADOS.vendido
+      // (#B3413A) — por eso el horizonte cálido es durazno-rosado, no ocre,
+      // y siempre más claro en luminancia que cualquiera de los 4 colores de
+      // estado (ver aplicarCielo).
+      const CIELO = {
+        zenitDia: new THREE.Color(0x8FA6B3), zenitBajo: new THREE.Color(0x7C8CA0), zenitNoche: new THREE.Color(0x232A31),
+        horizonteDia: new THREE.Color(0xE7EAEA), horizonteBajo: new THREE.Color(0xE8B99C), horizonteNoche: new THREE.Color(0x3A4450),
+      };
+
+      // La hemisférica original de esta escena era blanco puro (0xFFFFFF,
+      // l=1.0): si le copiamos el color del cielo tal cual (l~0.65-0.9),
+      // toda la luz de relleno del edificio se oscurece de golpe, no solo el
+      // cielo — es justo lo que se vio mal al probarlo. Por eso esto solo
+      // toma el MATIZ del cielo, con saturación acotada y luminancia fijada
+      // cerca del blanco: un tinte apenas perceptible, no un reemplazo de la
+      // luz.
+      function tintAmbiente(color) {
+        const hsl = { h: 0, s: 0, l: 0 };
+        color.getHSL(hsl);
+        return new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, 0.18), 0.95);
+      }
+
+      // Cielo + niebla + hemisférica a partir de la altura del sol (grados,
+      // negativa bajo el horizonte) y de la dirección/color que ya calculó
+      // aplicarSol (o el default fijo) para el DirectionalLight — así el
+      // resplandor del cielo nunca puede desalinearse de las sombras reales.
+      function aplicarCielo(altitud, dirSol, colorSol) {
+        const tDia = Math.max(0, Math.min(1, altitud / 45));
+        const tNoche = Math.max(0, Math.min(1, -altitud / 8));
+        const zenit = CIELO.zenitBajo.clone().lerp(CIELO.zenitDia, tDia).lerp(CIELO.zenitNoche, tNoche);
+        const horizonte = CIELO.horizonteBajo.clone().lerp(CIELO.horizonteDia, tDia).lerp(CIELO.horizonteNoche, tNoche);
+        const brillo = Math.max(0, Math.min(1, (altitud + 10) / 15)); // se apaga entre -10° y 5°
+
+        materialCielo.uniforms.uZenith.value.copy(zenit);
+        materialCielo.uniforms.uHorizon.value.copy(horizonte);
+        materialCielo.uniforms.uSunDir.value.copy(dirSol);
+        materialCielo.uniforms.uSunGlow.value.copy(colorSol);
+        materialCielo.uniforms.uGlowStrength.value = brillo;
+
+        escena.fog.color.copy(horizonte);
+        hemi.color.copy(tintAmbiente(horizonte.clone().lerp(zenit, 0.3)));
+      }
+
+      // Sin lat/lon/norte_grados (ver tieneNorte()) el cielo usa una
+      // posición neutra de mediodía en vez de desaparecer — mismo criterio
+      // que el resto de esta sección con solOriginal.
+      function aplicarCieloDefault() {
+        const dir = solOriginal.position.clone().sub(centroSombraSol).normalize();
+        aplicarCielo(55, dir, solOriginal.color);
+      }
+
       const solOriginal = {
         color: sol.color.clone(), intensity: sol.intensity, position: sol.position.clone(),
         hemiIntensity: hemi.intensity,
@@ -3209,6 +3979,7 @@
       const distanciaSol = radioSombraSol * 2.4;
       sol.target.position.copy(centroSombraSol);
       escena.add(sol.target);
+      aplicarCieloDefault();
 
       let solActivo = false;
       let ultimoSol = { altitud: 0, azimut: 0 };
@@ -3220,13 +3991,16 @@
         document.getElementById('sol-lectura').textContent =
           'Azimut ' + Math.round(azimut) + '° · Altura ' + Math.round(altitud) + '°';
         const avisoNoche = document.getElementById('sol-aviso-noche');
+        // Se calcula siempre, aun bajo el horizonte: aplicarCielo() la usa
+        // para el resplandor remanente del cielo (el brillo se apaga solo
+        // por uGlowStrength, no hace falta cortar la dirección acá).
+        const dir = direccionSolModelo(altitud, azimut, geo.norte_grados);
         if (altitud <= 0) {
           sol.intensity = 0;
           hemi.intensity = solOriginal.hemiIntensity;
           avisoNoche.hidden = false;
         } else {
           avisoNoche.hidden = true;
-          const dir = direccionSolModelo(altitud, azimut, geo.norte_grados);
           sol.position.copy(centroSombraSol).addScaledVector(dir, distanciaSol);
           // Cálido y rasante cerca del horizonte, blanco y vertical al
           // mediodía — la ambiente baja en la misma proporción para no
@@ -3236,6 +4010,7 @@
           sol.intensity = solOriginal.intensity * factor;
           hemi.intensity = solOriginal.hemiIntensity * factor;
         }
+        aplicarCielo(altitud, dir, sol.color);
         document.getElementById('sol-hora').style.setProperty('--sol-color', '#' + sol.color.getHexString());
         actualizarSolUnidad();
       }
@@ -3372,6 +4147,7 @@
           sc.top = solOriginal.sc.top; sc.bottom = solOriginal.sc.bottom;
           sc.near = solOriginal.sc.near; sc.far = solOriginal.sc.far;
           sc.updateProjectionMatrix();
+          aplicarCieloDefault();
           actualizarSolUnidad();
         }
       }
@@ -3980,6 +4756,7 @@
       function animar() {
         requestAnimationFrame(animar);
         if (!tocado) { theta += 0.0013; ubicarCamara(); }
+        materialCielo.uniforms.uTime.value += 0.03; // deriva lenta de nubes
 
         pisosGrupo.forEach((g, i) => {
           const d = g.userData;
@@ -4003,10 +4780,10 @@
         }
         if (sobre) { tooltip.style.left = posRaton.x + 'px'; tooltip.style.top = posRaton.y + 'px'; }
 
-        // Cartel de calle: mismo patrón de hover/tooltip que las unidades, pero
-        // sin emissive (es un sprite, no tiene material que resaltar) — solo
-        // cursor + tooltip para dejar claro que es clickeable.
-        const golpeCalle = sobre ? [] : rayo.intersectObject(cartelCalle, false);
+        // Cartel de calle: mismo patrón de hover/tooltip que las unidades,
+        // pero sin emissive que resaltar — solo cursor + tooltip para dejar
+        // claro que abre Google Maps.
+        const golpeCalle = (!sobre && cartelCalle) ? rayo.intersectObject(cartelCalle, false) : [];
         const nuevoSobreCalle = golpeCalle.length > 0;
         if (nuevoSobreCalle !== sobreCalle) {
           sobreCalle = nuevoSobreCalle;
@@ -4015,6 +4792,17 @@
           else if (!sobre) tooltip.style.opacity = 0;
         }
         if (sobreCalle) { tooltip.style.left = posRaton.x + 'px'; tooltip.style.top = posRaton.y + 'px'; }
+        // Como el material es MeshBasicMaterial (no-lit, sin emissive que
+        // resaltar como en las unidades), el feedback de hover es un
+        // agrandado suave — crece desde el borde apoyado en la calzada
+        // (el pivote del mesh, ver geoCartelCalle.translate), así que no
+        // flota ni se hunde, solo "se levanta" un poco más hacia quien
+        // pasa el mouse. Interpolado, no instantáneo, mismo estilo que el
+        // offset de pisosGrupo más arriba.
+        if (cartelCalle) {
+          const escalaCartelObjetivo = sobreCalle ? 1.1 : 1;
+          cartelCalle.scale.setScalar(cartelCalle.scale.x + (escalaCartelObjetivo - cartelCalle.scale.x) * 0.2);
+        }
 
         cajas.forEach(c => {
           const sel = elegida && c.userData.unidad.id === elegida.id;
