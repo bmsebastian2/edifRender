@@ -149,6 +149,20 @@ out of the trig automatically as long as `lat` is entered with the correct sign.
 **ROSSO has none of these three set**, so this feature does not change how ROSSO
 renders — same as any other building that doesn't opt in.
 
+## Floor selector: `projects.tiene_pb`
+
+`index.html`'s floor panel (`#pisos`) builds its row list from data instead of a
+hardcoded range (same idea as the bedroom-count filter chips): `proyecto.pisos` sets
+how many levels exist, and each level with zero units loaded
+(`UNIDADES.some(u => u.piso === p)`) renders as a disabled "Sin unidades" row instead
+of disappearing — an amenities level with no residential units (e.g. Altamira's 6th
+floor) still shows up in the list in its real position, just not as a selectable
+empty floor. The ground-floor ("PB") row is gated separately: it only renders if
+`projects.tiene_pb` is `true` or unset (`NULL` means "yes, same as every project
+before this column existed"); `false` means the building has no ground floor to
+isolate. Added by `supabase-migration-pisos.sql`, and (like `geometria`/`lat`/`lon`)
+edited directly in Supabase — no `admin.html` UI for it yet.
+
 ## Adapting this to a different building
 
 Since this file is meant to be copied into a new project for another building, the

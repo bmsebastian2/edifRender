@@ -14,6 +14,12 @@
       --verde: #2F7A68;
       --gris: #646C6E;
       --ambar: #C08429;
+      /* Azul de selección de interfaz (riel de pisos): a propósito ningún
+         verde/ámbar/rojo/gris — esos cuatro ya significan un ESTADO de
+         unidad. Un quinto color de esa familia, aunque fuera distinto,
+         competiría por lectura con el edificio a centímetros de distancia.
+         El azul no aparece en ningún otro lado del producto. */
+      --azul-sel: #2F6FA0;
     }
 
     * {
@@ -33,7 +39,8 @@
       font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
       font-size: 14px;
       line-height: 1.5;
-      -webkit-font-smoothing: antialiased
+      -webkit-font-smoothing: antialiased;
+      background-color: #FFFFFF;
     }
 
     canvas {
@@ -507,96 +514,169 @@
       border-color: var(--tinta)
     }
 
-    /* Riel de pisos: columna fija a la derecha. Con muchos pisos no entra
-     entero en alto de viewport, así que se cap-ea la altura y el resto
-     scrollea — "PISO" + TODOS quedan pegados arriba y PB pegado abajo,
-     como los extremos fijos de un panel de ascensor. */
+    /* Riel de pisos: panel propio de la misma familia visual que #cabezal-panel
+     y #filtros (papel + blur + radio + sombra), columna fija a la derecha.
+     Header (marca + control de plegar) y PB quedan fijos arriba/abajo; la
+     lista de pisos en el medio es lo único que scrollea cuando no entra
+     entera en alto de viewport — como los extremos fijos de un panel de
+     ascensor. */
     #pisos {
       position: fixed;
       right: 24px;
       top: 50%;
       transform: translateY(-50%);
       z-index: 10;
+      width: 68px;
       display: flex;
-      flex-direction: column-reverse;
-      gap: 2px;
-      max-height: min(62vh, 540px);
+      flex-direction: column;
+      max-height: min(70vh, 560px);
+      background: var(--papel);
+      border: 1px solid var(--linea);
+      border-radius: 10px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 4px 14px rgba(20, 26, 28, .10);
+      overflow: hidden;
+    }
+
+    #pisos .pisos-marca {
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 11px 8px 8px;
+      color: var(--suave);
+    }
+
+    #pisos .pisos-marca svg {
+      flex: none
+    }
+
+    #pisos .pisos-marca span {
+      font-size: 10px;
+      letter-spacing: .09em;
+      font-weight: 650;
+      text-transform: uppercase;
+    }
+
+    #pisos-header {
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 6px 0 9px;
+      border: none;
+      border-bottom: 1px solid var(--linea);
+      background: none;
+      cursor: pointer;
+      color: var(--suave);
+    }
+
+    #pisos-header:hover {
+      color: var(--tinta)
+    }
+
+    #pisos-header .chev {
+      transition: transform .2s ease
+    }
+
+    #pisos-header[aria-expanded="true"] .chev {
+      transform: rotate(180deg)
+    }
+
+    #pisos-lista {
+      flex: 1 1 auto;
+      min-height: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
       scrollbar-width: none
     }
 
-    #pisos::-webkit-scrollbar {
+    #pisos-lista::-webkit-scrollbar {
       display: none
     }
 
-    #pisos button {
-      width: 36px;
-      height: 24px;
+    #pisos.colapsado #pisos-lista,
+    #pisos.colapsado #pisos-pb {
+      display: none
+    }
+
+    .pisos-fila {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      width: 100%;
+      height: 36px;
+      flex: none;
       border: none;
+      border-top: 1px solid var(--linea);
       background: none;
       cursor: pointer;
-      color: var(--suave);
-      flex: none;
-      font-size: 12.5px;
-      font-variant-numeric: tabular-nums;
-      border-right: 2px solid transparent;
-      transition: color .15s, border-color .15s
-    }
-
-    #pisos button:hover {
-      color: var(--tinta)
-    }
-
-    #pisos button[aria-pressed="true"] {
       color: var(--tinta);
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+      transition: background-color .15s, color .15s
+    }
+
+    #pisos-lista .pisos-fila:first-child {
+      border-top: none
+    }
+
+    .pisos-fila:hover:not([disabled]) {
+      background: rgba(26, 33, 36, .06)
+    }
+
+    .pisos-fila[aria-pressed="true"] {
+      background: var(--azul-sel);
+      color: #fff;
       font-weight: 650;
-      border-right-color: var(--tinta)
+    }
+
+    .pisos-fila:focus-visible {
+      outline: 2px solid var(--tinta);
+      outline-offset: -2px;
+      z-index: 1;
+    }
+
+    .pf-count {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      color: var(--suave);
+    }
+
+    .pisos-fila[aria-pressed="true"] .pf-count {
+      color: rgba(255, 255, 255, .75)
     }
 
     /* Piso sin construir todavía (ver pisosConstruidos en el script): solo
      atenúa, nunca un color — para no inventar un segundo lenguaje de color
-     que compita con ESTADOS (disponible/reservada/vendida). */
-    #pisos button.piso-sin-construir {
+     que compita con ESTADOS (disponible/reservada/vendida). Sigue siendo
+     seleccionable (va a tener unidades más adelante). */
+    .pisos-fila.piso-sin-construir {
       opacity: .45
     }
 
-    #pisos .pisos-fijo {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      background: var(--fondo);
-      flex: none;
-      display: flex;
-      flex-direction: column
-    }
-
-    #pisos .pisos-etiqueta {
-      font-size: 10.5px;
-      letter-spacing: .08em;
+    /* Nivel sin unidades cargadas (p.ej. un piso de amenities): a diferencia
+     de "sin construir" esto nunca va a tener unidades, así que no es un
+     piso seleccionable vacío — deshabilitado y fuera de la navegación por
+     teclado (ver keydown en el script). */
+    .pisos-fila--amenities {
       color: var(--suave);
-      text-align: right;
-      padding: 0 8px 6px;
-      margin-bottom: 4px;
-      border-bottom: 1px solid var(--linea);
-      pointer-events: none
-    }
-
-    #pisos .pisos-todos {
-      font-size: 9.5px;
+      font-size: 10px;
       letter-spacing: .02em;
-      font-weight: 650;
-      height: auto;
-      white-space: nowrap;
-      padding: 2px 0 8px;
-      margin-top: 2px
+      opacity: .5;
+      cursor: default;
     }
 
-    #pisos .pisos-pb {
-      position: sticky;
-      bottom: 0;
-      z-index: 2;
-      background: var(--fondo)
+    #pisos-pb {
+      flex: none;
+      border-top: 1px solid var(--linea);
     }
 
     #pisos-backdrop {
@@ -617,7 +697,7 @@
 
     #piso-info {
       position: fixed;
-      right: 70px;
+      right: 102px;
       top: 50%;
       transform: translateY(-50%) translateX(6px);
       z-index: 10;
@@ -2052,18 +2132,15 @@
         left: 0;
         transform: translateY(100%);
         z-index: 20;
-        max-height: min(64vh, 480px);
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 8px;
+        width: auto;
+        max-height: min(72vh, 560px);
+        display: flex;
+        flex-direction: column;
         background: #fff;
         border-top: 1px solid var(--linea);
         border-radius: 14px 14px 0 0;
         box-shadow: 0 -10px 30px rgba(20, 26, 28, .16);
-        padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
+        padding-top: 18px;
         transition: transform .28s cubic-bezier(.22, .61, .36, 1);
       }
 
@@ -2083,58 +2160,31 @@
         background: var(--linea);
       }
 
-      #pisos .pisos-fijo {
-        grid-column: 1/-1;
-        order: -1;
-        position: static;
-        background: none;
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 6px 2px 10px;
-        margin-bottom: 2px;
-        border-bottom: 1px solid var(--linea);
+      /* El plegado interno (#pisos-header) queda oculto en mobile: abrir/cerrar
+       la hoja entera ya cumple esa misma función desde #pisos-trigger, en el
+       header de arriba — un segundo control para lo mismo, adentro de la
+       hoja, sería redundante. Acá la marca queda como rótulo fijo, no
+       clickeable. */
+      #pisos .pisos-marca {
+        padding: 0 18px 10px;
       }
 
-      #pisos .pisos-etiqueta {
-        display: block;
-        padding: 0;
-        margin: 0;
-        border: none;
-        font-size: 11px
+      #pisos-header {
+        display: none
       }
 
-      #pisos .pisos-todos {
-        height: 34px;
-        padding: 0 12px;
-        white-space: nowrap;
-        margin: 0;
-        border: 1px solid var(--linea);
-        border-radius: 4px;
-        background: var(--papel)
+      #pisos-lista {
+        padding: 0 18px;
+        border-top: 1px solid var(--linea);
       }
 
-      #pisos button {
-        width: auto;
-        height: 40px;
-        padding: 0 6px;
-        flex: none;
-        border: 1px solid var(--linea);
-        border-radius: 6px;
-        background: var(--papel);
+      .pisos-fila {
+        padding: 0 2px;
       }
 
-      #pisos button[aria-pressed="true"] {
-        color: #fff;
-        background: var(--tinta);
-        border-color: var(--tinta);
-        border-right-color: var(--tinta);
-      }
-
-      #pisos .pisos-pb {
-        position: static;
-        grid-column: span 1
+      #pisos-pb {
+        margin: 0 18px calc(16px + env(safe-area-inset-bottom));
+        padding-top: 2px;
       }
 
       /* Tarjeta de info del piso: en desktop flota al lado del riel; acá
@@ -2370,7 +2420,26 @@
      #filtros al mismo z-index) y #filtros terminaría pintando encima pase
      lo que pase con el z-index interno del riel. -->
   <div id="pisos-backdrop"></div>
-  <nav id="pisos" aria-label="Pisos"></nav>
+  <nav id="pisos" aria-label="Pisos">
+    <div class="pisos-marca">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="4.2"></rect>
+        <rect x="4" y="9.9" width="16" height="4.2"></rect>
+        <rect x="4" y="15.8" width="16" height="4.2"></rect>
+      </svg>
+      <span>Pisos</span>
+    </div>
+    <button id="pisos-header" type="button" aria-expanded="true" aria-controls="pisos-lista"
+      aria-label="Plegar panel de pisos">
+      <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+    </button>
+    <div id="pisos-lista"></div>
+    <button id="pisos-pb" class="pisos-fila" type="button" hidden></button>
+  </nav>
 
   <a id="admin-link" href="admin.html">Panel interno</a>
 
@@ -3209,28 +3278,42 @@
       const ORIGEN_PLACA = { x: 0, z: 0 };
 
       const escena = new THREE.Scene();
-      // Color plano de reserva nomás por si algo falla al compilar el shader
-      // del cielo (ver CIELO más abajo) — en uso normal la esfera del cielo
-      // tapa esto siempre. El color real de niebla/fondo lo pone
-      // aplicarCielo() en cada actualización del sol.
-      escena.background = new THREE.Color(0xE7EAEA);
-      escena.fog = new THREE.Fog(0xE7EAEA, 130, 280);
+      // Sin scene.background: el fondo es blanco liso, puesto por CSS en el
+      // <body> (ver <style>), no un color ni una textura de three.js. Si acá
+      // se pusiera un Color, el clear del renderer lo taparía en cada frame
+      // — el canvas tiene que quedar transparente para que se vea. El color
+      // de niebla es blanco fijo (ver NIEBLA_COLOR), a tono con ese fondo.
+      escena.fog = new THREE.Fog(0xFFFFFF, 130, 280);
+
+      // Grupo que gira en el lugar (ver GIRO en CÁMARA): el edificio + su
+      // plataforma/disco + calle/vereda/árboles/autos/cartel + el sol — todo
+      // el sitio original, como un conjunto rígido. Lo único que NO va
+      // acá es "piso" (el degradado blanco nuevo, más abajo): ese queda fijo
+      // en pantalla mientras se arrastra/auto-rota, en vez de que la cámara
+      // orbite alrededor de todo como antes. Probado al revés primero (solo
+      // el edificio+disco adentro, calle/vereda/árboles afuera) y quedó mal:
+      // una calle recta fija con la torre girando en diagonal sobre ella se
+      // ve rota — la calle tiene que seguir pegada al frente del edificio
+      // sea cual sea el giro. El sol viaja adentro del grupo a propósito: si
+      // solo rotara la geometría y la luz se quedara fija en el mundo, la
+      // sombra se correría por la fachada cada vez que el conjunto gira —
+      // así, la relación luz↔edificio es siempre la misma (la sombra no se
+      // "desalinea"), y lo que cambia con la rotación es de qué lado del
+      // mundo real viene el sol, no cómo cae sobre el edificio.
+      const grupoEdificio = new THREE.Group();
+      escena.add(grupoEdificio);
 
       const camara = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 600);
-      const render = new THREE.WebGLRenderer({ antialias: true });
+      const render = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       render.setPixelRatio(Math.min(devicePixelRatio, 2));
       render.setSize(innerWidth, innerHeight);
+      render.setClearColor(0x000000, 0);
       render.shadowMap.enabled = true;
       render.shadowMap.type = THREE.PCFSoftShadowMap;
-      // Se probó ACESFilmicToneMapping para que el resplandor del sol en el
-      // cielo no se queme contra el resto de la escena, pero visiblemente
-      // apagaba el blanco de la losa/núcleo/base (todo el edificio se veía
-      // "oscurecido" comparado con la versión de siempre) para un problema
-      // — highlights quemados — que en la práctica no llegó a darse (el
-      // glow del sol quedó bastante sutil, ver más abajo). Se prioriza que
-      // el edificio se siga viendo como toda la vida; si el glow llega a
-      // quemarse en algún ángulo, conviene resolverlo bajando uGlowStrength
-      // o el propio color del glow antes de volver a probar tone mapping.
+      // Sin tone mapping (default NoToneMapping): se probó ACESFilmicToneMapping
+      // en su momento para el resplandor del sol del shader de cielo que
+      // había antes (ya no existe) y apagaba el blanco de la losa/núcleo/
+      // base — sin ese shader no hay motivo para tocarlo.
       document.body.appendChild(render.domElement);
 
       const hemi = new THREE.HemisphereLight(0xFFFFFF, 0xA6B0B3, 0.9);
@@ -3241,125 +3324,11 @@
       sol.shadow.mapSize.set(2048, 2048);
       const sc = sol.shadow.camera;
       sc.left = -46; sc.right = 46; sc.top = 64; sc.bottom = -26; sc.near = 5; sc.far = 170;
-      escena.add(sol);
+      grupoEdificio.add(sol);
 
-      // Cielo: esfera invertida enorme (centrada en el origen, no en la
-      // cámara — el radio orbital de la cámara es un orden de magnitud menor
-      // que el radio de la esfera, así que la aproximación no se nota) con un
-      // shader que pinta un degrade cenit/horizonte + nubes procedurales +
-      // resplandor de sol, todo por código (sin texturas/HDRI: el CSP solo
-      // permite scripts de cdnjs). Los uniforms los actualiza aplicarCielo()
-      // cada vez que se mueve el sol — ver sección SOL más abajo. En
-      // pantallas chicas se usa una sola octava de ruido para las nubes,
-      // más liviano.
-      // Calidad completa (domain warp + capa de detalle) en pantallas
-      // grandes; en chicas se cae a un solo fbm de 2 octavas — el warp
-      // implica ~3 llamadas a fbm en vez de 1, no vale la pena en un celular
-      // de gama baja.
+      // Calidad de sombra de árboles en pantallas chicas (no tiene relación
+      // con el cielo, que ahora es el fondo blanco liso del <body>).
       const CIELO_ALTA = innerWidth >= 760;
-      const materialCielo = new THREE.ShaderMaterial({
-        uniforms: {
-          uZenith: { value: new THREE.Color(0x8FA6B3) },
-          uHorizon: { value: new THREE.Color(0xE7EAEA) },
-          uSunDir: { value: new THREE.Vector3(0, 1, 0) },
-          uSunGlow: { value: new THREE.Color(0xFFF6E8) },
-          uGlowStrength: { value: 1 },
-          uTime: { value: 0 },
-        },
-        vertexShader: `
-          varying vec3 vDir;
-          void main() {
-            vDir = normalize(position);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          #define OCTAVAS ${CIELO_ALTA ? 3 : 2}
-          ${CIELO_ALTA ? '#define NUBES_DETALLADAS' : ''}
-          uniform vec3 uZenith, uHorizon, uSunDir, uSunGlow;
-          uniform float uGlowStrength, uTime;
-          varying vec3 vDir;
-          float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-          float ruido(vec2 p) {
-            vec2 i = floor(p), f = fract(p);
-            float a = hash(i), b = hash(i + vec2(1.0, 0.0)), c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));
-            vec2 u = f * f * (3.0 - 2.0 * f);
-            return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-          }
-          float fbm(vec2 p) {
-            float v = 0.0, amp = 0.5, ampTotal = 0.0;
-            for (int i = 0; i < OCTAVAS; i++) { v += amp * ruido(p); ampTotal += amp; p *= 2.02; amp *= 0.5; }
-            // Sin normalizar, v nunca pasa de ~0.75 con 2 octavas (0.5+0.25) y
-            // el smoothstep de las nubes de abajo casi nunca se dispara:
-            // quedan invisibles. Con esto v vuelve a cubrir 0-1.
-            return v / ampTotal;
-          }
-          void main() {
-            vec3 dir = normalize(vDir);
-            float h = clamp(dir.y, 0.0, 1.0);
-            vec3 cielo = mix(uHorizon, uZenith, pow(h, 0.55));
-
-            // Nubes: proyección esférica (longitud/altura), no sobre un
-            // plano de piso — probado contra la cámara real de esta escena:
-            // proyectar sobre un plano colapsa casi a un degradé 1D cuando
-            // el cielo visible es una franja angosta cerca del horizonte
-            // (el caso normal acá, cámara mirando el edificio desde arriba),
-            // porque el movimiento horizontal de cámara mueve mucho la
-            // proyección y el vertical casi nada. atan()/dir.y no tienen ese
-            // problema y tampoco dividen por nada (sin riesgo de NaN).
-            float lon = atan(dir.z, dir.x);
-            vec2 uv = vec2(lon * 2.0 + uTime * 0.02, dir.y * 7.0);
-            #ifdef NUBES_DETALLADAS
-              // Domain warp: se distorsiona la muestra con otro ruido antes
-              // de leer el fbm principal — sin esto las nubes salían como
-              // manchas redondeadas y borrosas (fue justo el reclamo:
-              // "nubes muy abstractas"). Esto da siluetas más recortadas,
-              // con una capa extra de alta frecuencia para el detalle fino
-              // del borde.
-              vec2 warp = vec2(fbm(uv * 0.5 + 37.0), fbm(uv * 0.5 + 59.0));
-              float base = fbm(uv + warp * 0.9);
-              float detalle = fbm(uv * 3.3 + 11.0);
-              float n = base * 0.75 + detalle * 0.25;
-            #else
-              float n = fbm(uv);
-            #endif
-            // El corte de abajo no es "no aparecen bajo el horizonte
-            // geométrico" (dir.y<0 todavía es cielo visible desde una
-            // cámara elevada mirando hacia abajo, ver CLAUDE.md de cámara) —
-            // es sólo para no pintar nubes en el hemisferio de la esfera que
-            // nunca se ve (mirando derecho para abajo).
-            float cobertura = smoothstep(0.34, 0.46, n);
-            float nubes = cobertura * smoothstep(-0.9, -0.6, dir.y);
-
-            // Las nubes se iluminan del lado del sol (más cálidas/claras
-            // cerca de uSunDir) y quedan más oscuras del lado contrario —
-            // sin esto el cielo se leía plano y no quedaba claro de dónde
-            // venía la luz (otro reclamo directo).
-            float luzNube = pow(max(dot(dir, uSunDir), -0.5) * 0.5 + 0.5, 1.6);
-            vec3 nubeSombra = mix(uZenith, vec3(0.35, 0.38, 0.44), 0.55);
-            vec3 nubeLuz = mix(uSunGlow, vec3(1.0, 0.97, 0.92), 0.3);
-            vec3 colorNube = mix(nubeSombra, nubeLuz, luzNube);
-            cielo = mix(cielo, colorNube, nubes);
-
-            // Resplandor del sol: halo ancho + núcleo chico y brillante
-            // encima, para que se note claramente de dónde viene la luz sin
-            // llegar a un disco duro. clamp al final evita que el halo queme
-            // a blanco puro un cuarto de pantalla si el sol queda cerca del
-            // centro de cámara.
-            float sunDot = max(dot(dir, uSunDir), 0.0);
-            float halo = pow(sunDot, 26.0) * 0.18;
-            float nucleo = pow(sunDot, 300.0) * 1.2;
-            cielo += uSunGlow * (halo + nucleo) * uGlowStrength;
-
-            gl_FragColor = vec4(clamp(cielo, 0.0, 1.0), 1.0);
-          }
-        `,
-        side: THREE.BackSide,
-        depthWrite: false,
-        fog: false,
-      });
-      const cielo = new THREE.Mesh(new THREE.SphereGeometry(500, 24, 16), materialCielo);
-      escena.add(cielo);
 
       // Disco de base: textura de canto generada en canvas (gradiente claro→oscuro
       // de arriba hacia abajo) para que el borde se lea como una placa apoyada y
@@ -3386,7 +3355,49 @@
       );
       base.position.y = -0.6;
       base.receiveShadow = true;
-      escena.add(base);
+      grupoEdificio.add(base);
+
+      // Piso que funde el disco con el cielo. Probado primero dejando que lo
+      // resolviera solo la niebla (fog) sobre un plano opaco grande, como
+      // hace el resto de la escena con los árboles/calle — no funcionó: con
+      // la cámara mirando casi rasante (phi llega a ~99°, ver arrastrarCam)
+      // la franja donde la niebla realmente pasa de 0 a 1 queda comprimida a
+      // unos pocos píxeles pegados contra el horizonte por la perspectiva, y
+      // el resto del piso se ve opaco de borde a borde — nada de degradado
+      // visible. Por eso el degradado es una textura radial con ALPHA (no
+      // color) que va de blanco opaco cerca del disco a transparente total
+      // hacia afuera: donde el alpha llega a 0 se ve directamente el fondo
+      // blanco del <body>, así que el empalme de color es exacto por
+      // construcción, no depende de que la niebla lo adivine. El radio del
+      // plano (200) y dónde arranca el fade están pensados para el rango de
+      // zoom real de la cámara (radio 34-190, ver rueda del mouse) — a
+      // radios mayores nunca hizo falta.
+      function crearTexturaPiso() {
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = 512;
+        const ctx = cv.getContext('2d');
+        const r = cv.width / 2;
+        const grad = ctx.createRadialGradient(r, r, r * 0.12, r, r, r);
+        grad.addColorStop(0, 'rgba(224,226,221,1)');
+        grad.addColorStop(0.5, 'rgba(224,226,221,0.85)');
+        grad.addColorStop(1, 'rgba(224,226,221,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        return new THREE.CanvasTexture(cv);
+      }
+      // Color de base ya apagado (no blanco puro): a NdotL≈1 bajo sol
+      // directo (sol.intensity=1, sin tone mapping) un albedo casi blanco
+      // se recorta hacia el tono cálido de la luz (0xFFF6E8) en vez de leer
+      // como blanco — se vio literalmente amarillo probándolo. Este tono
+      // más bajo llega a blanco roto con la luz encima, sin recortarse.
+      const matPiso = new THREE.MeshStandardMaterial({
+        map: crearTexturaPiso(), transparent: true, depthWrite: false, roughness: 0.95,
+      });
+      const piso = new THREE.Mesh(new THREE.CircleGeometry(200, 64), matPiso);
+      piso.rotation.x = -Math.PI / 2;
+      piso.position.y = -1.2;
+      piso.receiveShadow = true;
+      escena.add(piso);
 
       // Calle: franja de asfalto frente al edificio (lado "frente", ver NOMBRE_CALLE
       // más abajo), vereda elevada con cordón (escalón real, no pintado) y línea de
@@ -3404,7 +3415,7 @@
       calle.rotation.x = -Math.PI / 2;
       calle.position.set(0, 0.02, Z_CALLE);
       calle.receiveShadow = true;
-      escena.add(calle);
+      grupoEdificio.add(calle);
 
       // Vereda + cordón en una sola malla: el volumen del box ES el escalón (cara
       // de arriba = vereda, cara que mira a la calzada = cordón, vía material por
@@ -3418,7 +3429,7 @@
       );
       vereda.position.set(0, VEREDA_ALTO / 2, BORDE_FRENTE - VEREDA / 2);
       vereda.castShadow = vereda.receiveShadow = true;
-      escena.add(vereda);
+      grupoEdificio.add(vereda);
 
       const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
       const matGuion = new THREE.MeshStandardMaterial({ color: 0xEDEFEF, roughness: 0.6 });
@@ -3426,7 +3437,7 @@
         const guion = new THREE.Mesh(geoGuion, matGuion);
         guion.rotation.x = -Math.PI / 2;
         guion.position.set(x, 0.03, Z_CALLE);
-        escena.add(guion);
+        grupoEdificio.add(guion);
       }
 
       // Línea de borde del lado opuesto a la vereda (el que no tiene cordón) —
@@ -3434,14 +3445,14 @@
       const bordeCalzada = new THREE.Mesh(new THREE.PlaneGeometry(LARGO_CALLE, 0.12), matGuion);
       bordeCalzada.rotation.x = -Math.PI / 2;
       bordeCalzada.position.set(0, 0.03, Z_CALLE - ANCHO_CALLE / 2 + 0.15);
-      escena.add(bordeCalzada);
+      grupoEdificio.add(bordeCalzada);
 
       /* ============================================================
          3. TORRE
          ============================================================ */
 
       const torre = new THREE.Group();
-      escena.add(torre);
+      grupoEdificio.add(torre);
 
       const geoUnidad = new THREE.BoxGeometry(ANCHO, ALTO, PROF);
       const bordesGeo = new THREE.EdgesGeometry(geoUnidad);
@@ -3706,7 +3717,7 @@
         // (sobreCalle), este objeto solo lleva el dato que usan.
         const consultaMapaCalle = [proyecto.direccion, proyecto.ciudad, proyecto.pais].filter(Boolean).join(', ') || NOMBRE_CALLE;
         cartelCalle.userData.mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(consultaMapaCalle);
-        escena.add(cartelCalle);
+        grupoEdificio.add(cartelCalle);
       }
       // Arbolado y autos: contexto urbano, deliberadamente apagado para no
       // competir con los colores de estado de las unidades. Semilla
@@ -3811,7 +3822,7 @@
         });
         meshTroncos.instanceMatrix.needsUpdate = true;
         meshesCopa.forEach(m => m.instanceMatrix.needsUpdate = true);
-        escena.add(meshTroncos, ...meshesCopa);
+        grupoEdificio.add(meshTroncos, ...meshesCopa);
       }
 
       // Autos: solo aportan escala, así que van quietos (sin animación) y en
@@ -3854,7 +3865,7 @@
         const auto = crearAuto(c.color);
         auto.position.set(c.x, 0.02, Z_CALLE + c.lado * ANCHO_CALLE / 4);
         auto.rotation.y = c.lado > 0 ? 0 : Math.PI;
-        escena.add(auto);
+        grupoEdificio.add(auto);
       });
 
       /* ============================================================
@@ -3862,7 +3873,13 @@
          ============================================================ */
 
       const objetivo = new THREE.Vector3(0, ALTURA * 0.45, 0);
-      let radio = 96, theta = -0.7, phi = 1.15, arrastrando = false, ultimo = { x: 0, y: 0 }, tocado = false;
+      // theta ya no orbita: es el azimut fijo de la cámara. Lo que antes
+      // hacía "mover la cámara alrededor del edificio" ahora lo hace GIRO,
+      // girando grupoEdificio en el lugar (ver ese grupo más arriba) — así
+      // piso/calle/vereda/árboles, que quedan afuera del grupo, no se mueven
+      // en pantalla al arrastrar ni en el auto-giro.
+      const theta = -0.7;
+      let radio = 96, phi = 1.15, giro = 0, arrastrando = false, ultimo = { x: 0, y: 0 }, tocado = false;
 
       function ubicarCamara() {
         phi = Math.max(0.18, Math.min(Math.PI / 2 + 0.16, phi));
@@ -3872,6 +3889,7 @@
           objetivo.z + radio * Math.sin(phi) * Math.cos(theta)
         );
         camara.lookAt(objetivo);
+        grupoEdificio.rotation.y = giro;
       }
       ubicarCamara();
 
@@ -3886,7 +3904,11 @@
       lienzo.addEventListener('pointermove', e => {
         const dx = e.clientX - ultimo.x, dy = e.clientY - ultimo.y;
         ultimo = { x: e.clientX, y: e.clientY };
-        if (arrastrando) { theta -= dx * 0.005; phi -= dy * 0.004; ubicarCamara(); }
+        // Signo invertido respecto al theta -= de antes: acá lo que gira es
+        // el edificio, no la cámara, así que para que arrastrar a la
+        // derecha "se sienta" igual (el edificio girando hacia el mismo
+        // lado que antes parecía girar la vista) el signo se da vuelta.
+        if (arrastrando) { giro += dx * 0.005; phi -= dy * 0.004; ubicarCamara(); }
         raton.x = (e.clientX / innerWidth) * 2 - 1;
         raton.y = -(e.clientY / innerHeight) * 2 + 1;
         posRaton = { x: e.clientX, y: e.clientY };
@@ -3911,58 +3933,22 @@
         return proyecto.lat != null && proyecto.lon != null && geo.norte_grados != null;
       }
 
-      // Paleta del cielo: misma lógica de "cálido y rasante cerca del
-      // horizonte, frío arriba, gris apagado de noche" que ya usa sol.color
-      // más abajo, pero además tiene que quedar lejos del ocre de
-      // ESTADOS.reservado (#C08429) y del ladrillo de ESTADOS.vendido
-      // (#B3413A) — por eso el horizonte cálido es durazno-rosado, no ocre,
-      // y siempre más claro en luminancia que cualquiera de los 4 colores de
-      // estado (ver aplicarCielo).
-      const CIELO = {
-        zenitDia: new THREE.Color(0x8FA6B3), zenitBajo: new THREE.Color(0x7C8CA0), zenitNoche: new THREE.Color(0x232A31),
-        horizonteDia: new THREE.Color(0xE7EAEA), horizonteBajo: new THREE.Color(0xE8B99C), horizonteNoche: new THREE.Color(0x3A4450),
-      };
+      // Niebla y hemisférica fijas en blanco, a tono con el fondo blanco liso
+      // del <body>. Antes esto seguía la altitud solar (día/atardecer/noche)
+      // porque el cielo era un shader que se podía redibujar; con un fondo
+      // fijo esa lógica ya no aplica. El simulador solar sigue moviendo
+      // sombras y el color/intensidad del DirectionalLight igual que siempre
+      // (ver aplicarSol) — lo único que se fija acá es niebla/ambiente.
+      const NIEBLA_COLOR = new THREE.Color(0xFFFFFF);
+      const AMBIENTE_COLOR = new THREE.Color(0xFFFFFF);
 
-      // La hemisférica original de esta escena era blanco puro (0xFFFFFF,
-      // l=1.0): si le copiamos el color del cielo tal cual (l~0.65-0.9),
-      // toda la luz de relleno del edificio se oscurece de golpe, no solo el
-      // cielo — es justo lo que se vio mal al probarlo. Por eso esto solo
-      // toma el MATIZ del cielo, con saturación acotada y luminancia fijada
-      // cerca del blanco: un tinte apenas perceptible, no un reemplazo de la
-      // luz.
-      function tintAmbiente(color) {
-        const hsl = { h: 0, s: 0, l: 0 };
-        color.getHSL(hsl);
-        return new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, 0.18), 0.95);
+      function aplicarCielo() {
+        escena.fog.color.copy(NIEBLA_COLOR);
+        hemi.color.copy(AMBIENTE_COLOR);
       }
 
-      // Cielo + niebla + hemisférica a partir de la altura del sol (grados,
-      // negativa bajo el horizonte) y de la dirección/color que ya calculó
-      // aplicarSol (o el default fijo) para el DirectionalLight — así el
-      // resplandor del cielo nunca puede desalinearse de las sombras reales.
-      function aplicarCielo(altitud, dirSol, colorSol) {
-        const tDia = Math.max(0, Math.min(1, altitud / 45));
-        const tNoche = Math.max(0, Math.min(1, -altitud / 8));
-        const zenit = CIELO.zenitBajo.clone().lerp(CIELO.zenitDia, tDia).lerp(CIELO.zenitNoche, tNoche);
-        const horizonte = CIELO.horizonteBajo.clone().lerp(CIELO.horizonteDia, tDia).lerp(CIELO.horizonteNoche, tNoche);
-        const brillo = Math.max(0, Math.min(1, (altitud + 10) / 15)); // se apaga entre -10° y 5°
-
-        materialCielo.uniforms.uZenith.value.copy(zenit);
-        materialCielo.uniforms.uHorizon.value.copy(horizonte);
-        materialCielo.uniforms.uSunDir.value.copy(dirSol);
-        materialCielo.uniforms.uSunGlow.value.copy(colorSol);
-        materialCielo.uniforms.uGlowStrength.value = brillo;
-
-        escena.fog.color.copy(horizonte);
-        hemi.color.copy(tintAmbiente(horizonte.clone().lerp(zenit, 0.3)));
-      }
-
-      // Sin lat/lon/norte_grados (ver tieneNorte()) el cielo usa una
-      // posición neutra de mediodía en vez de desaparecer — mismo criterio
-      // que el resto de esta sección con solOriginal.
       function aplicarCieloDefault() {
-        const dir = solOriginal.position.clone().sub(centroSombraSol).normalize();
-        aplicarCielo(55, dir, solOriginal.color);
+        aplicarCielo();
       }
 
       const solOriginal = {
@@ -3978,7 +3964,7 @@
       const radioSombraSol = Math.sqrt(30 * 30 + 30 * 30 + (ALTURA / 2) * (ALTURA / 2)) * 1.08;
       const distanciaSol = radioSombraSol * 2.4;
       sol.target.position.copy(centroSombraSol);
-      escena.add(sol.target);
+      grupoEdificio.add(sol.target);
       aplicarCieloDefault();
 
       let solActivo = false;
@@ -3991,9 +3977,6 @@
         document.getElementById('sol-lectura').textContent =
           'Azimut ' + Math.round(azimut) + '° · Altura ' + Math.round(altitud) + '°';
         const avisoNoche = document.getElementById('sol-aviso-noche');
-        // Se calcula siempre, aun bajo el horizonte: aplicarCielo() la usa
-        // para el resplandor remanente del cielo (el brillo se apaga solo
-        // por uGlowStrength, no hace falta cortar la dirección acá).
         const dir = direccionSolModelo(altitud, azimut, geo.norte_grados);
         if (altitud <= 0) {
           sol.intensity = 0;
@@ -4010,7 +3993,7 @@
           sol.intensity = solOriginal.intensity * factor;
           hemi.intensity = solOriginal.hemiIntensity * factor;
         }
-        aplicarCielo(altitud, dir, sol.color);
+        aplicarCielo();
         document.getElementById('sol-hora').style.setProperty('--sol-color', '#' + sol.color.getHexString());
         actualizarSolUnidad();
       }
@@ -4032,7 +4015,14 @@
         }
         const caja = cajas.find(c => c.userData.unidad.id === elegida.id);
         if (!caja) { el.hidden = true; return; }
-        const dir = direccionSolModelo(ultimoSol.altitud, ultimoSol.azimut, geo.norte_grados);
+        // direccionSolModelo da la dirección relativa al edificio (mismo
+        // sistema que usa sol.position, adentro de grupoEdificio) — pero
+        // este rayo se tira en espacio del MUNDO (origen sale de
+        // getWorldPosition), así que hay que rotarla por el giro actual del
+        // edificio para que apunte al mismo sol "físico" sin importar cómo
+        // esté girado en pantalla.
+        const dir = direccionSolModelo(ultimoSol.altitud, ultimoSol.azimut, geo.norte_grados)
+          .applyQuaternion(grupoEdificio.quaternion);
         const origen = caja.getWorldPosition(new THREE.Vector3()).addScaledVector(dir, 0.1);
         rayoSol.set(origen, dir);
         const ocluido = rayoSol.intersectObjects(ocludoresSol.filter(o => o !== caja), false).length > 0;
@@ -4273,7 +4263,6 @@
       const riel = document.getElementById('pisos');
       const infoPiso = document.getElementById('piso-info');
       const objetivoGeneral = objetivo.clone(), radioGeneral = radio, phiGeneral = phi;
-      const botonesPiso = [];
 
       // Ubica la cámara a la altura del piso elegido (o vuelve a la vista general del edificio).
       function enfocarPiso(p) {
@@ -4359,60 +4348,111 @@
         ftBadge.hidden = excluidos === 0;
       }
 
+      /* Plegar/desplegar el panel entero: solo tiene efecto visual en
+         desktop (ver #pisos.colapsado en el CSS). En mobile #pisos-header
+         queda oculto — abrir/cerrar la hoja completa desde #pisos-trigger
+         ya cumple esa misma función, un segundo control adentro sería
+         redundante. */
+      const pisosHeader = document.getElementById('pisos-header');
+      pisosHeader.addEventListener('click', () => {
+        const colapsado = riel.classList.toggle('colapsado');
+        pisosHeader.setAttribute('aria-expanded', String(!colapsado));
+      });
+
+      /* Filas del riel: se arman a partir de los datos, no de un rango fijo
+         escrito a mano (mismo criterio que dormsDisponibles más arriba).
+         proyecto.pisos sigue marcando el techo (PISOS), pero cada nivel de
+         ese rango sin ninguna unidad cargada — un piso de amenities, como
+         el 6 de Altamira — se muestra diferenciado y deshabilitado en vez
+         de desaparecer: la lista tiene que seguir leyéndose como el
+         edificio real, no como un catálogo de lo que hay data cargada.
+         PB solo se dibuja si el proyecto la tiene (projects.tiene_pb; NULL
+         o true = se muestra — así no le cambia el comportamiento a ningún
+         proyecto existente hasta que alguien la ponga en false a mano en
+         Supabase — ver supabase-migration-pisos.sql). */
+      const listaPisos = document.getElementById('pisos-lista');
+      const btnPB = document.getElementById('pisos-pb');
+      const tienePB = proyecto.tiene_pb !== false;
+      const filasPiso = [];
+
+      for (let p = PISOS; p >= 1; p--) {
+        const tieneUnidades = UNIDADES.some(u => u.piso === p);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pisos-fila';
+        if (!tieneUnidades) {
+          b.classList.add('pisos-fila--amenities');
+          b.textContent = 'Sin unidades';
+          b.disabled = true;
+        } else {
+          b.setAttribute('aria-pressed', 'false');
+          const num = document.createElement('span');
+          num.textContent = p;
+          b.appendChild(num);
+          const disponibles = UNIDADES.filter(u => u.piso === p && u.estado === 'disponible').length;
+          if (disponibles) {
+            const cuenta = document.createElement('span');
+            cuenta.className = 'pf-count';
+            cuenta.textContent = disponibles;
+            b.appendChild(cuenta);
+          }
+          if (pisosConstruidos.size > 0 && !pisosConstruidos.has(p)) b.classList.add('piso-sin-construir');
+          b.addEventListener('click', () => {
+            pisoAislado = pisoAislado === p ? null : p;
+            actualizarRielPisos();
+            enfocarPiso(pisoAislado);
+            aplicar();
+          });
+        }
+        filasPiso.push(b);
+        listaPisos.appendChild(b);
+      }
+
+      if (tienePB) {
+        btnPB.hidden = false;
+        btnPB.textContent = 'PB';
+        btnPB.setAttribute('aria-pressed', 'false');
+        btnPB.addEventListener('click', () => {
+          pisoAislado = pisoAislado === 0 ? null : 0;
+          actualizarRielPisos();
+          enfocarPiso(pisoAislado);
+          aplicar();
+        });
+      }
+
+      // Navegación por teclado: flechas arriba/abajo mueven el foco entre
+      // filas seleccionables (se saltea "Sin unidades"), con tabindex
+      // itinerante — una sola fila queda en el tab order a la vez, como
+      // cualquier lista de radio buttons.
+      const filasNavegables = filasPiso.filter(b => !b.disabled).concat(tienePB ? [btnPB] : []);
+      filasNavegables.forEach((b, i) => b.tabIndex = i === 0 ? 0 : -1);
+      function moverFocoPiso(desde, delta) {
+        const i = filasNavegables.indexOf(desde);
+        if (i === -1) return;
+        const siguiente = filasNavegables[Math.min(filasNavegables.length - 1, Math.max(0, i + delta))];
+        if (siguiente === desde) return;
+        filasNavegables.forEach(b => b.tabIndex = -1);
+        siguiente.tabIndex = 0;
+        siguiente.focus();
+      }
+      function navegarPisoConTeclado(e) {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        moverFocoPiso(document.activeElement, e.key === 'ArrowDown' ? 1 : -1);
+      }
+      listaPisos.addEventListener('keydown', navegarPisoConTeclado);
+      btnPB.addEventListener('keydown', navegarPisoConTeclado);
+
       function actualizarRielPisos() {
-        botonesPiso.forEach((el, i) => el.setAttribute('aria-pressed', pisoAislado === i + 1));
-        btnPB.setAttribute('aria-pressed', pisoAislado === 0);
-        btnTodos.setAttribute('aria-pressed', pisoAislado === null);
+        filasPiso.forEach((b, i) => {
+          if (!b.disabled) b.setAttribute('aria-pressed', String(pisoAislado === PISOS - i));
+        });
+        if (tienePB) btnPB.setAttribute('aria-pressed', String(pisoAislado === 0));
         pisosTriggerLabel.textContent =
           pisoAislado === null ? 'Todos los pisos' : pisoAislado === 0 ? 'Planta baja' : 'Piso ' + pisoAislado;
         actualizarInfoPiso();
         cerrarHoja();
       }
-      const btnPB = document.createElement('button');
-      btnPB.className = 'pisos-pb';
-      btnPB.textContent = 'PB';
-      btnPB.setAttribute('aria-pressed', 'false');
-      btnPB.addEventListener('click', () => {
-        pisoAislado = pisoAislado === 0 ? null : 0;
-        actualizarRielPisos();
-        enfocarPiso(pisoAislado);
-        aplicar();
-      });
-      riel.appendChild(btnPB);
-      for (let p = 1; p <= PISOS; p++) {
-        const b = document.createElement('button');
-        b.textContent = p;
-        b.setAttribute('aria-pressed', 'false');
-        if (pisosConstruidos.size > 0 && !pisosConstruidos.has(p)) b.classList.add('piso-sin-construir');
-        b.addEventListener('click', () => {
-          pisoAislado = pisoAislado === p ? null : p;
-          actualizarRielPisos();
-          enfocarPiso(pisoAislado);
-          aplicar();
-        });
-        botonesPiso.push(b);
-        riel.appendChild(b);
-      }
-      // "PISO" + TODOS van agrupados: en desktop es el bloque fijo (sticky) de
-      // arriba del riel; en mobile es la fila de cabecera de la hoja.
-      const fijoPisos = document.createElement('div');
-      fijoPisos.className = 'pisos-fijo';
-      const etiquetaPisos = document.createElement('span');
-      etiquetaPisos.className = 'pisos-etiqueta';
-      etiquetaPisos.textContent = 'PISO';
-      fijoPisos.appendChild(etiquetaPisos);
-      const btnTodos = document.createElement('button');
-      btnTodos.className = 'pisos-todos';
-      btnTodos.textContent = 'TODOS';
-      btnTodos.setAttribute('aria-pressed', 'true');
-      btnTodos.addEventListener('click', () => {
-        pisoAislado = null;
-        actualizarRielPisos();
-        enfocarPiso(null);
-        aplicar();
-      });
-      fijoPisos.appendChild(btnTodos);
-      riel.appendChild(fijoPisos);
 
       /* ============================================================
          Planta real de la tipología (subida por el cliente desde admin.html,
@@ -4465,9 +4505,12 @@
         // Unidades con contorno propio no tienen col/frente utilizables para
         // orientar la cámara — se deriva un ángulo equivalente del centroide
         // (mismo criterio: signo de Z = lado frente/contrafrente, X = desplazamiento lateral).
-        theta = u._centro
+        // theta ya no orbita (ver CÁMARA): para dejar esa fachada mirando a
+        // la cámara ahora hay que girar el EDIFICIO hasta que ese ángulo
+        // quede alineado con el azimut fijo de la cámara, de ahí el theta - (...).
+        giro = theta - (u._centro
           ? (u._centro.z < 0 ? Math.PI : 0) - (u._centro.x / SEP_X) * 0.16
-          : (u.frente < 0 ? Math.PI : 0) - u.col * 0.16;
+          : (u.frente < 0 ? Math.PI : 0) - u.col * 0.16);
         phi = 1.32;
         radio = 62;
         tocado = true;
@@ -4755,8 +4798,7 @@
 
       function animar() {
         requestAnimationFrame(animar);
-        if (!tocado) { theta += 0.0013; ubicarCamara(); }
-        materialCielo.uniforms.uTime.value += 0.03; // deriva lenta de nubes
+        if (!tocado) { giro -= 0.0013; ubicarCamara(); }
 
         pisosGrupo.forEach((g, i) => {
           const d = g.userData;
