@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ROSSO by Block · disponibilidad navegable</title>
+  <!-- Título neutro: document.title se reemplaza por proyecto.nombre recién
+     cuando cargarProyecto() resuelve (ver el IIFE final) — nunca "ROSSO" para
+     un visitante que abrió el link de otro edificio. -->
+  <title>Disponibilidad navegable</title>
   <style>
     :root {
       --fondo: #DEE2E4;
@@ -2294,14 +2297,176 @@
       }
     }
 
+    /* ============================================================
+       CARGA — overlay a pantalla completa, presente desde el primer paint
+       (sin esperar JS), para que nunca se vea contenido de otro proyecto
+       ni una pantalla en blanco mientras resuelve cargarProyecto(). El
+       degradé imita el cielo/piso al que se funde la escena real (ver el
+       comentario de #escena más abajo: el body queda blanco liso una vez
+       carga el edificio), así la transición de salida no da un salto.
+       ============================================================ */
+    #carga {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 42%, var(--fondo) 100%);
+      transition: opacity .4s ease;
+    }
+
+    #carga.carga-oculta {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Sin esto el atributo [hidden] no alcanza a ganarle al display:flex
+       de arriba (mismo peso de especificidad salvo por el atributo extra):
+       el overlay se pondría en hidden="" tras el fundido pero seguiría
+       ocupando layout. */
+    #carga[hidden] {
+      display: none;
+    }
+
+    #carga-contenido {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+      /* Retraso antes de aparecer: si cargarProyecto() resuelve en menos de
+         ~220ms, el ícono nunca llega a pintarse — nada de parpadeo en una
+         carga rápida. */
+      animation: carga-aparecer .3s ease .22s forwards;
+    }
+
+    @keyframes carga-aparecer {
+      to {
+        opacity: 1
+      }
+    }
+
+    #carga-icono {
+      color: var(--tinta);
+      animation: carga-pulso 1.8s ease-in-out infinite;
+    }
+
+    @keyframes carga-pulso {
+
+      0%,
+      100% {
+        opacity: .3
+      }
+
+      50% {
+        opacity: .85
+      }
+    }
+
+    #carga-texto {
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--gris);
+    }
+
+    #carga-error {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 14px;
+      max-width: 300px;
+      padding: 26px 28px;
+      background: var(--papel);
+      border: 1px solid var(--linea);
+      border-radius: 10px;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 10px 26px rgba(0, 0, 0, .10);
+    }
+
+    #carga.carga-error-activo #carga-contenido {
+      display: none
+    }
+
+    #carga.carga-error-activo #carga-error {
+      display: flex
+    }
+
+    #carga-error svg {
+      color: var(--suave);
+      flex: none;
+    }
+
+    #carga-error p {
+      margin: 0;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--tinta);
+    }
+
+    #carga-reintentar {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid var(--linea);
+      background: #fff;
+      color: var(--suave);
+    }
+
+    #carga-reintentar:hover {
+      color: var(--tinta);
+      border-color: var(--tinta);
+    }
+
     @media (prefers-reduced-motion:reduce) {
       * {
         transition-duration: .01ms !important
+      }
+
+      #carga-icono {
+        animation: none;
+        opacity: .7;
+      }
+
+      #carga-contenido {
+        animation: none;
+        opacity: 1;
       }
     }
   </style>
 </head>
 <body>
+
+  <!-- Overlay de carga: existe desde el primer paint (nada de JS de por
+     medio), así que nunca se ve el edificio ni los datos de otro proyecto
+     mientras cargarProyecto() resuelve. Se oculta (clase carga-oculta) o
+     pasa a error (clase carga-error-activo) desde el IIFE final. -->
+  <div id="carga" role="status" aria-live="polite">
+    <div id="carga-contenido">
+      <svg id="carga-icono" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="5" y="3" width="11" height="18"></rect>
+        <path d="M16 10l4 2v9h-4"></path>
+        <path d="M8 7h1M11 7h1M8 11h1M11 11h1M8 15h1M11 15h1"></path>
+      </svg>
+      <span id="carga-texto">Cargando</span>
+    </div>
+    <div id="carga-error">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M12 8v5M12 16h.01"></path>
+      </svg>
+      <p id="carga-error-msg"></p>
+      <button id="carga-reintentar" type="button" hidden>Reintentar</button>
+    </div>
+  </div>
 
   <header id="cabezal">
     <div id="cabezal-panel">
@@ -2313,7 +2478,7 @@
           <path d="M8 7h1M11 7h1M8 11h1M11 11h1M8 15h1M11 15h1"></path>
         </svg>
         <div class="cb-titulo">
-          <h1 id="h1-proyecto">ROSSO</h1>
+          <h1 id="h1-proyecto"></h1>
           <span class="cb-dev" id="cb-dev"></span>
         </div>
       </div>
@@ -2768,26 +2933,50 @@
     const SLUG = resolverSlug();
     document.getElementById('admin-link').href = 'admin.html?p=' + encodeURIComponent(SLUG);
 
-    async function cargarProyecto() {
-      const { data: proyecto, error: eProyecto } = await sb
-        .from('public_projects').select('*').eq('slug', SLUG).maybeSingle();
-      if (eProyecto || !proyecto) return { error: 'no-encontrado' };
+    // fetch() no tiene timeout propio: una conexión que cuelga en vez de
+    // fallar (wifi caído, Supabase sin responder) deja al visitante mirando
+    // el ícono de carga para siempre. abortSignal corta cada consulta a los
+    // TIMEOUT_MS y eso se propaga como error, así el overlay pasa a mostrar
+    // "error de red + reintentar" en vez de girar sin fin.
+    const TIMEOUT_MS = 15000;
+    function timeoutSignal() {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), TIMEOUT_MS);
+      return controller.signal;
+    }
 
-      const [{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }, { data: pais }, { data: hitosObra }, { data: fotosObra }] = await Promise.all([
-        sb.from('public_units').select('*').eq('project_id', proyecto.id).order('id'),
-        sb.from('public_settings').select('*').eq('project_id', proyecto.id).maybeSingle(),
-        sb.from('public_amenities').select('*').eq('project_id', proyecto.id).order('orden'),
-        sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'project').eq('tipo', 'render').order('orden'),
-        sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'typology').order('orden'),
-        // La hora del simulador solar sale de acá, nunca del navegador del
-        // visitante (ver CLAUDE.md). `paises` es de lectura pública directa.
-        sb.from('paises').select('tz_offset_horas').eq('codigo', proyecto.pais).maybeSingle(),
-        // Vacío si avance_habilitado está apagado (la vista pública ya filtra
-        // por eso) — no hace falta pedir proyecto.avance_habilitado aparte.
-        sb.from('public_obra_hitos').select('*').eq('project_id', proyecto.id).order('orden'),
-        sb.from('public_obra_fotos').select('*').eq('project_id', proyecto.id).order('fecha', { ascending: false }),
-      ]);
-      if (eUnidades || !unidades) return { error: 'sin-datos' };
+    async function cargarProyecto() {
+      let proyecto, eProyecto;
+      try {
+        ({ data: proyecto, error: eProyecto } = await sb
+          .from('public_projects').select('*').eq('slug', SLUG).abortSignal(timeoutSignal()).maybeSingle());
+      } catch (e) { eProyecto = e; }
+      // Dos causas muy distintas de "no hay proyecto": eProyecto es un error
+      // real (red caída, Supabase no responde) — mensaje con reintentar. Sin
+      // error pero proyecto null es un slug que genuinamente no existe o no
+      // está publicado — mensaje amable, sin reintentar (reintentar no va a
+      // cambiar nada).
+      if (eProyecto) return { error: 'red' };
+      if (!proyecto) return { error: 'no-encontrado' };
+
+      let unidades, eUnidades, settings, amenities, renders, mediaTipologias, pais, hitosObra, fotosObra;
+      try {
+        ([{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }, { data: pais }, { data: hitosObra }, { data: fotosObra }] = await Promise.all([
+          sb.from('public_units').select('*').eq('project_id', proyecto.id).order('id').abortSignal(timeoutSignal()),
+          sb.from('public_settings').select('*').eq('project_id', proyecto.id).abortSignal(timeoutSignal()).maybeSingle(),
+          sb.from('public_amenities').select('*').eq('project_id', proyecto.id).order('orden').abortSignal(timeoutSignal()),
+          sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'project').eq('tipo', 'render').order('orden').abortSignal(timeoutSignal()),
+          sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'typology').order('orden').abortSignal(timeoutSignal()),
+          // La hora del simulador solar sale de acá, nunca del navegador del
+          // visitante (ver CLAUDE.md). `paises` es de lectura pública directa.
+          sb.from('paises').select('tz_offset_horas').eq('codigo', proyecto.pais).abortSignal(timeoutSignal()).maybeSingle(),
+          // Vacío si avance_habilitado está apagado (la vista pública ya filtra
+          // por eso) — no hace falta pedir proyecto.avance_habilitado aparte.
+          sb.from('public_obra_hitos').select('*').eq('project_id', proyecto.id).order('orden').abortSignal(timeoutSignal()),
+          sb.from('public_obra_fotos').select('*').eq('project_id', proyecto.id).order('fecha', { ascending: false }).abortSignal(timeoutSignal()),
+        ]));
+      } catch (e) { eUnidades = e; }
+      if (eUnidades || !unidades) return { error: 'red' };
 
       return {
         proyecto,
@@ -2981,8 +3170,18 @@
       el.hidden = false;
     }
 
-    function mostrarErrorProyecto(msg) {
-      document.getElementById('cabezal').innerHTML = '<h1>No disponible</h1><p class="sub">' + msg + '</p>';
+    // Reemplaza el overlay #carga (que ya está tapando toda la pantalla,
+    // ver el div al principio del <body>) por un mensaje de error en vez de
+    // desvanecerlo — nunca llega a mostrarse el edificio ni el header de
+    // ningún proyecto. `conReintentar` prende el botón solo para fallas de
+    // red/Supabase, donde reintentar tiene sentido; un slug inexistente no
+    // lo necesita.
+    function mostrarErrorCarga(msg, conReintentar) {
+      const carga = document.getElementById('carga');
+      carga.classList.remove('carga-oculta');
+      carga.classList.add('carga-error-activo');
+      document.getElementById('carga-error-msg').textContent = msg;
+      document.getElementById('carga-reintentar').hidden = !conReintentar;
     }
 
     // Lightbox genérico (una imagen a la vez, con flechas/teclado/contador):
@@ -5053,24 +5252,50 @@
 
     } // fin de iniciar()
 
-    (async () => {
+    // Fundido de salida del overlay de carga — 400ms coordinados con la
+    // transition de #carga en CSS; recién después de eso lo saca del todo
+    // (hidden) para que no le quede capturando clics ni foco de lector de
+    // pantalla.
+    function ocultarCarga() {
+      const carga = document.getElementById('carga');
+      carga.classList.add('carga-oculta');
+      setTimeout(() => { carga.hidden = true; }, 420);
+    }
+
+    // Vuelve a poner el overlay en estado "cargando" — lo usa el botón
+    // Reintentar antes de volver a llamar cargarTodo().
+    function reiniciarCarga() {
+      const carga = document.getElementById('carga');
+      carga.hidden = false;
+      carga.classList.remove('carga-oculta', 'carga-error-activo');
+    }
+
+    async function cargarTodo() {
       const resultado = await cargarProyecto();
       if (resultado.error === 'no-encontrado') {
-        mostrarErrorProyecto('Este edificio no existe o todavía no está publicado.');
+        mostrarErrorCarga('Este edificio no existe o todavía no está publicado.', false);
         return;
       }
       if (resultado.error) {
-        document.getElementById('aviso').innerHTML =
-          '<b>No se pudo cargar el estado de las unidades.</b> Revisá la conexión y recargá la página.';
+        mostrarErrorCarga('No pudimos conectar con el servidor. Revisá tu conexión.', true);
         return;
       }
+      document.title = resultado.proyecto.nombre + ' · disponibilidad navegable';
       pintarRedes(resultado.settings);
       pintarAmenities(resultado.amenities);
       pintarLegal(resultado.settings.textos);
       pintarRenders(resultado.renders);
       pintarAvance(resultado.proyecto, resultado.hitosObra, resultado.fotosObra);
       iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias, resultado.tzOffsetHoras, resultado.hitosObra);
-    })();
+      ocultarCarga();
+    }
+
+    document.getElementById('carga-reintentar').addEventListener('click', () => {
+      reiniciarCarga();
+      cargarTodo();
+    });
+
+    cargarTodo();
   </script>
 </body>
 </html>
