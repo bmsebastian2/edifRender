@@ -2724,6 +2724,20 @@
   </aside>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Build "clásica" (no ES module) de GLTFLoader, misma versión r128 que
+       three.min.js de arriba — este proyecto no tiene importmap ni
+       <script type="module">, así que el paquete three/addons (módulo ES)
+       no serviría acá. Cuelga THREE.GLTFLoader del global, igual patrón
+       que el script anterior. -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <!-- Decoder de meshopt: los .glb de modelos/autos/ salen de
+       `gltf-transform optimize` con --compress meshopt (default de ese
+       comando). Probado sin compresión primero (para no sumar esta
+       dependencia) y el ahorro no daba: estos modelos no tienen texturas,
+       todo el peso es geometría, y sin comprimir quedaban ~160-175 KB cada
+       uno — con meshopt bajan a ~40 KB. Este decoder (~20 KB, JS puro, sin
+       WASM aparte) sale más a cuenta que subir 3 archivos 4x más pesados. -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="supabase-config.js"></script>
   <script>
@@ -3825,47 +3839,105 @@
         grupoEdificio.add(meshTroncos, ...meshesCopa);
       }
 
-      // Autos: solo aportan escala, así que van quietos (sin animación) y en
-      // colores neutros y desaturados para no competir con el verde/ámbar/rojo
-      // de estado. Pocos (2-3) — no justifica InstancedMesh.
-      function crearAuto(colorCarroceria) {
-        const grupo = new THREE.Group();
-        const cuerpo = new THREE.Mesh(
-          new THREE.BoxGeometry(4.0, 0.55, 1.8),
-          new THREE.MeshStandardMaterial({ color: colorCarroceria, roughness: 0.5, metalness: 0.15 })
-        );
-        cuerpo.position.y = 0.35;
-        cuerpo.castShadow = cuerpo.receiveShadow = true;
-        grupo.add(cuerpo);
+      // Autos: modelos GLB low-poly (Kenney/Quaternius, CC0) cargados una
+      // sola vez con GLTFLoader y reutilizados con .clone() por instancia —
+      // sin animación, quietos. Solo 3 — no justifica InstancedMesh (a partir
+      // de ~20 repeticiones del mismo modelo sí valdría la pena).
+      const LARGO_AUTO_OBJETIVO = 4.5; // metros — mismo target que tenía la geometría procedural que reemplaza
 
-        const cabina = new THREE.Mesh(
-          new THREE.BoxGeometry(2.0, 0.42, 1.5),
-          new THREE.MeshStandardMaterial({ color: 0x2A3033, roughness: 0.3, metalness: 0.2 })
-        );
-        cabina.position.set(-0.2, 0.83, 0);
-        cabina.castShadow = true;
-        grupo.add(cabina);
+      const cargadorGLTF = new THREE.GLTFLoader();
+      cargadorGLTF.setMeshoptDecoder(MeshoptDecoder); // ver <script> de meshopt_decoder.js
+      const modelosAutoCache = {}; // ruta -> Group ya escalado/centrado (fuente para .clone())
 
-        const geoRueda = new THREE.CylinderGeometry(0.28, 0.28, 0.22, 10);
-        const matRueda = new THREE.MeshStandardMaterial({ color: 0x24282A, roughness: 0.8 });
-        [[1.25, 0.85], [1.25, -0.85], [-1.25, 0.85], [-1.25, -0.85]].forEach(([x, z]) => {
-          const rueda = new THREE.Mesh(geoRueda, matRueda);
-          rueda.rotation.x = Math.PI / 2;
-          rueda.position.set(x, 0.28, z);
-          grupo.add(rueda);
+      function cargarModeloAuto(ruta, materialCarroceria, colorCarroceria) {
+        if (modelosAutoCache[ruta]) return Promise.resolve(modelosAutoCache[ruta]);
+        return new Promise(resolve => {
+          cargadorGLTF.load(
+            ruta,
+            gltf => {
+              const bruto = gltf.scene;
+
+              // Escala uniforme: la dimensión más larga del bounding box (se
+              // asume el largo del auto, siempre la mayor de las tres en
+              // cualquier vehículo) pasa a medir LARGO_AUTO_OBJETIVO. No
+              // asumimos un tamaño fijo de antemano: no sabemos qué pack ni
+              // qué modelo puntual termine en modelos/autos/.
+              const tam = new THREE.Box3().setFromObject(bruto).getSize(new THREE.Vector3());
+              bruto.scale.setScalar(LARGO_AUTO_OBJETIVO / Math.max(tam.x, tam.y, tam.z));
+              bruto.updateMatrixWorld(true);
+
+              // Recentrar en X/Z y apoyar en y=0 — no todos los packs
+              // exportan con el pivote centrado en el piso del auto. Este
+              // offset va en `bruto` (hijo), no en el envoltorio: el
+              // envoltorio es lo que se clona y reposiciona por instancia
+              // más abajo (auto.position.set(...) pisaría este offset si
+              // estuviera en el mismo nodo).
+              const caja = new THREE.Box3().setFromObject(bruto);
+              const centro = caja.getCenter(new THREE.Vector3());
+              bruto.position.x -= centro.x;
+              bruto.position.z -= centro.z;
+              bruto.position.y -= caja.min.y;
+
+              bruto.traverse(n => {
+                if (!n.isMesh) return;
+                n.castShadow = CIELO_ALTA; // mismo criterio que ya usaban árboles/autos: se recorta en celular
+                n.receiveShadow = true;
+                // Retinte de carrocería: el pack trae colores de fábrica
+                // (azules saturados, blanco puro) que no eran el "neutro
+                // desaturado" pedido — se busca el material por nombre (cada
+                // modelo trae la carrocería como material aparte, ej. "Blue")
+                // y se le pisa el color, sin tocar vidrios/luces/ruedas.
+                const mats = Array.isArray(n.material) ? n.material : [n.material];
+                mats.forEach(m => { if (m && m.name === materialCarroceria) m.color.setHex(colorCarroceria); });
+              });
+
+              const envoltorio = new THREE.Group();
+              envoltorio.add(bruto);
+              modelosAutoCache[ruta] = envoltorio;
+              resolve(envoltorio);
+            },
+            undefined,
+            error => {
+              console.warn(`No se pudo cargar el modelo de auto "${ruta}":`, error);
+              resolve(null); // la escena sigue sin este auto, no se rompe nada
+            }
+          );
         });
-        return grupo;
       }
 
       [
-        { color: 0x8B9296, x: -LARGO_CALLE * 0.18, lado: 1 },
-        { color: 0xB7BCBE, x: LARGO_CALLE * 0.05, lado: -1 },
-        { color: 0x6E767A, x: LARGO_CALLE * 0.28, lado: 1 },
+        // Posiciones pasadas a mano por la maqueta (captura con 3 puntos
+        // rojos marcados sobre la escena real): los 3 en el carril más
+        // cercano al edificio (el de arriba de la línea punteada en esa
+        // captura, zOff positivo), en fila a lo largo de toda la calle
+        // visible — no agrupados como en el intento anterior. Se abandona
+        // la restricción de "visible sin rotar la cámara desde el ángulo
+        // por defecto": la propia captura de referencia está tomada con la
+        // cámara girada/acercada y ese carril se ve bien ahí, que es el
+        // ángulo real que se está usando para mirar la maqueta.
+        //
+        // materialCarroceria/colorCarroceria: nombre real del material de
+        // carrocería en cada .glb (revisado cargando cada archivo y
+        // listando sus materiales) y el color de reemplazo — grises +
+        // un azul apagado, ninguno repetido, ninguno compite con
+        // disponible/reservada/vendida.
+        { modelo: 'modelos/autos/sedan.glb', x: -2, materialCarroceria: 'Blue', colorCarroceria: 0x3F4245 },
+        { modelo: 'modelos/autos/suv.glb', x: -8, materialCarroceria: 'White', colorCarroceria: 0x9BA1A4 },
+        { modelo: 'modelos/autos/hatchback.glb', x: -14, materialCarroceria: 'LightBlue', colorCarroceria: 0x5A6B78 },
       ].forEach(c => {
-        const auto = crearAuto(c.color);
-        auto.position.set(c.x, 0.02, Z_CALLE + c.lado * ANCHO_CALLE / 4);
-        auto.rotation.y = c.lado > 0 ? 0 : Math.PI;
-        grupoEdificio.add(auto);
+        cargarModeloAuto(c.modelo, c.materialCarroceria, c.colorCarroceria).then(modelo => {
+          if (!modelo) return; // ver el warn del onError de arriba
+          const auto = modelo.clone();
+          auto.position.set(c.x, 0.02, Z_CALLE + 2.5);
+          // El "adelante" de estos modelos (Quaternius) mira +Z local —
+          // confirmado midiendo la posición real de la malla de faros/luces
+          // traseras de cada .glb, no a ojo. La calle corre en el eje X del
+          // mundo (LARGO_CALLE), así que hace falta rotar 90°, no 0/180°
+          // como en un auto que ya mirara por X — los 3 en el mismo
+          // sentido, en fila sobre el mismo carril.
+          auto.rotation.y = Math.PI / 2;
+          grupoEdificio.add(auto);
+        });
       });
 
       /* ============================================================
