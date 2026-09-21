@@ -3940,6 +3940,123 @@
         });
       });
 
+      // Mobiliario urbano: farolas, bancos + cesto + bicicletero, y un
+      // cartel de tránsito genérico — mismo criterio que los árboles
+      // (geometría esquemática, pocos objetos por tipo, sin InstancedMesh
+      // salvo las farolas que si se vuelven muchas). Todo sobre la vereda,
+      // más adentro que la fila de árboles pegada al cordón (Z_CALLE+4.4)
+      // para no pisarla. Las farolas y los bancos van de punta a punta de
+      // la calle (LARGO_CALLE completo); el cesto/bicicletero/cartel se
+      // quedaron en el tramo donde están los autos (x entre -1 y -14.5),
+      // el que se confirmó visible desde el ángulo que se está usando para
+      // mirar la maqueta.
+      const Z_VEREDA_MOBILIARIO = Z_CALLE + 5.3;
+
+      const geoPosteFarol = new THREE.CylinderGeometry(0.06, 0.08, 4.2, 8);
+      const geoBrazoFarol = new THREE.CylinderGeometry(0.04, 0.04, 0.7, 6);
+      const geoFocoFarol = new THREE.SphereGeometry(0.14, 8, 8);
+      const matPosteFarol = new THREE.MeshStandardMaterial({ color: 0x2E3235, roughness: 0.6, metalness: 0.3 });
+      const matFocoFarol = new THREE.MeshStandardMaterial({ color: 0xE8E4D8, roughness: 0.4 });
+      function crearFarol() {
+        const grupo = new THREE.Group();
+        const poste = new THREE.Mesh(geoPosteFarol, matPosteFarol);
+        poste.position.y = 2.1;
+        poste.castShadow = CIELO_ALTA;
+        grupo.add(poste);
+        const brazo = new THREE.Mesh(geoBrazoFarol, matPosteFarol);
+        brazo.rotation.z = Math.PI / 2;
+        brazo.position.set(0.35, 4.15, 0);
+        grupo.add(brazo);
+        const foco = new THREE.Mesh(geoFocoFarol, matFocoFarol);
+        foco.position.set(0.68, 4.05, 0);
+        grupo.add(foco);
+        return grupo;
+      }
+      // Farolas de punta a punta de la calle (mismo margen que usan los
+      // árboles, MARGEN_FAROL, para no salirse del tramo real de vereda),
+      // cada 8m — ya no solo en el tramo donde están los autos.
+      const MARGEN_FAROL = 2.5;
+      for (let x = -LARGO_CALLE / 2 + MARGEN_FAROL; x <= LARGO_CALLE / 2 - MARGEN_FAROL; x += 8) {
+        const farol = crearFarol();
+        farol.position.set(x, 0.02, Z_VEREDA_MOBILIARIO);
+        grupoEdificio.add(farol);
+      }
+
+      // Bancos (3: el original + 2 más, repartidos lejos entre sí y del
+      // resto del mobiliario para no amontonarlos)
+      const matBanco = new THREE.MeshStandardMaterial({ color: 0x6B6B68, roughness: 0.8 });
+      function crearBanco() {
+        const banco = new THREE.Group();
+        const asiento = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.06, 0.4), matBanco);
+        asiento.position.y = 0.42;
+        asiento.castShadow = CIELO_ALTA; asiento.receiveShadow = true;
+        banco.add(asiento);
+        const respaldo = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 0.05), matBanco);
+        respaldo.position.set(0, 0.62, -0.17);
+        banco.add(respaldo);
+        [-0.6, 0.6].forEach(x => {
+          const pata = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.4), matBanco);
+          pata.position.set(x, 0.2, 0);
+          banco.add(pata);
+        });
+        return banco;
+      }
+      [-17, -5.5, 10].forEach(x => {
+        const banco = crearBanco();
+        banco.position.set(x, 0.02, Z_VEREDA_MOBILIARIO);
+        grupoEdificio.add(banco);
+      });
+
+      // Cesto de basura
+      {
+        const cesto = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.22, 0.18, 0.55, 10),
+          new THREE.MeshStandardMaterial({ color: 0x3C4044, roughness: 0.7 })
+        );
+        cesto.position.set(-10.5, 0.02 + 0.275, Z_VEREDA_MOBILIARIO);
+        cesto.castShadow = CIELO_ALTA; cesto.receiveShadow = true;
+        grupoEdificio.add(cesto);
+      }
+
+      // Bicicletero (soporte tipo U invertida, uno solo)
+      {
+        const matBici = new THREE.MeshStandardMaterial({ color: 0x33383B, roughness: 0.5, metalness: 0.4 });
+        const bici = new THREE.Group();
+        [-0.25, 0.25].forEach(x => {
+          const pata = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.7, 6), matBici);
+          pata.position.set(x, 0.35, 0);
+          bici.add(pata);
+        });
+        const arco = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 6), matBici);
+        arco.rotation.z = Math.PI / 2;
+        arco.position.set(0, 0.7, 0);
+        bici.add(arco);
+        bici.position.set(-14.5, 0.02, Z_VEREDA_MOBILIARIO);
+        grupoEdificio.add(bici);
+      }
+
+      // Cartel de tránsito genérico (disco en poste) — la maqueta no tiene
+      // una segunda calle/cruce modelado, así que un semáforo no tendría
+      // con qué cruzarse; se optó por un cartel puntual en su lugar.
+      {
+        const cartel = new THREE.Group();
+        const poste = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.04, 0.05, 2.2, 8),
+          new THREE.MeshStandardMaterial({ color: 0x4A4E52, roughness: 0.6 })
+        );
+        poste.position.y = 1.1;
+        poste.castShadow = CIELO_ALTA;
+        cartel.add(poste);
+        const panel = new THREE.Mesh(
+          new THREE.CircleGeometry(0.28, 16),
+          new THREE.MeshStandardMaterial({ color: 0xEDEFEF, roughness: 0.4, side: THREE.DoubleSide })
+        );
+        panel.position.y = 2.15;
+        cartel.add(panel);
+        cartel.position.set(-1, 0.02, Z_VEREDA_MOBILIARIO);
+        grupoEdificio.add(cartel);
+      }
+
       /* ============================================================
          4. CÁMARA
          ============================================================ */
