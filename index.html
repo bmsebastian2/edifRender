@@ -4266,8 +4266,44 @@
       // girando grupoEdificio en el lugar (ver ese grupo más arriba) — así
       // piso/calle/vereda/árboles, que quedan afuera del grupo, no se mueven
       // en pantalla al arrastrar ni en el auto-giro.
-      const theta = -0.7;
-      let radio = 96, phi = 1.15, giro = 0, arrastrando = false, ultimo = { x: 0, y: 0 }, tocado = false;
+      //
+      // El signo de theta decide desde qué lado (frente/calle en -Z, o
+      // contrafrente en +Z, ver CLAUDE.md) arranca la cámara — nunca el
+      // giro inicial, que se deja en 0 a propósito (ver GIRO más abajo):
+      // el frente vive siempre en el mismo eje local sea cual sea el
+      // edificio, así que no hace falta leer norte_grados acá (eso solo
+      // orienta el sol, no esta vista). ÁNGULO_LATERAL es el mismo barrido
+      // de siempre (~40°) que da la vista de "tres cuartos"; lo único que
+      // cambia es el signo de cos(theta) para quedar del lado de la calle
+      // en vez del contrafrente — con el mismo signo de sin(theta) para no
+      // cambiar de lado lateral (el cartel vive del lado X negativo, ver
+      // CARTEL_X, y así la cámara arranca de ese mismo lado, con el cartel
+      // en primer plano en vez de en el borde del cuadro).
+      const ANGULO_LATERAL = 0.7;
+      const theta = ANGULO_LATERAL - Math.PI;
+      // Elevación: ~24° sobre el horizonte (phi se mide desde el eje Y) —
+      // ligeramente por arriba, no en picado, para que se lea la fachada
+      // Y el lateral sin aplanar el volumen.
+      const PHI_INICIAL = 1.15;
+      // Distancia proporcional a la altura real (ALTURA ya sale de PISOS/
+      // PASO, no un edificio fijo, ver CLAUDE.md): la constante de abajo
+      // sale de calibrar contra ROSSO (11 pisos·PASO ≈ 36.5m → radio 96,
+      // el valor de siempre) para que un edificio más bajo o más alto no
+      // quede desencuadrado con el mismo número fijo.
+      const RADIO_POR_ALTURA = 96 / ((10 + 1) * (3 + 0.32));
+      // En pantallas angostas (celular vertical) el FOV horizontal es más
+      // chico que el vertical (mismo fov, aspect < 1: three.js reparte el
+      // ángulo así) y la calle — 44m de largo, bien más ancha que el
+      // edificio — es lo primero que se corta. Alejar la cámara en esa
+      // proporción (tan(hFov/2) = aspect·tan(vFov/2), de ahí el 1/aspect)
+      // para que calle + cartel + edificio entren igual que en desktop.
+      const ASPECT_REF = 1.6;
+      const aspectInicial = Math.max(innerWidth / innerHeight, 0.4);
+      const factorAspecto = Math.min(2, Math.max(1, ASPECT_REF / aspectInicial));
+      // Mismo rango que el zoom a rueda de más abajo (34–190), para no
+      // arrancar ya afuera del límite que el usuario puede alcanzar.
+      let radio = Math.min(190, Math.max(55, ALTURA * RADIO_POR_ALTURA) * factorAspecto),
+        phi = PHI_INICIAL, giro = 0, arrastrando = false, ultimo = { x: 0, y: 0 }, tocado = false;
 
       function ubicarCamara() {
         phi = Math.max(0.18, Math.min(Math.PI / 2 + 0.16, phi));
