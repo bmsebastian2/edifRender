@@ -1,196 +1,270 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guía para Claude (Claude Code o un proyecto de Claude Desktop) al trabajar en este
+repositorio. `README.md` es el runbook operativo (dar de alta un edificio nuevo,
+administrar accesos); este archivo es la arquitectura.
 
-## What this is
+## Cómo trabajar con Sebastian
 
-A single-file, no-build static web page: a navigable 3D visualization of a residential
-building's unit availability, built with Three.js. There is no bundler, package.json,
-test suite, or linter — everything (HTML, CSS, JS, and the unit/floor data) lives in one
-HTML file loaded via a CDN `<script>` tag (`three.js r128`).
+- **Responder siempre en español**, en todos los mensajes, incluso confirmaciones cortas.
+  Todo el copy de la UI y los comentarios del código también están en español — los
+  nuevos también.
+- Sebastian lleva el proyecto solo (desarrollador + dueño de producto para Block
+  Desarrollos / "Armado por Cota"). Lee SQL, políticas de RLS y triggers sin problema —
+  se puede hablar de Postgres directamente, sin abstraerlo.
+- Itera mirando: dar una recomendación real con sus trade-offs (no una lista neutral de
+  opciones), y mostrar/describir el resultado visual. Esperar una ronda de correcciones
+  después de que lo vea.
+- **Mobile: el edificio 3D es el protagonista.** Ninguna UI persistente nueva puede
+  taparlo. El patrón establecido es la hoja inferior colapsable (botón disparador → hoja
+  a pedido), como `#pisos` y `#filtros`. Los elementos chicos inevitables (logo, íconos
+  de redes, botón de renders) van solo con ícono y `filter: drop-shadow(...)`, nunca en
+  una tarjeta opaca. Verificar a ~390px y en desktop antes de dar un cambio de layout por
+  terminado.
+- "Fijo" es ambiguo para elementos de la escena 3D: normalmente significa **anclado al
+  mundo** (se queda pegado a su lugar mientras el edificio gira; p.ej. el cartel con el
+  nombre de la calle queda sobre la calle), no `position: fixed` de CSS. Confirmar antes
+  de sacar algo de la escena.
+- Las migraciones SQL las corre Sebastian **a mano** en el SQL Editor de Supabase. Nunca
+  asumir que una migración recién escrita ya está aplicada — decirlo explícitamente
+  cuando una funcionalidad depende de una.
 
-The file was briefly renamed to `index.html.html` (which would have broken Vercel's
-root-serving) and has been renamed back to `index.html`.
+## Qué es esto
 
-## Data: Supabase, not hardcoded
+Un sitio estático sin build: una visualización 3D navegable de la disponibilidad de
+unidades de un edificio residencial (Three.js **r128** desde cdnjs), con Supabase como
+backend. No hay bundler, package.json, tests ni linter. Se despliega en Vercel en
+`https://armadoporcota.vercel.app/`, sirviendo la raíz del repo tal cual.
 
-Unit data (`units` table) and demand tracking (`events` table) live in Supabase now —
-see `supabase-schema.sql` for the schema/RLS/seed and `supabase-config.js` for the client
-credentials (fill in `SUPABASE_URL` / `SUPABASE_ANON_KEY` after creating the project).
-`index.html` fetches `units` on load and only builds the Three.js scene once that
-resolves (see `cargarUnidades()` / `iniciar()` in the script). There is still no
-automatic sync from any spreadsheet — state changes go through `admin.html`, an
-internal prototype where someone on the Cota side toggles a unit's `estado` and can see
-which units/typologies/floors get the most clicks (logged via `registrarEvento()` every
-time `abrir(u)` runs). `admin.html` now gates on Supabase Auth
-(`sb.auth.signInWithPassword` / `getSession`) before showing anything — users are created
-manually in the Supabase dashboard (Authentication → Users), there's no self-signup.
-Postgres-level grants restrict `UPDATE` on `units.estado` to the `authenticated` role
-(see `supabase-schema.sql`; `supabase-migration-auth.sql` has the one-time migration for
-an existing project that predates this). `index.html` links to `admin.html` via the small
-"Panel interno" link near the Cota logo.
+Empezó como un solo edificio (ROSSO) y ahora es una **plataforma multi-tenant**: un
+mismo proyecto de Supabase aloja varios edificios (`projects`) de varios clientes
+(`orgs`). El frontend decide qué edificio mostrar por slug.
 
-## Running / testing
+Archivos:
 
-There is no dev server, build step, or test command. To preview: open the HTML file
-directly in a browser, or serve the directory with any static file server
-(e.g. `npx serve .`). Deployment is Vercel, serving whatever file is named `index.html`
-at the repo root.
+- `index.html` (~5.3k líneas) — el visor público. HTML + CSS + JS en un solo archivo.
+- `admin.html` (~1.8k líneas) — panel interno para clientes/vendedores, detrás de
+  Supabase Auth.
+- `supabase-config.js` — `SUPABASE_URL` + anon key, crea el cliente global `sb`. La anon
+  key es pública a propósito; la seguridad real es RLS. Nunca poner acá la service_role
+  key.
+- `supabase-schema.sql` — el schema original single-tenant + el seed de ROSSO.
+- `supabase-migration-*.sql` — cada cambio posterior, corridos a mano en orden (ver más
+  abajo).
+- `modelos/autos/*.glb` — modelos low-poly de autos (CC0, comprimidos con meshopt vía
+  `gltf-transform optimize`) usados como utilería en la calle.
+- `README.md` — runbook: alta de edificio paso a paso, acceso de plataforma, revocar
+  accesos.
 
-## Architecture (single file, four layers)
+## Correr / probar
 
-The script is organized top-to-bottom in numbered comment sections
-(`1. DATOS`, `2. ESCENA`, `3. TORRE`, `4. CÁMARA`, `5. INTERACCIÓN`, `6. BUCLE`). The
-important thing to understand is the data flow between them:
+No hay dev server ni build. Abrir `index.html` directo o servir la carpeta
+(`npx serve .`). Elegir edificio con `?p=<slug>` (por defecto `rosso`). Deploy = push a
+`main` (Vercel).
 
-1. **Data (`DATOS`)** — `cargarUnidades()` fetches the flat `UNIDADES` array (one row per
-   real unit, `id`/`piso`/`pos`/`col`/`frente`/`dorms`/`m2`/`orientacion`/`precio`/
-   `estimado`/`estado`) from the Supabase `units` table. `id` is `piso*100 + pos` (or
-   `1000+pos` for the penthouse floor) — that math lives in the seed data in
-   `supabase-schema.sql`, not in this file anymore. Everything from `2. ESCENA` onward is
-   wrapped in `iniciar(UNIDADES)`, called only after the fetch resolves.
-   **This table is what encodes this specific building's units** — layout, prices, and
-   which are "live" (`estado`) all come from Supabase now, editable via `admin.html`
-   without redeploying.
+## Modelo de datos en Supabase (multi-tenant)
 
-2. **Scene/Tower (`ESCENA`, `TORRE`)** — builds the Three.js scene once from constants
-   (`ANCHO`/`PROF`/`ALTO` = unit box dimensions, `PASO` = floor-to-floor height, `SEP_X`/
-   `SEP_Z` = spacing between units on a floor plate). For each floor it creates a slab
-   (losa), a core/shaft block (nucleo), and one box mesh per unit in `UNIDADES` for that
-   floor, colored by `ESTADOS[u.estado].color` and stored with `userData.unidad` pointing
-   back to the data object — this is how raycasting later maps a clicked mesh back to its
-   unit record.
+Definido por `supabase-migration-multitenant.sql` más las migraciones de funcionalidades
+posteriores:
 
-3. **Camera & interaction (`CÁMARA`, `INTERACCIÓN`)** — orbit-style camera driven by
-   `theta`/`phi`/`radio` (drag to orbit, wheel to zoom, auto-rotates slowly until the user
-   first touches it). Raycasting against `cajas` (the unit meshes) drives hover (tooltip,
-   emissive highlight) and click (`abrir(u)` opens the detail panel). Filtering
-   (bedroom-count chips, estado chips, per-floor isolation via the floor rail, and the
-   "separar pisos" exploded-view toggle) all funnel through `pasa(u)` /
-   `aplicar()`, which dims/disables non-matching unit meshes rather than removing them.
+- `paises` (incluye `tz_offset_horas`), `monedas` — tablas de referencia; agregar un país
+  o moneda es un insert, no una migración.
+- `orgs` → `projects` (slug, nombre, direccion, ciudad, pais, entrega, pisos, publicado,
+  muestra_totales, moneda, locale, `geometria` jsonb, lat/lon, fecha_ocupacion,
+  avance_habilitado, tiene_pb).
+- Por proyecto (`project_id`): `units`, `typologies`, `media`, `amenities`, `settings`
+  (instagram/youtube/sitio_web/whatsapp, `textos` jsonb, `financiacion` jsonb), `leads`,
+  `events`, `obra_hitos`, `obra_fotos`.
+- Accesos: `memberships` (user_id, project_id, rol `admin` | `vendedor`) y
+  `plataforma_admins` (acceso global — Sebastian). Los usuarios se crean a mano en el
+  dashboard de Supabase; no hay registro propio.
+- Helpers security-definer que usan todas las políticas de RLS: `es_admin_plataforma()`,
+  `es_admin_proyecto(project_id)`, `es_miembro(project_id)`, `proyecto_publicado()`,
+  `unidad_pertenece()`. **Toda funcionalidad nueva editable desde admin tiene que
+  reutilizarlos** con scope por `project_id`, en vez de inventar lógica de acceso nueva
+  (las políticas de Storage de `supabase-migration-media-storage.sql` son el ejemplo de
+  referencia).
+- `GRANT update (...)` a nivel de columna controla qué puede editar `authenticated`
+  (p.ej. los vendedores solo `units.estado`); los campos sensibles del proyecto (slug,
+  moneda, geometria, org_id) solo pasan por la RPC `plataforma_actualizar_proyecto()` o
+  por el SQL Editor.
+- **Las lecturas públicas pasan por vistas `public_*`** (`public_projects`,
+  `public_units`, `public_settings`, `public_amenities`, `public_typologies`,
+  `public_media`, `public_obra_hitos`, `public_obra_fotos`), que filtran a proyectos
+  `publicado`. `create or replace view` solo permite **agregar** columnas al final — cada
+  migración que suma una columna a `public_projects` la recrea desde la última versión y
+  la agrega al final.
+- Storage: un único bucket público `renders`, rutas `<project_id>/<random>.<ext>`; el
+  primer segmento de la ruta es lo que chequean las políticas. Un trigger
+  (`enforce_media_limite`) limita del lado del servidor la cantidad de imágenes por
+  proyecto/tipología.
+- Escrituras anónimas: `events` (tracking de clicks/simulaciones) y `leads` (lista de
+  espera), con un trigger de límite por sesión (`limitar_leads_por_sesion`).
 
-4. **Unit detail panel** — `plantaSVG(u)` / `ambientes(u)` procedurally generate a
-   schematic (not architectural) floor-plan SVG from just `m2`, `dorms`, and `orient`, so
-   no per-unit plan artwork is needed. `abrir(u)` populates the panel DOM, builds a
-   prefilled WhatsApp deep link (`WHATSAPP` number + templated message + `linkDe(u)`), and
-   updates the URL (`?u=<id>`) via `history.replaceState` (guarded because
-   `about:srcdoc` previews have no history). On load, `?u=<id>` in the query string
-   reopens that unit with the camera focused on it (`enfocar(u)`), which is how the
-   "share this unit" link (`p-copiar` button) works.
+### Orden de las migraciones
 
-## Unit and floor-plate geometry: the `geom` coordinate system
+Cada archivo es idempotente o tiene guardas. Orden histórico: `schema` → `auth` →
+`estados` → `settings` → `cochera-terraza` → `precios-ingar` → `multitenant` (tiene su
+`-rollback`) → `media-storage` → `typology-media` → `altamira-piso5-numeracion` → `solar`
+→ `financiacion` → **`avance-obra` (tiene que correr después de `financiacion`)** →
+`lista-espera` → `pisos`. Migraciones nuevas: archivo nuevo
+`supabase-migration-<tema>.sql`, comentario de cabecera en español explicando el porqué,
+idempotente (`if not exists`, `drop policy if exists`, `on conflict`), puramente aditiva
+cuando se pueda (un proyecto sin el dato nuevo tiene que verse exactamente igual que
+antes), y actualizar `supabase-schema.sql` solo si es para instalaciones nuevas.
 
-Each unit can carry its own floor-plan outline (`units.geom.contorno`) instead of being
-positioned by the `col`/`frente` grid and drawn as a fixed `ANCHO`×`PROF` box. The floor
-plate itself (`projects.geometria.losa_contorno` / `.nucleo_contorno`) can override the
-slab and core shape the same way. This is the contract every future building's data load
-has to follow (see also `README.md`'s alta runbook):
+## Arquitectura de `index.html`
 
-- **Format**: `contorno` (and `losa_contorno`/`nucleo_contorno`) is a list of `[x, z]`
-  points in **meters**, at least 3 points, not repeating the first point at the end.
-- **Origin `(0, 0)`**: the center of the floor plate — the same point where the slab and
-  core (`geoLosa`/`geoNucleo` in `index.html`) are centered today. Every floor shares this
-  same X/Z origin; floors stack directly on top of each other with no per-floor offset.
-- **X axis**: horizontal, same direction `col` already uses today — positive to the right
-  when facing the building's front from the street.
-- **Z axis**: horizontal (depth), same direction `frente` already uses today — negative
-  toward the street (frente side), positive toward the contrafrente.
-- **Y axis (height)**: not part of `contorno`. A unit is extruded from `y=0` (that floor's
-  slab level) up to `alto` — an optional field on `units.geom`; if missing, it falls back
-  to that floor's global `ALTO`.
-- **Winding**: doesn't matter. `index.html` normalizes the polygon's winding by signed
-  area before triangulating it (`formaDesdeContorno()`), so nobody loading data by hand
-  needs to get the point order right.
-- **Compatibility**: an empty/missing `geom.contorno` (or a `geometria` without
-  `losa_contorno`/`nucleo_contorno`) falls back to exactly today's rendering — the
-  `col`/`frente` grid and rectangular boxes. That's every one of ROSSO's ~70 units right
-  now, and stays that way until ROSSO's data is deliberately migrated.
+Secuencia de carga: un overlay `#carga` está visible desde el primer paint →
+`resolverSlug()` (path, después `?p=`, después `DEFAULT_SLUG = 'rosso'`) →
+`cargarProyecto()` trae el proyecto de `public_projects` y después, en paralelo,
+unidades, settings, amenities, renders del proyecto, media de tipologías, el huso
+horario del país, e hitos/fotos de obra. Cada consulta tiene un timeout de 15s vía
+`abortSignal`. Error de red → el overlay muestra "Reintentar"; slug inexistente o no
+publicado → mensaje amable sin reintentar. Si sale bien, `iniciar(proyecto, settings,
+UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra)` arma todo.
 
-## Solar simulator: `projects.lat`/`lon`, `paises.tz_offset_horas`, `geometria.norte_grados`
+El script está organizado en secciones numeradas:
 
-`index.html` can move a real sun over the model (declination/equation-of-time/hour-angle
-math computed in-file, no library — see the `posicionSolar`/`horarioSolar` functions near
-`iniciar()`) and cast the shadows that result. It needs three pieces of data, added by
-`supabase-migration-solar.sql`, and **hides the whole control (`tieneNorte()`) unless all
-three are present** — never guesses a default, since a wrong sun is worse than no sun:
+1. **DATOS** — mapa `ESTADOS` (`disponible` / `reservado` / `vendido` / `sin_dato`, con
+   sus colores), resolución del slug, `cargarProyecto()`, formateo (`formatearPrecio`
+   usa `moneda`/`locale` del proyecto), matemática solar, tracking de eventos/leads
+   (`obtenerSesion()` = uuid en localStorage, `obtenerOrigen()` = atribución por `?src=`),
+   y los que pintan cosas fuera de la escena 3D (redes, amenities, texto legal, lightbox
+   de renders, sección de avance de obra).
+2. **ESCENA** — renderer, luces, cielo, entorno. Las dimensiones salen de
+   `proyecto.geometria` con los valores de ROSSO como fallback (`ancho` 5.4, `prof` 6.4,
+   `alto` 3, `losa_espesor`, `sep_x`/`sep_z`, `losa_*`, `nucleo_*`). Entorno: calle
+   (`geometria.calle`), cartel con el nombre de la calle anclado al mundo
+   (`geometria.calle_nombre` o extraído de `direccion`), árboles con random por semilla
+   (estables entre recargas), autos GLB cargados una vez y reutilizados con `.clone()`,
+   faroles, bancos.
+3. **TORRE** — `for (let piso = 1; piso <= PISOS; piso++)` con `PISOS = proyecto.pisos`:
+   losa, núcleo, y un mesh por unidad, coloreado con `ESTADOS[u.estado].color`, con
+   `userData.unidad` apuntando al objeto de la unidad (así el raycasting mapea un mesh a
+   su unidad). Los meshes de unidades viven en `cajas`.
+4. **CÁMARA** — cámara orbital (`theta`/`phi`/`radio`), vista inicial desde el frente
+   del edificio, radio escalado según la altura del edificio y el aspecto de la
+   pantalla; rotación automática lenta hasta el primer toque. Los controles del
+   simulador solar también viven acá.
+5. **INTERACCIÓN** — hover (tooltip + emissive) y click (`abrir(u)`). Los filtros (chips
+   de dormitorios armados desde los datos, chips de estado, aislar piso, "separar pisos")
+   pasan todos por `pasa(u)` / `aplicar()`, que atenúan/desactivan los meshes que no
+   coinciden en vez de sacarlos. El riel de pisos (`#pisos`) y los filtros (`#filtros`)
+   son hojas inferiores en mobile.
+6. **BUCLE** — loop de render.
 
-- **`projects.lat` / `projects.lon`** (numeric, signed decimal degrees) — Montevideo is
-  `-34.88, -56.16`; Managua is `12.13, -86.25`. Editable from `admin.html`'s own
-  column-level grant (same tier as `direccion`/`ciudad`), but there's no `admin.html` UI
-  for it yet — set directly in Supabase, like `geometria` itself.
-- **`paises.tz_offset_horas`** (integer hours from UTC, no DST modeled) — a property of
-  the country, not the project, matching how `moneda`/`nombre` already work per-country.
-  UY is `-3`, NI is `-6`. The sun's clock always reads this value, never the visitor's
-  browser timezone.
-- **`projects.geometria.norte_grados`** (number, degrees) — inside the same `geometria`
-  jsonb that already holds `losa_contorno`/`nucleo_contorno`, not a new column.
-  **Convention**: the compass bearing (0–360, clockwise from true north) that the
-  building's **frente** faces — the street-facing side, the model's **-Z axis** —
-  *not* the contrafrente (+Z). Altamira's is `45` (frente facing northeast). This is
-  deliberately the front, not the back: it's the direction anyone will actually read off
-  a map or a site plan ("which way does the front face"), never the back — asking for the
-  contrafrente's bearing invites someone to enter the front's bearing by mistake, which is
-  a silent 180° flip (exactly what happened once already: a facade that should get
-  morning sun only lit up near sunset).
-  **How to measure it**: open the building's real address in Google Maps and read the
-  compass bearing of the street it fronts (e.g. Altamira: sighted along Lorenzo Batlle).
-  Do **not** use a rosa de los vientos printed on a PDF floor plan — those are frequently
-  drawn schematically/not-to-scale and are not a reliable source for this angle.
-  Get this wrong and the shadows will be confidently wrong in a way that's easy to
-  miss — always sanity-check a freshly-entered value: at sunrise the sun should read as
-  roughly perpendicular to the frente when the frente's bearing is close to the sunrise
-  azimuth, and the frente should stay lit through solar noon whenever `|azimut -
-  norte_grados| < 90°`.
+### Panel de detalle de la unidad (`abrir(u)`)
 
-The math itself (`posicionSolar`) takes signed `lat`/`lon` and works for either
-hemisphere with no special-casing — Nicaragua's sun being northward in its summer falls
-out of the trig automatically as long as `lat` is entered with the correct sign.
+- **Planta / renders**: imágenes reales subidas por tipología (`media` con
+  `scope='typology'`, vía `mediaDeUnidad(u)` / `pintarPlantaUnidad(u)`). El viejo esquema
+  procedural `plantaSVG()` / `ambientes()` ya no existe.
+- Precio, m², terraza (`m2_terraza`), precio de cochera opcional (`cochera_precio`),
+  unidades similares (`mostrarSimilares`), tira de pisos.
+- Link de **WhatsApp** armado con `settings.whatsapp` + mensaje con plantilla +
+  `linkDe(u)`.
+- **Simulador de financiación** (`tieneFinanciacion()` / `calcularFinanciacion()`):
+  deslizador de entrega + cuotas mensuales hasta `projects.fecha_ocupacion` + saldo
+  contra entrega de llaves, configurado en `settings.financiacion` jsonb
+  (`entrega_min/max/default`, `saldo_pct`, `ajuste_indice`, `mostrar_ajuste`). Si no está
+  configurado se oculta por completo — nunca con valores default inventados. Usarlo
+  registra una fila en `events` con `tipo='simulacion'`.
+- **Lista de espera** en unidades `reservado`/`vendido`: inserta en `leads` con
+  `tipo='espera'`; el admin recibe el aviso en la pestaña Unidades cuando la unidad
+  vuelve a estar disponible.
+- Compartir: la URL pasa a `?p=<slug>&u=<id>` vía `history.replaceState` (con guarda
+  para `about:srcdoc`); `BASE` es la URL canónica para los links compartidos desde
+  contextos no-http. Al cargar, `?u=<id>` reabre esa unidad y enfoca la cámara en ella
+  (`enfocar(u)`).
+- Cada `abrir(u)` registra un click en `events` (`registrarEvento`), que alimenta la
+  pestaña Demanda del admin.
 
-**ROSSO has none of these three set**, so this feature does not change how ROSSO
-renders — same as any other building that doesn't opt in.
+## `admin.html`
 
-## Floor selector: `projects.tiene_pb`
+Login con Supabase Auth (`signInWithPassword` / `getSession`). Después
+`elegirProyecto()`: un admin de plataforma (`rpc('es_admin_plataforma')`) ve un selector
+con todos los proyectos; un usuario común ve solo sus `memberships` (entra directo si
+tiene uno solo). Pestañas:
 
-`index.html`'s floor panel (`#pisos`) builds its row list from data instead of a
-hardcoded range (same idea as the bedroom-count filter chips): `proyecto.pisos` sets
-how many levels exist, and each level with zero units loaded
-(`UNIDADES.some(u => u.piso === p)`) renders as a disabled "Sin unidades" row instead
-of disappearing — an amenities level with no residential units (e.g. Altamira's 6th
-floor) still shows up in the list in its real position, just not as a selectable
-empty floor. The ground-floor ("PB") row is gated separately: it only renders if
-`projects.tiene_pb` is `true` or unset (`NULL` means "yes, same as every project
-before this column existed"); `false` means the building has no ground floor to
-isolate. Added by `supabase-migration-pisos.sql`, and (like `geometria`/`lat`/`lon`)
-edited directly in Supabase — no `admin.html` UI for it yet.
+- **Unidades** — cambiar `estado`, editar m²/terraza/cochera, asignar tipología en lote,
+  avisos de lista de espera.
+- **Demanda** — clicks por unidad/tipología/piso + leads de lista de espera.
+- **Amenities** — alta/baja/edición + orden.
+- **Tipologías** — alta/baja/edición + imágenes de planta/render por tipología.
+- **Imágenes** — galería de renders del proyecto (se comprime del lado del cliente a
+  ~2000px antes de subir al bucket `renders`; con tope por proyecto).
+- **Avance de obra** — toggle `avance_habilitado`, hitos (`obra_hitos`: fechas, peso,
+  `categoria`; `'estructura'` + `piso` vincula un hito con los pisos del 3D), fotos con
+  fecha (`obra_fotos`, fecha leída del EXIF cuando existe).
+- **Redes** — redes sociales / WhatsApp en `settings`.
 
-## Adapting this to a different building
+Todavía no editable desde el admin (se carga directo en Supabase): `geometria`,
+`lat`/`lon`, `tiene_pb`, `settings.financiacion`, `fecha_ocupacion`, `publicado`.
 
-Since this file is meant to be copied into a new project for another building, the
-building-specific parts to change are:
+## Geometría de unidades y placa: el sistema de coordenadas de `geom`
 
-- **Header text**: `<h1>`, the address/floor-count/unit-count/delivery-date subtitle in
-  `.sub`, and the "`X de Y unidades` tienen estado publicado" copy in `#aviso`.
-- **The `units` seed data in `supabase-schema.sql`** — one row per unit (position,
-  bedrooms, m², orientation, price, `estimado` flag, `estado`). For a new building,
-  write a new seed (see the generator approach used to build this one: a small script
-  building the flat unit list, then emitting `insert` values) rather than hand-typing 70+
-  rows. The `for (let piso = 1; piso <= 10; piso++)` loop and `ALTURA = 10 * PASO` in
-  `index.html` still need to match the new building's floor count — that part of the loop
-  (iterating floors, picking which units belong to which) stays in the front-end even
-  though the unit data itself now comes from Supabase.
-- **Which units show as `disponible`** — set per-row in `units.estado`, edited from
-  `admin.html`, not hardcoded. Still manually curated from public listings for this demo,
-  just no longer redeploy-to-change. The last `<p class="nota">` in the panel and the
-  `#aviso` box still describe this as a demo, not a live feed from the client's own
-  systems.
-- **`WHATSAPP`** and **`BASE`** (the canonical deployed URL used for share links when the
-  page is opened from a non-http context like `about:srcdoc`).
-- **Unit box proportions** (`ANCHO`, `PROF`, `ALTO`, spacing constants) if the new
-  building's floor plate shape differs meaningfully from a ~5.4×6.4m box.
-- **`ambientes(u)`** — the room-layout heuristic used to fake a floor plan from `m2` and
-  `dorms`. It only distinguishes 1-bedroom vs. other, and hardcodes proportions; a
-  building with 3+ bedroom units or very different layouts will need this extended.
+Cada unidad puede tener su propio contorno (`units.geom.contorno`) en vez de la grilla
+`col`/`frente` + caja fija de `ANCHO`×`PROF`. La placa puede reemplazar losa y núcleo de
+la misma forma (`projects.geometria.losa_contorno` / `.nucleo_contorno`). El contrato
+para los datos de cualquier edificio:
 
-Colors (`--fondo`, `--tinta`, etc. CSS variables and the `ESTADOS` map) and copy are in
-Spanish and tailored to this brand — check whether the new building needs different
-branding, or just a straight data swap.
+- **Formato**: lista de puntos `[x, z]` en **metros**, ≥3 puntos, sin repetir el primer
+  punto al final.
+- **Origen `(0, 0)`**: centro de la placa; todos los pisos lo comparten, sin offset por
+  piso.
+- **X**: positivo hacia la derecha mirando el frente desde la calle (igual que `col`).
+- **Z**: negativo hacia la calle (frente), positivo hacia el contrafrente (igual que
+  `frente`).
+- **Y**: no va en `contorno`. Las unidades se extruyen desde la losa hasta `geom.alto`
+  (fallback: `ALTO` global).
+- **Sentido de giro**: no importa — `formaDesdeContorno()` lo normaliza por área con
+  signo.
+- **Compatibilidad**: contornos vacíos o ausentes vuelven a la grilla + cajas
+  rectangulares. Así están todas las unidades de ROSSO.
+
+El `id` de la unidad es el número de venta: normalmente `piso*100 + pos`, único
+**dentro de un proyecto**. No siempre se deduce de `pos` (ver
+`supabase-migration-altamira-piso5-numeracion.sql`: en el piso 5 de Altamira se
+fusionaron dos posiciones).
+
+## Simulador solar: `projects.lat`/`lon`, `paises.tz_offset_horas`, `geometria.norte_grados`
+
+`index.html` calcula la posición real del sol dentro del archivo (`posicionSolar` /
+`horarioSolar`: declinación + ecuación del tiempo + ángulo horario, sin librería) y
+proyecta las sombras. El control **se oculta salvo que estén los tres datos**
+(`tieneNorte()`) — un sol equivocado es peor que ningún sol:
+
+- **`projects.lat` / `lon`** — grados decimales con signo (Montevideo `-34.88, -56.16`;
+  Managua `12.13, -86.25`).
+- **`paises.tz_offset_horas`** — horas enteras respecto de UTC, sin horario de verano
+  (UY `-3`, NI `-6`). El reloj del sol siempre usa esto, nunca el huso horario del
+  navegador del visitante.
+- **`geometria.norte_grados`** — rumbo de brújula (0–360, en sentido horario desde el
+  norte verdadero) hacia el que mira el **frente** (lado de la calle, **-Z** del modelo).
+  **No** el contrafrente — cargar el rumbo del contrafrente es un giro silencioso de 180°
+  (ya pasó una vez: una fachada que debía tener sol de mañana se iluminaba al atardecer).
+  Altamira: `45`. Medirlo en Google Maps a lo largo de la calle a la que da el edificio;
+  no confiar en rosas de los vientos de planos en PDF. Chequeo: el frente tiene que
+  seguir iluminado hasta el mediodía solar siempre que `|azimut - norte_grados| < 90°`.
+
+Funciona en cualquier hemisferio siempre que `lat` tenga el signo correcto. ROSSO no
+tiene ninguno de los tres cargado.
+
+## Selector de pisos: `projects.tiene_pb`
+
+El riel de pisos se arma desde `proyecto.pisos`. Los niveles sin unidades se muestran
+como una fila deshabilitada "Sin unidades" (p.ej. el piso de amenities de Altamira) en
+vez de desaparecer. La fila "PB" aparece si `tiene_pb` es `true` o `NULL`; `false` la
+oculta.
+
+## Dar de alta un edificio nuevo
+
+Un edificio estándar no necesita cambios de código — es todo datos. Seguir `README.md`
+(país/moneda → org → proyecto con `publicado = false` → settings → unidades con un
+INSERT generado por script → amenities → usuario de Auth + membership → publicar). Datos
+opcionales por edificio: `geometria` (dimensiones, contornos, calle, norte_grados),
+lat/lon, tiene_pb, financiacion, tipologías + imágenes, avance de obra.
+
+Lo que sigue hardcodeado en `index.html` y puede necesitar cambios: `DEFAULT_SLUG`,
+`BASE`, la marca/colores de Cota (variables CSS en `:root`), y el copy de aviso de demo
+(`#aviso`, la última `.nota` del panel).
