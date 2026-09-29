@@ -3574,9 +3574,26 @@
         const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
         return { minX, maxX, minZ, maxZ, cx: (minX + maxX) / 2, cz: (minZ + maxZ) / 2 };
       })();
-      // Frente del edificio (lado calle, -Z): con CONJUNTO, el borde real de
-      // las unidades más una franja de losa; si no, el de la grilla de siempre.
-      const BORDE_FRENTE = CONJUNTO ? CONJUNTO.minZ - 0.5 : -(SEP_Z + PROF / 2);
+      // Hacia qué eje del modelo da el frente (la calle de la dirección).
+      // Por default -Z (ROSSO, Altamira). Cuando los contornos se cargan en
+      // ejes reales (+X este, -Z norte, ver CLAUDE.md) el frente puede caer en
+      // otro lado — BRUSCO da a Aquiles Lanza = oeste = -X. Todo el entorno de
+      // calle (calle, vereda, cartel, árboles, autos, faroles, bancos) se arma
+      // igual que siempre en coordenadas "de frente" (calle sobre el eje X, en
+      // -Z) y vive en grupoCalle, que gira FRENTE_GIRO para quedar sobre el
+      // eje real. La cámara gira lo mismo (ver theta en CÁMARA). El sol NO:
+      // se orienta con norte_grados sobre los ejes del modelo, no del frente.
+      const FRENTE_GIRO = { '-z': 0, '-x': Math.PI / 2, '+z': Math.PI, '+x': -Math.PI / 2 }[geo.frente_eje] ?? 0;
+      // Dirección del frente en el mundo: lo que en grupoCalle es (0, -1).
+      const FRENTE_DIR = { x: -Math.sin(FRENTE_GIRO), z: -Math.cos(FRENTE_GIRO) };
+      // Frente del edificio (lado calle): con CONJUNTO, el borde real de las
+      // unidades más una franja de losa, medido sobre FRENTE_DIR y expresado
+      // como -Z local de grupoCalle (con FRENTE_GIRO = 0 es minZ - 0.5, igual
+      // que siempre); si no, el de la grilla de siempre.
+      const BORDE_FRENTE = CONJUNTO
+        ? -Math.max(...UNIDADES.flatMap(u => u.geom && Array.isArray(u.geom.contorno) ? u.geom.contorno : [])
+            .map(([x, z]) => x * FRENTE_DIR.x + z * FRENTE_DIR.z)) - 0.5
+        : -(SEP_Z + PROF / 2);
       // Radio del disco de base: 30 de siempre, salvo que el conjunto + la
       // calle al frente no entren (BRUSCO, ~42m de lado) — ahí crece hasta
       // que los 44m de calle y la esquina más lejana quepan adentro.
@@ -3613,6 +3630,10 @@
       // mundo real viene el sol, no cómo cae sobre el edificio.
       const grupoEdificio = new THREE.Group();
       escena.add(grupoEdificio);
+      // Entorno de calle, en coordenadas "de frente" — ver FRENTE_GIRO.
+      const grupoCalle = new THREE.Group();
+      grupoCalle.rotation.y = FRENTE_GIRO;
+      grupoEdificio.add(grupoCalle);
 
       const camara = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 600);
       const render = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -3725,7 +3746,7 @@
       calle.rotation.x = -Math.PI / 2;
       calle.position.set(0, 0.02, Z_CALLE);
       calle.receiveShadow = true;
-      grupoEdificio.add(calle);
+      grupoCalle.add(calle);
 
       // Vereda + cordón en una sola malla: el volumen del box ES el escalón (cara
       // de arriba = vereda, cara que mira a la calzada = cordón, vía material por
@@ -3739,7 +3760,7 @@
       );
       vereda.position.set(0, VEREDA_ALTO / 2, BORDE_FRENTE - VEREDA / 2);
       vereda.castShadow = vereda.receiveShadow = true;
-      grupoEdificio.add(vereda);
+      grupoCalle.add(vereda);
 
       const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
       const matGuion = new THREE.MeshStandardMaterial({ color: 0xEDEFEF, roughness: 0.6 });
@@ -3747,7 +3768,7 @@
         const guion = new THREE.Mesh(geoGuion, matGuion);
         guion.rotation.x = -Math.PI / 2;
         guion.position.set(x, 0.03, Z_CALLE);
-        grupoEdificio.add(guion);
+        grupoCalle.add(guion);
       }
 
       // Línea de borde del lado opuesto a la vereda (el que no tiene cordón) —
@@ -3755,7 +3776,7 @@
       const bordeCalzada = new THREE.Mesh(new THREE.PlaneGeometry(LARGO_CALLE, 0.12), matGuion);
       bordeCalzada.rotation.x = -Math.PI / 2;
       bordeCalzada.position.set(0, 0.03, Z_CALLE - ANCHO_CALLE / 2 + 0.15);
-      grupoEdificio.add(bordeCalzada);
+      grupoCalle.add(bordeCalzada);
 
       /* ============================================================
          3. TORRE
@@ -4094,7 +4115,7 @@
         // (sobreCalle), este objeto solo lleva el dato que usan.
         const consultaMapaCalle = [proyecto.direccion, proyecto.ciudad, proyecto.pais].filter(Boolean).join(', ') || NOMBRE_CALLE;
         cartelCalle.userData.mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(consultaMapaCalle);
-        grupoEdificio.add(cartelCalle);
+        grupoCalle.add(cartelCalle);
       }
       // Arbolado y autos: contexto urbano, deliberadamente apagado para no
       // competir con los colores de estado de las unidades. Semilla
@@ -4199,7 +4220,7 @@
         });
         meshTroncos.instanceMatrix.needsUpdate = true;
         meshesCopa.forEach(m => m.instanceMatrix.needsUpdate = true);
-        grupoEdificio.add(meshTroncos, ...meshesCopa);
+        grupoCalle.add(meshTroncos, ...meshesCopa);
       }
 
       // Autos: modelos GLB low-poly (Kenney/Quaternius, CC0) cargados una
@@ -4299,7 +4320,7 @@
           // como en un auto que ya mirara por X — los 3 en el mismo
           // sentido, en fila sobre el mismo carril.
           auto.rotation.y = Math.PI / 2;
-          grupoEdificio.add(auto);
+          grupoCalle.add(auto);
         });
       });
 
@@ -4342,7 +4363,7 @@
       for (let x = -LARGO_CALLE / 2 + MARGEN_FAROL; x <= LARGO_CALLE / 2 - MARGEN_FAROL; x += 8) {
         const farol = crearFarol();
         farol.position.set(x, 0.02, Z_VEREDA_MOBILIARIO);
-        grupoEdificio.add(farol);
+        grupoCalle.add(farol);
       }
 
       // Bancos (3: el original + 2 más, repartidos lejos entre sí y del
@@ -4367,7 +4388,7 @@
       [-17, -5.5, 10].forEach(x => {
         const banco = crearBanco();
         banco.position.set(x, 0.02, Z_VEREDA_MOBILIARIO);
-        grupoEdificio.add(banco);
+        grupoCalle.add(banco);
       });
 
       // Cesto de basura
@@ -4378,7 +4399,7 @@
         );
         cesto.position.set(-10.5, 0.02 + 0.275, Z_VEREDA_MOBILIARIO);
         cesto.castShadow = CIELO_ALTA; cesto.receiveShadow = true;
-        grupoEdificio.add(cesto);
+        grupoCalle.add(cesto);
       }
 
       // Bicicletero (soporte tipo U invertida, uno solo)
@@ -4395,7 +4416,7 @@
         arco.position.set(0, 0.7, 0);
         bici.add(arco);
         bici.position.set(-14.5, 0.02, Z_VEREDA_MOBILIARIO);
-        grupoEdificio.add(bici);
+        grupoCalle.add(bici);
       }
 
       // Cartel de tránsito genérico (disco en poste) — la maqueta no tiene
@@ -4417,7 +4438,7 @@
         panel.position.y = 2.15;
         cartel.add(panel);
         cartel.position.set(-1, 0.02, Z_VEREDA_MOBILIARIO);
-        grupoEdificio.add(cartel);
+        grupoCalle.add(cartel);
       }
 
       /* ============================================================
@@ -4447,7 +4468,10 @@
       // CARTEL_X, y así la cámara arranca de ese mismo lado, con el cartel
       // en primer plano en vez de en el borde del cuadro).
       const ANGULO_LATERAL = 0.7;
-      const theta = ANGULO_LATERAL - Math.PI;
+      // + FRENTE_GIRO: si el frente no está en -Z (BRUSCO, frente en -X), la
+      // cámara gira igual que grupoCalle, así arranca mirando desde la calle
+      // de la dirección con el cartel en primer plano, como siempre.
+      const theta = ANGULO_LATERAL - Math.PI + FRENTE_GIRO;
       // Elevación: ~24° sobre el horizonte (phi se mide desde el eje Y) —
       // ligeramente por arriba, no en picado, para que se lea la fachada
       // Y el lateral sin aplanar el volumen.
