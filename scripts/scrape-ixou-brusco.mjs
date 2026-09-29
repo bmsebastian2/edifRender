@@ -25,7 +25,10 @@ const RANGOS = {
 };
 
 // "Apartamento Studio en Brusco · Studio · 57,7 m² · Piso 2 · Centro · USD 131.711"
-const FORMATO = /^Apartamento .+? en Brusco · (.+?) · (\d+(?:,\d+)?) m² · Piso (\d+) · .+? · USD (\d{1,3}(?:\.\d{3})*)$/;
+// Las de alquiler responden igual en ?mode=venta pero con precio mensual en UYU:
+// "... · Piso 3 · Centro · UYU 55.000". La moneda define la operación.
+const FORMATO = /^Apartamento .+? en Brusco · (.+?) · (\d+(?:,\d+)?) m² · Piso (\d+) · .+? · (USD|UYU) (\d{1,3}(?:\.\d{3})*)$/;
+const OPERACION = { USD: 'venta', UYU: 'alquiler' };
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -78,7 +81,7 @@ async function pedir(url) {
 }
 
 async function consultar(u) {
-  const base = { slug: u.slug, torre: u.torre, piso: u.piso, pos: u.pos, tipologia: null, m2: null, precio: null };
+  const base = { slug: u.slug, torre: u.torre, piso: u.piso, pos: u.pos, tipologia: null, m2: null, precio: null, moneda: null, operacion: null };
   let r;
   try {
     r = await pedir(`${URL_BASE}${u.slug}?mode=venta`);
@@ -97,7 +100,9 @@ async function consultar(u) {
     ...base,
     tipologia: m[1],
     m2: Number(m[2].replace(',', '.')),
-    precio: Number(m[4].replace(/\./g, '')),
+    precio: Number(m[5].replace(/\./g, '')),
+    moneda: m[4],
+    operacion: OPERACION[m[4]],
     http_status: 200,
   };
 }
@@ -116,7 +121,7 @@ function resumenDiferencias(anterior, actual) {
   for (const [slug, u] of ahora) {
     const p = previo.get(slug);
     if (!p) nuevas.push(u);
-    else if (p.precio !== u.precio) cambios.push({ slug, antes: p.precio, ahora: u.precio });
+    else if (p.precio !== u.precio) cambios.push({ slug, moneda: u.moneda ?? 'USD', antes: p.precio, ahora: u.precio });
   }
   for (const [slug, p] of previo) if (!ahora.has(slug)) caidas.push(p);
 
@@ -124,7 +129,7 @@ function resumenDiferencias(anterior, actual) {
   console.log(`  Precios que cambiaron: ${cambios.length}`);
   for (const c of cambios) {
     const pct = (((c.ahora - c.antes) / c.antes) * 100).toFixed(1);
-    console.log(`    ${c.slug.toUpperCase()}: USD ${c.antes} → ${c.ahora} (${pct > 0 ? '+' : ''}${pct}%)`);
+    console.log(`    ${c.slug.toUpperCase()}: ${c.moneda} ${c.antes} → ${c.ahora} (${pct > 0 ? '+' : ''}${pct}%)`);
   }
   console.log(`  Unidades nuevas: ${nuevas.length}${nuevas.length ? ' — ' + nuevas.map((u) => u.slug.toUpperCase()).join(', ') : ''}`);
   console.log(`  Dejaron de responder (¿vendidas?): ${caidas.length}${caidas.length ? ' — ' + caidas.map((u) => u.slug.toUpperCase()).join(', ') : ''}`);
@@ -156,12 +161,18 @@ async function main() {
   const errores = unidades.filter((u) => u.error);
   const no404 = unidades.filter((u) => u.http_status === 404);
   const otros = unidades.filter((u) => u.http_status && ![200, 404].includes(u.http_status));
-  console.log(`\nProbadas: ${unidades.length} · OK: ${ok.length} · 404: ${no404.length} · con error: ${errores.length} · otros HTTP: ${otros.length}`);
+  const venta = ok.filter((u) => u.operacion === 'venta');
+  const alquiler = ok.filter((u) => u.operacion === 'alquiler');
+  console.log(`\nProbadas: ${unidades.length} · venta: ${venta.length} · alquiler: ${alquiler.length} · 404: ${no404.length} · con error: ${errores.length} · otros HTTP: ${otros.length}`);
   for (const u of errores) console.log(`  ERROR ${u.slug}: ${u.crudo}`);
   for (const u of otros) console.log(`  HTTP ${u.http_status} ${u.slug}`);
-  if (ok.length) {
-    const precios = ok.map((u) => u.precio);
-    console.log(`Precios: USD ${Math.min(...precios)} – ${Math.max(...precios)}`);
+  if (venta.length) {
+    const precios = venta.map((u) => u.precio);
+    console.log(`Venta: USD ${Math.min(...precios)} – ${Math.max(...precios)}`);
+  }
+  if (alquiler.length) {
+    const precios = alquiler.map((u) => u.precio);
+    console.log(`Alquiler: UYU ${Math.min(...precios)} – ${Math.max(...precios)} por mes`);
   }
   console.log(`Guardado en ${SALIDA}`);
   if (anterior) resumenDiferencias(anterior, actual);

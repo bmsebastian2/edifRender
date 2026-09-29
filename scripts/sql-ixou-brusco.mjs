@@ -2,6 +2,11 @@
 // (la salida de scripts/scrape-ixou-brusco.mjs).
 //
 // Uso: node scripts/sql-ixou-brusco.mjs
+//
+// Antes de escribir baja los ids reales de BRUSCO (vista public_units, con la anon
+// key de supabase-config.js) y valida que todo id exista: los que no matchean se
+// listan y el SQL no los incluye. Si la vista viene vacía (proyecto despublicado),
+// aborta en vez de generar a ciegas.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -9,66 +14,79 @@ import { fileURLToPath } from 'node:url';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const datos = JSON.parse(readFileSync(`${RAIZ}/datos/ixou-brusco-precios.json`, 'utf8'));
+const config = readFileSync(`${RAIZ}/supabase-config.js`, 'utf8');
+const SUPABASE_URL = config.match(/SUPABASE_URL\s*=\s*"([^"]+)"/)[1];
+const ANON_KEY = config.match(/SUPABASE_ANON_KEY\s*=\s*"([^"]+)"/)[1];
+const SLUG = 'brusco';
 
-// Nivel 2 (basamento, ids 201..214 sin torre): slug IXOU → id en la base.
-// Cada torre se queda con su mitad del anillo del podio; en B lo confirman los m²
-// (relación pareja 1,56–1,60), en A la tipología (1 dorm = 207, 2 dorm = 212).
+// Nivel 2 (basamento, ids 201..214 sin torre): slug IXOU → id en la base. Los centros
+// de los contornos arman un recorrido continuo por el anillo del podio (B201 lado oeste
+// → B202..B207 frente → A201 esquina frente-este → A202..A205 lado este → A206 esquina
+// fondo-este → A207 fondo). En B lo confirman los m² (relación pareja 1,56–1,60), en A
+// la tipología (2 dorm = 212) y la simetría (A202 y A205, 73,1 m² ↔ 208 y 211).
+// Las posiciones 08..14 de cada torre no existen en el piso 2.
 const PISO2 = { a201: 207, a202: 208, a203: 209, a204: 210, a205: 211, a206: 212, a207: 213,
   b201: 214, b202: 201, b203: 202, b204: 203, b205: 204, b206: 205, b207: 206 };
+const idDe = (x) => x.piso === 2 ? PISO2[x.slug] ?? null : (x.torre === 'B' ? 10000 : 0) + x.piso * 100 + x.pos;
+const dormsDe = (t) => {
+  if (/^studio$/i.test(t)) return 0;
+  const m = t.match(/^(\d+) dormitorios?$/i);
+  if (!m) throw new Error(`tipología desconocida: ${t}`);
+  return Number(m[1]);
+};
 
-const idDe = (x) => x.piso === 2 ? PISO2[x.slug] : (x.torre === 'B' ? 10000 : 0) + x.piso * 100 + x.pos;
-const dormsDe = (t) => /studio/i.test(t) ? 0 : Number(t.match(/^(\d+)/)[1]);
-
-const disp = [], vend = [];
-for (const x of datos.unidades) {
-  const id = idDe(x);
-  if (id == null) continue; // piso 2 posiciones 08..14: no existen
-  const numero = x.slug.toUpperCase();
-  if (x.http_status === 200 && !x.error) {
-    disp.push({ id, numero, dorms: dormsDe(x.tipologia), precio: x.precio, m2: x.m2, tip: x.tipologia });
-  } else if (x.http_status === 404) {
-    vend.push({ id, numero, m2: null, motivo: '404' });
-  } else if (x.error && /· UYU /.test(x.crudo)) {
-    const m2 = Number(x.crudo.match(/· (\d+(?:,\d+)?) m²/)[1].replace(',', '.'));
-    vend.push({ id, numero, m2, motivo: 'solo alquiler (UYU)' });
-  } else throw new Error(`sin clasificar: ${x.slug}`);
+async function idsDeLaBase() {
+  const h = { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` };
+  const p = await (await fetch(`${SUPABASE_URL}/rest/v1/public_projects?slug=eq.${SLUG}&select=id`, { headers: h })).json();
+  if (!p.length) throw new Error(`public_projects no devuelve '${SLUG}' (¿despublicado?)`);
+  const u = await (await fetch(`${SUPABASE_URL}/rest/v1/public_units?project_id=eq.${p[0].id}&select=id&limit=10000`, { headers: h })).json();
+  if (!u.length) throw new Error(`public_units no devuelve unidades de '${SLUG}'`);
+  return new Set(u.map((x) => x.id));
 }
-disp.sort((a, b) => a.id - b.id); vend.sort((a, b) => a.id - b.id);
-const ids = [...disp, ...vend].map((u) => u.id);
-if (new Set(ids).size !== ids.length) throw new Error('id duplicado');
+
+const existentes = await idsDeLaBase();
+
+const venta = [], alquiler = [], vendidas = [], sinMatch = [], piso2 = [];
+for (const x of datos.unidades) {
+  const numero = x.slug.toUpperCase();
+  if (x.error || (x.http_status !== 200 && x.http_status !== 404)) throw new Error(`sin clasificar: ${x.slug}`);
+  const id = idDe(x);
+  if (id == null) { piso2.push(numero); continue; }
+  if (!existentes.has(id)) { sinMatch.push({ numero, id, status: x.http_status, operacion: x.operacion }); continue; }
+  if (x.http_status === 404) vendidas.push({ id, numero });
+  else if (x.operacion === 'venta') venta.push({ id, numero, dorms: dormsDe(x.tipologia), m2: x.m2, precio: x.precio, tip: x.tipologia });
+  else if (x.operacion === 'alquiler') alquiler.push({ id, numero, dorms: dormsDe(x.tipologia), m2: x.m2, precio: x.precio, tip: x.tipologia });
+  else throw new Error(`operación desconocida: ${x.slug}`);
+}
+for (const l of [venta, alquiler, vendidas]) l.sort((a, b) => a.id - b.id);
 
 const fecha = datos.fecha.slice(0, 10);
 const filas = (lista, f) => lista.map((u, i) => {
   const [tupla, comentario] = f(u);
-  return `  ${tupla}${i < lista.length - 1 ? ',' : ''}  -- ${comentario}`;
+  return `    ${tupla}${i < lista.length - 1 ? ',' : ''}  -- ${comentario}`;
 }).join('\n');
-const filasDisp = filas(disp, (u) => [`(${u.id}, '${u.numero}', ${u.dorms}, ${u.precio}, ${u.m2})`, u.tip]);
-const filasVend = filas(vend, (u) => [`(${u.id}, '${u.numero}', ${u.m2 ?? 'null::numeric'})`, u.motivo]);
 
 const sql = `-- Precios de BRUSCO desde la ficha pública de IXOU (ixou.la), corrida del ${fecha}.
 -- Generado con scripts/sql-ixou-brusco.mjs a partir de datos/ixou-brusco-precios.json
 -- (scripts/scrape-ixou-brusco.mjs). No editar a mano: regenerar.
 --
--- Qué hace:
---   · ${disp.length} unidades publicadas en venta (precio en USD): precio, dorms,
---     estado = 'disponible', estimado = false.
---   · ${vend.length} slugs que dieron 404 o que IXOU solo publica en alquiler (UYU):
---     estado = 'vendido'. El precio no se toca. Los que no tienen fila en la base
---     (p.ej. B305/B306: el piso 3 de B tiene 4 unidades) no actualizan nada.
---   · En todas: geom.numero = número real de IXOU ("A207", "B1105", sin guion).
---     Cuando IXOU informa m², va a geom.m2_ixou — NO se pisa units.m2: IXOU publica
---     superficie total (~1,59× la interior de planos que tiene la base).
+-- Reemplaza la versión anterior de este archivo (que dejaba units.m2 intacto y mandaba
+-- las de alquiler a 'vendido'). Qué hace ahora:
+--   · ${venta.length} en venta (USD): m2 = el de IXOU, precio, dorms, estado = 'disponible',
+--     estimado = false, geom.numero / operacion = 'venta' / moneda = 'USD'.
+--   · ${alquiler.length} en alquiler (UYU/mes): m2, dorms, precio = null, estado = 'sin_dato'
+--     (no hay estado de alquiler), geom.numero / operacion = 'alquiler' / moneda = 'UYU'
+--     / precio_alquiler_uyu.
+--   · ${vendidas.length} que dieron 404: estado = 'vendido' + geom.numero. m2 y precio no se tocan.
+--   · units.m2 pasa a ser la superficie que publica IXOU (total), no la útil de planos.
+--   · Piso 2 (basamento, ids 201..214 sin torre), correspondencia confirmada:
+--       A201=207 A202=208 A203=209 A204=210 A205=211 A206=212 A207=213
+--       B201=214 B202=201 B203=202 B204=203 B205=204 B206=205 B207=206
+--     La 207 figuraba como "Flex" e IXOU la da como 1 dormitorio: se corrige geom.tipologia.
 --   · geom.contorno y el resto de geom quedan intactos (merge con ||).
 --
--- Nivel 2 (basamento, ids 201..214 sin torre). Mapeo acordado: cada torre se queda
--- con su mitad del anillo; los m² de Torre B dan una relación pareja (1,56–1,60) y
--- en Torre A la tipología fija el orden (1 dorm = 207, 2 dorm = 212):
---   A201=207 A202=208 A203=209 A204=210(404) A205=211 A206=212 A207=213
---   B201=214 B202=201 B203=202 B204=203 B205=204 B206=205 B207=206
--- B202 (id 201) figuraba como "Estudio" e IXOU la da como 1 dormitorio: se corrige
--- también geom.tipologia.
---
--- Todo en una transacción; se puede volver a correr sin efecto adicional.
+-- Cada update verifica que tocó exactamente las filas que esperaba; si no, la
+-- excepción aborta la transacción entera. Se puede volver a correr sin efecto adicional.
 
 begin;
 
@@ -89,62 +107,83 @@ begin
     json_build_object('sub', v_uid, 'role', 'authenticated')::text, true);
 end $$;
 
--- Publicadas en venta
-update units u set
-  dorms = v.dorms,
-  precio = v.precio,
-  estado = 'disponible',
-  estimado = false,
-  geom = coalesce(u.geom, '{}'::jsonb) || jsonb_build_object('numero', v.numero, 'm2_ixou', v.m2_ixou)
-from (values
-${filasDisp}
-) as v(id, numero, dorms, precio, m2_ixou)
-where u.project_id = (select id from projects where slug = 'brusco')
-  and u.id = v.id;
-
--- 404 o solo alquiler → vendido
-update units u set
-  estado = 'vendido',
-  geom = coalesce(u.geom, '{}'::jsonb) || jsonb_build_object('numero', v.numero)
-    || case when v.m2_ixou is null then '{}'::jsonb else jsonb_build_object('m2_ixou', v.m2_ixou) end
-from (values
-${filasVend}
-) as v(id, numero, m2_ixou)
-where u.project_id = (select id from projects where slug = 'brusco')
-  and u.id = v.id;
-
--- B202 (id 201): Estudio → 1 dormitorio
-update units set geom = geom || '{"tipologia": "1 dormitorio"}'::jsonb
-where project_id = (select id from projects where slug = 'brusco') and id = 201;
-
--- Control: si los conteos no cierran, la excepción aborta la transacción entera.
--- Todas las publicadas en venta tienen que existir; toda la base tiene que quedar
--- disponible o vendido, con numero.
 do $$
 declare
-  n_disp int; n_vend int; n_otros int; n_sin_numero int;
+  v_project uuid := (select id from projects where slug = '${SLUG}');
+  n int;
 begin
-  select count(*) filter (where estado = 'disponible'),
-         count(*) filter (where estado = 'vendido'),
-         count(*) filter (where estado not in ('disponible', 'vendido')),
-         count(*) filter (where not (coalesce(geom, '{}'::jsonb) ? 'numero'))
-    into n_disp, n_vend, n_otros, n_sin_numero
-  from units where project_id = (select id from projects where slug = 'brusco');
-  if n_disp <> ${disp.length} or n_otros <> 0 or n_sin_numero <> 0 then
-    raise exception 'BRUSCO no cierra: disponible=% (esperado ${disp.length}), vendido=%, otros=%, sin numero=%',
-      n_disp, n_vend, n_otros, n_sin_numero;
+  if v_project is null then raise exception 'No existe el proyecto ${SLUG}'; end if;
+  -- Las de alquiler van con precio null: requiere supabase-migration-precio-opcional.sql.
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'units'
+               and column_name = 'precio' and is_nullable = 'NO') then
+    raise exception 'units.precio sigue siendo NOT NULL: correr antes supabase-migration-precio-opcional.sql';
   end if;
-  raise notice 'BRUSCO: % disponibles, % vendidas', n_disp, n_vend;
+
+  -- En venta (USD)
+  update units u set
+    m2 = v.m2,
+    precio = v.precio,
+    dorms = v.dorms,
+    estado = 'disponible',
+    estimado = false,
+    geom = coalesce(u.geom, '{}'::jsonb)
+      || jsonb_build_object('numero', v.numero, 'operacion', 'venta', 'moneda', 'USD')
+  from (values
+${filas(venta, (u) => [`(${u.id}, '${u.numero}', ${u.dorms}, ${u.m2}, ${u.precio})`, u.tip])}
+  ) as v(id, numero, dorms, m2, precio)
+  where u.project_id = v_project and u.id = v.id;
+  get diagnostics n = row_count;
+  if n <> ${venta.length} then raise exception 'venta: se actualizaron % filas, se esperaban ${venta.length}', n; end if;
+
+  -- En alquiler (UYU por mes): sin precio de venta
+  update units u set
+    m2 = v.m2,
+    precio = null,
+    dorms = v.dorms,
+    estado = 'sin_dato',
+    geom = coalesce(u.geom, '{}'::jsonb)
+      || jsonb_build_object('numero', v.numero, 'operacion', 'alquiler', 'moneda', 'UYU',
+                            'precio_alquiler_uyu', v.precio_uyu)
+  from (values
+${filas(alquiler, (u) => [`(${u.id}, '${u.numero}', ${u.dorms}, ${u.m2}, ${u.precio})`, u.tip])}
+  ) as v(id, numero, dorms, m2, precio_uyu)
+  where u.project_id = v_project and u.id = v.id;
+  get diagnostics n = row_count;
+  if n <> ${alquiler.length} then raise exception 'alquiler: se actualizaron % filas, se esperaban ${alquiler.length}', n; end if;
+
+  -- 404 → vendido (m2 y precio intactos)
+  update units u set
+    estado = 'vendido',
+    geom = coalesce(u.geom, '{}'::jsonb) || jsonb_build_object('numero', v.numero)
+  from (values
+${filas(vendidas, (u) => [`(${u.id}, '${u.numero}')`, '404'])}
+  ) as v(id, numero)
+  where u.project_id = v_project and u.id = v.id;
+  get diagnostics n = row_count;
+  if n <> ${vendidas.length} then raise exception '404: se actualizaron % filas, se esperaban ${vendidas.length}', n; end if;
+
+  -- 207 (A201): Flex → 1 dormitorio
+  update units set geom = geom || '{"tipologia": "1 dormitorio"}'::jsonb
+  where project_id = v_project and id = 207;
+  get diagnostics n = row_count;
+  if n <> 1 then raise exception '207: se actualizaron % filas, se esperaba 1', n; end if;
+
+  raise notice 'BRUSCO: % venta, % alquiler, % vendidas', ${venta.length}, ${alquiler.length}, ${vendidas.length};
 end $$;
 
 commit;
 
 -- Resultado (informativo)
-select estado, count(*) as unidades,
+select estado, geom->>'operacion' as operacion, count(*) as unidades,
        count(*) filter (where not (geom ? 'contorno')) as sin_contorno
 from units
-where project_id = (select id from projects where slug = 'brusco')
-group by estado order by estado;
+where project_id = (select id from projects where slug = '${SLUG}')
+group by 1, 2 order by 1, 2;
 `;
 writeFileSync(`${RAIZ}/supabase-brusco-precios.sql`, sql);
-console.log(`supabase-brusco-precios.sql: ${disp.length} disponibles + ${vend.length} vendidas = ${ids.length}`);
+
+console.log(`supabase-brusco-precios.sql: ${venta.length} venta + ${alquiler.length} alquiler + ${vendidas.length} vendidas`);
+console.log(`Piso 2 fuera de rango, no existen (${piso2.length}): ${piso2.join(' ')}`);
+console.log(`Sin fila en la base (${sinMatch.length}):`);
+for (const s of sinMatch) console.log(`  ${s.numero} → id ${s.id} · ${s.status === 404 ? '404' : s.operacion}`);

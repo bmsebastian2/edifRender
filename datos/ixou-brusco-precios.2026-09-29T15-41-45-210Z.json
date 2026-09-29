@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-09-29T15:57:12.658Z",
+  "fecha": "2026-09-29T15:41:45.210Z",
   "unidades": [
     {
       "slug": "a201",
@@ -9,8 +9,6 @@
       "tipologia": "1 dormitorio",
       "m2": 115.1,
       "precio": 232997,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -21,8 +19,6 @@
       "tipologia": "Studio",
       "m2": 73.1,
       "precio": 215784,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -33,8 +29,6 @@
       "tipologia": "Studio",
       "m2": 59.4,
       "precio": 158776,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -45,8 +39,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -57,8 +49,6 @@
       "tipologia": "Studio",
       "m2": 73.1,
       "precio": 215755,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -69,8 +59,6 @@
       "tipologia": "2 dormitorios",
       "m2": 126.6,
       "precio": 230783,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -81,8 +69,6 @@
       "tipologia": "Studio",
       "m2": 57.7,
       "precio": 131711,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -93,8 +79,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -105,8 +89,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -117,8 +99,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -129,8 +109,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -141,8 +119,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -153,8 +129,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -165,8 +139,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -177,8 +149,6 @@
       "tipologia": "Studio",
       "m2": 66.1,
       "precio": 158508,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -189,8 +159,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -198,12 +166,12 @@
       "torre": "A",
       "piso": 3,
       "pos": 3,
-      "tipologia": "2 dormitorios",
-      "m2": 120.5,
-      "precio": 55000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 2 dormitorios en Brusco · 2 dormitorios · 120,5 m² · Piso 3 · Centro · UYU 55.000"
     },
     {
       "slug": "a304",
@@ -213,8 +181,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -225,8 +191,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -237,8 +201,6 @@
       "tipologia": "2 dormitorios",
       "m2": 130.6,
       "precio": 254200,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -249,8 +211,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.9,
       "precio": 284254,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -258,12 +218,12 @@
       "torre": "A",
       "piso": 4,
       "pos": 2,
-      "tipologia": "1 dormitorio",
-      "m2": 84.7,
-      "precio": 38500,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 84,7 m² · Piso 4 · Centro · UYU 38.500"
     },
     {
       "slug": "a403",
@@ -273,8 +233,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 208210,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -282,12 +240,12 @@
       "torre": "A",
       "piso": 4,
       "pos": 4,
-      "tipologia": "2 dormitorios",
-      "m2": 114.9,
-      "precio": 49239,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 2 dormitorios en Brusco · 2 dormitorios · 114,9 m² · Piso 4 · Centro · UYU 49.239"
     },
     {
       "slug": "a405",
@@ -297,8 +255,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -309,8 +265,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -321,8 +275,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -333,8 +285,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -345,8 +295,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -357,8 +305,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -369,8 +315,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.9,
       "precio": 286838,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -381,8 +325,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 211513,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -393,8 +335,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 210103,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -405,8 +345,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.9,
       "precio": 271020,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -417,8 +355,6 @@
       "tipologia": "2 dormitorios",
       "m2": 105.4,
       "precio": 263237,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -429,8 +365,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -441,8 +375,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -450,24 +382,24 @@
       "torre": "A",
       "piso": 5,
       "pos": 8,
-      "tipologia": "Studio",
-      "m2": 55.4,
-      "precio": 31000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento Studio en Brusco · Studio · 55,4 m² · Piso 5 · Centro · UYU 31.000"
     },
     {
       "slug": "a509",
       "torre": "A",
       "piso": 5,
       "pos": 9,
-      "tipologia": "1 dormitorio",
-      "m2": 68.4,
-      "precio": 40000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 68,4 m² · Piso 5 · Centro · UYU 40.000"
     },
     {
       "slug": "a510",
@@ -477,8 +409,6 @@
       "tipologia": "2 dormitorios",
       "m2": 115.6,
       "precio": 299000,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -489,8 +419,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -501,8 +429,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -513,8 +439,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -525,8 +449,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -537,8 +459,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -549,8 +469,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -561,8 +479,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -573,8 +489,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -585,8 +499,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -597,8 +509,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -609,8 +519,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -621,8 +529,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -633,8 +539,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -645,8 +549,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -657,8 +559,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -669,8 +569,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -681,8 +579,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -693,8 +589,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -705,8 +599,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -717,8 +609,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -726,12 +616,12 @@
       "torre": "A",
       "piso": 8,
       "pos": 1,
-      "tipologia": "2 dormitorios",
-      "m2": 114.9,
-      "precio": 54008,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 2 dormitorios en Brusco · 2 dormitorios · 114,9 m² · Piso 8 · Centro · UYU 54.008"
     },
     {
       "slug": "a802",
@@ -741,8 +631,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 217230,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -753,8 +641,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 215782,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -765,8 +651,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.9,
       "precio": 278345,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -777,8 +661,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -789,8 +671,6 @@
       "tipologia": "1 dormitorio",
       "m2": 68.4,
       "precio": 213069,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -801,8 +681,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -813,8 +691,6 @@
       "tipologia": "Studio",
       "m2": 55.4,
       "precio": 171026,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -825,8 +701,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -837,8 +711,6 @@
       "tipologia": "2 dormitorios",
       "m2": 115.6,
       "precio": 321990,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -849,8 +721,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.9,
       "precio": 297174,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -858,12 +728,12 @@
       "torre": "A",
       "piso": 9,
       "pos": 2,
-      "tipologia": "1 dormitorio",
-      "m2": 84.7,
-      "precio": 40000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 84,7 m² · Piso 9 · Centro · UYU 40.000"
     },
     {
       "slug": "a903",
@@ -873,8 +743,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 217674,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -882,24 +750,24 @@
       "torre": "A",
       "piso": 9,
       "pos": 4,
-      "tipologia": "2 dormitorios",
-      "m2": 114.9,
-      "precio": 51478,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 2 dormitorios en Brusco · 2 dormitorios · 114,9 m² · Piso 9 · Centro · UYU 51.478"
     },
     {
       "slug": "a905",
       "torre": "A",
       "piso": 9,
       "pos": 5,
-      "tipologia": "2 dormitorios",
-      "m2": 105.4,
-      "precio": 49999,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 2 dormitorios en Brusco · 2 dormitorios · 105,4 m² · Piso 9 · Centro · UYU 49.999"
     },
     {
       "slug": "a906",
@@ -909,8 +777,6 @@
       "tipologia": "1 dormitorio",
       "m2": 68.4,
       "precio": 214938,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -918,36 +784,36 @@
       "torre": "A",
       "piso": 9,
       "pos": 7,
-      "tipologia": "Studio",
-      "m2": 55.8,
-      "precio": 32152,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento Studio en Brusco · Studio · 55,8 m² · Piso 9 · Centro · UYU 32.152"
     },
     {
       "slug": "a908",
       "torre": "A",
       "piso": 9,
       "pos": 8,
-      "tipologia": "Studio",
-      "m2": 55.4,
-      "precio": 31922,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento Studio en Brusco · Studio · 55,4 m² · Piso 9 · Centro · UYU 31.922"
     },
     {
       "slug": "a909",
       "torre": "A",
       "piso": 9,
       "pos": 9,
-      "tipologia": "1 dormitorio",
-      "m2": 68.4,
-      "precio": 40000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 68,4 m² · Piso 9 · Centro · UYU 40.000"
     },
     {
       "slug": "a910",
@@ -957,8 +823,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -966,12 +830,12 @@
       "torre": "A",
       "piso": 10,
       "pos": 1,
-      "tipologia": "2 dormitorios",
-      "m2": 114.9,
-      "precio": 51500,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 2 dormitorios en Brusco · 2 dormitorios · 114,9 m² · Piso 10 · Centro · UYU 51.500"
     },
     {
       "slug": "a1002",
@@ -981,8 +845,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 221041,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -993,8 +855,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 219567,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1005,8 +865,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.9,
       "precio": 283229,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1014,12 +872,12 @@
       "torre": "A",
       "piso": 10,
       "pos": 5,
-      "tipologia": "2 dormitorios",
-      "m2": 105.4,
-      "precio": 55000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 2 dormitorios en Brusco · 2 dormitorios · 105,4 m² · Piso 10 · Centro · UYU 55.000"
     },
     {
       "slug": "a1006",
@@ -1029,8 +887,6 @@
       "tipologia": "1 dormitorio",
       "m2": 68.4,
       "precio": 216807,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1038,12 +894,12 @@
       "torre": "A",
       "piso": 10,
       "pos": 7,
-      "tipologia": "Studio",
-      "m2": 55.8,
-      "precio": 39000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento Studio en Brusco · Studio · 55,8 m² · Piso 10 · Centro · UYU 39.000"
     },
     {
       "slug": "a1008",
@@ -1053,8 +909,6 @@
       "tipologia": "Studio",
       "m2": 55.4,
       "precio": 175633,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1062,12 +916,12 @@
       "torre": "A",
       "piso": 10,
       "pos": 9,
-      "tipologia": "1 dormitorio",
-      "m2": 68.4,
-      "precio": 41000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 68,4 m² · Piso 10 · Centro · UYU 41.000"
     },
     {
       "slug": "a1010",
@@ -1077,8 +931,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1089,8 +941,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.9,
       "precio": 302343,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1101,8 +951,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 222946,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1113,8 +961,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.7,
       "precio": 221460,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1125,8 +971,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.9,
       "precio": 285670,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1134,12 +978,12 @@
       "torre": "A",
       "piso": 11,
       "pos": 5,
-      "tipologia": "2 dormitorios",
-      "m2": 105.4,
-      "precio": 55000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 2 dormitorios en Brusco · 2 dormitorios · 105,4 m² · Piso 11 · Centro · UYU 55.000"
     },
     {
       "slug": "a1106",
@@ -1149,8 +993,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1161,8 +1003,6 @@
       "tipologia": "Studio",
       "m2": 55.8,
       "precio": 178916,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1173,8 +1013,6 @@
       "tipologia": "Studio",
       "m2": 55.4,
       "precio": 177147,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1182,12 +1020,12 @@
       "torre": "A",
       "piso": 11,
       "pos": 9,
-      "tipologia": "1 dormitorio",
-      "m2": 68.4,
-      "precio": 38500,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 68,4 m² · Piso 11 · Centro · UYU 38.500"
     },
     {
       "slug": "a1110",
@@ -1197,8 +1035,6 @@
       "tipologia": "2 dormitorios",
       "m2": 115.6,
       "precio": 346748,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1209,8 +1045,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.8,
       "precio": 304714,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1221,8 +1055,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.6,
       "precio": 224693,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1233,8 +1065,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.6,
       "precio": 223195,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1245,8 +1075,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.8,
       "precio": 287911,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1257,8 +1085,6 @@
       "tipologia": "2 dormitorios",
       "m2": 105.3,
       "precio": 279625,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1269,8 +1095,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1278,24 +1102,24 @@
       "torre": "A",
       "piso": 12,
       "pos": 7,
-      "tipologia": "Studio",
-      "m2": 55.8,
-      "precio": 32500,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento Studio en Brusco · Studio · 55,8 m² · Piso 12 · Centro · UYU 32.500"
     },
     {
       "slug": "a1208",
       "torre": "A",
       "piso": 12,
       "pos": 8,
-      "tipologia": "Studio",
-      "m2": 55.4,
-      "precio": 32500,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento Studio en Brusco · Studio · 55,4 m² · Piso 12 · Centro · UYU 32.500"
     },
     {
       "slug": "a1209",
@@ -1305,8 +1129,6 @@
       "tipologia": "1 dormitorio",
       "m2": 68.4,
       "precio": 220384,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1317,8 +1139,6 @@
       "tipologia": "2 dormitorios",
       "m2": 115.6,
       "precio": 364689,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1329,8 +1149,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.8,
       "precio": 307297,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1341,8 +1159,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.6,
       "precio": 226597,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1353,8 +1169,6 @@
       "tipologia": "1 dormitorio",
       "m2": 84.6,
       "precio": 225086,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1365,8 +1179,6 @@
       "tipologia": "2 dormitorios",
       "m2": 114.8,
       "precio": 290351,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1377,8 +1189,6 @@
       "tipologia": "2 dormitorios",
       "m2": 105.3,
       "precio": 281994,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1389,8 +1199,6 @@
       "tipologia": "1 dormitorio",
       "m2": 68.4,
       "precio": 222252,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1401,8 +1209,6 @@
       "tipologia": "Studio",
       "m2": 55.8,
       "precio": 182839,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1413,8 +1219,6 @@
       "tipologia": "Studio",
       "m2": 55.4,
       "precio": 181034,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1425,8 +1229,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1437,8 +1239,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1449,8 +1249,6 @@
       "tipologia": "Studio",
       "m2": 67.1,
       "precio": 171956,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1461,8 +1259,6 @@
       "tipologia": "1 dormitorio",
       "m2": 71.9,
       "precio": 212037,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1473,8 +1269,6 @@
       "tipologia": "Studio",
       "m2": 65.7,
       "precio": 168369,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1485,8 +1279,6 @@
       "tipologia": "Studio",
       "m2": 62.6,
       "precio": 160451,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1497,8 +1289,6 @@
       "tipologia": "Studio",
       "m2": 63.2,
       "precio": 162040,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1509,8 +1299,6 @@
       "tipologia": "Studio",
       "m2": 59.9,
       "precio": 153559,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1521,8 +1309,6 @@
       "tipologia": "Studio",
       "m2": 63.5,
       "precio": 162604,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1533,8 +1319,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1545,8 +1329,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1557,8 +1339,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1569,8 +1349,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1581,8 +1359,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1593,8 +1369,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1605,8 +1379,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1614,12 +1386,12 @@
       "torre": "B",
       "piso": 3,
       "pos": 1,
-      "tipologia": "1 dormitorio",
-      "m2": 62.1,
-      "precio": 34000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 62,1 m² · Piso 3 · Centro · UYU 34.000"
     },
     {
       "slug": "b302",
@@ -1629,8 +1401,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1641,8 +1411,6 @@
       "tipologia": "2 dormitorios",
       "m2": 133.3,
       "precio": 260000,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1653,8 +1421,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1665,8 +1431,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1677,8 +1441,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1686,12 +1448,12 @@
       "torre": "B",
       "piso": 4,
       "pos": 1,
-      "tipologia": "1 dormitorio",
-      "m2": 56.3,
-      "precio": 31024,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 56,3 m² · Piso 4 · Centro · UYU 31.024"
     },
     {
       "slug": "b402",
@@ -1701,8 +1463,6 @@
       "tipologia": "1 dormitorio",
       "m2": 66.6,
       "precio": 200183,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1713,8 +1473,6 @@
       "tipologia": "2 dormitorios",
       "m2": 127.6,
       "precio": 266070,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1725,8 +1483,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1737,8 +1493,6 @@
       "tipologia": "1 dormitorio",
       "m2": 67.1,
       "precio": 184553,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1749,8 +1503,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1761,8 +1513,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1773,8 +1523,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1785,8 +1533,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1797,8 +1543,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1806,24 +1550,24 @@
       "torre": "B",
       "piso": 5,
       "pos": 5,
-      "tipologia": "1 dormitorio",
-      "m2": 67.1,
-      "precio": 29000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 67,1 m² · Piso 5 · Centro · UYU 29.000"
     },
     {
       "slug": "b506",
       "torre": "B",
       "piso": 5,
       "pos": 6,
-      "tipologia": "Studio",
-      "m2": 57.8,
-      "precio": 29000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento Studio en Brusco · Studio · 57,8 m² · Piso 5 · Centro · UYU 29.000"
     },
     {
       "slug": "b601",
@@ -1833,8 +1577,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1845,8 +1587,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1857,8 +1597,6 @@
       "tipologia": "2 dormitorios",
       "m2": 127.6,
       "precio": 279540,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1866,12 +1604,12 @@
       "torre": "B",
       "piso": 6,
       "pos": 4,
-      "tipologia": "1 dormitorio",
-      "m2": 81.2,
-      "precio": 37300,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 81,2 m² · Piso 6 · Centro · UYU 37.300"
     },
     {
       "slug": "b605",
@@ -1881,8 +1619,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1890,12 +1626,12 @@
       "torre": "B",
       "piso": 6,
       "pos": 6,
-      "tipologia": "Studio",
-      "m2": 57.8,
-      "precio": 38000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento Studio en Brusco · Studio · 57,8 m² · Piso 6 · Centro · UYU 38.000"
     },
     {
       "slug": "b701",
@@ -1905,8 +1641,6 @@
       "tipologia": "1 dormitorio",
       "m2": 56.3,
       "precio": 173839,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1917,8 +1651,6 @@
       "tipologia": "1 dormitorio",
       "m2": 66.6,
       "precio": 205642,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1926,24 +1658,24 @@
       "torre": "B",
       "piso": 7,
       "pos": 3,
-      "tipologia": "2 dormitorios",
-      "m2": 127.6,
-      "precio": 55000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 2 dormitorios en Brusco · 2 dormitorios · 127,6 m² · Piso 7 · Centro · UYU 55.000"
     },
     {
       "slug": "b704",
       "torre": "B",
       "piso": 7,
       "pos": 4,
-      "tipologia": "1 dormitorio",
-      "m2": 81.2,
-      "precio": 39900,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 81,2 m² · Piso 7 · Centro · UYU 39.900"
     },
     {
       "slug": "b705",
@@ -1953,8 +1685,6 @@
       "tipologia": "1 dormitorio",
       "m2": 67.1,
       "precio": 175000,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1965,8 +1695,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -1977,8 +1705,6 @@
       "tipologia": "1 dormitorio",
       "m2": 56.3,
       "precio": 210000,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -1989,8 +1715,6 @@
       "tipologia": "1 dormitorio",
       "m2": 66.6,
       "precio": 207462,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -2001,8 +1725,6 @@
       "tipologia": "2 dormitorios",
       "m2": 127.6,
       "precio": 293691,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -2010,24 +1732,24 @@
       "torre": "B",
       "piso": 8,
       "pos": 4,
-      "tipologia": "1 dormitorio",
-      "m2": 81.2,
-      "precio": 39900,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 81,2 m² · Piso 8 · Centro · UYU 39.900"
     },
     {
       "slug": "b805",
       "torre": "B",
       "piso": 8,
       "pos": 5,
-      "tipologia": "1 dormitorio",
-      "m2": 67.1,
-      "precio": 29500,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 67,1 m² · Piso 8 · Centro · UYU 29.500"
     },
     {
       "slug": "b806",
@@ -2037,8 +1759,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -2046,12 +1766,12 @@
       "torre": "B",
       "piso": 9,
       "pos": 1,
-      "tipologia": "1 dormitorio",
-      "m2": 56.3,
-      "precio": 35200,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 56,3 m² · Piso 9 · Centro · UYU 35.200"
     },
     {
       "slug": "b902",
@@ -2061,8 +1781,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -2073,8 +1791,6 @@
       "tipologia": "2 dormitorios",
       "m2": 127.6,
       "precio": 301034,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -2085,8 +1801,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -2097,8 +1811,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -2109,8 +1821,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -2118,12 +1828,12 @@
       "torre": "B",
       "piso": 10,
       "pos": 1,
-      "tipologia": "1 dormitorio",
-      "m2": 56.3,
-      "precio": 38600,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 56,3 m² · Piso 10 · Centro · UYU 38.600"
     },
     {
       "slug": "b1002",
@@ -2133,8 +1843,6 @@
       "tipologia": "1 dormitorio",
       "m2": 66.6,
       "precio": 211102,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -2145,8 +1853,6 @@
       "tipologia": "2 dormitorios",
       "m2": 127.6,
       "precio": 308560,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -2157,8 +1863,6 @@
       "tipologia": "1 dormitorio",
       "m2": 81.2,
       "precio": 210389,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -2166,12 +1870,12 @@
       "torre": "B",
       "piso": 10,
       "pos": 5,
-      "tipologia": "1 dormitorio",
-      "m2": 67.1,
-      "precio": 32173,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 67,1 m² · Piso 10 · Centro · UYU 32.173"
     },
     {
       "slug": "b1006",
@@ -2181,8 +1885,6 @@
       "tipologia": "Studio",
       "m2": 57.8,
       "precio": 183304,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -2193,8 +1895,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -2202,12 +1902,12 @@
       "torre": "B",
       "piso": 11,
       "pos": 2,
-      "tipologia": "1 dormitorio",
-      "m2": 66.6,
-      "precio": 40000,
-      "moneda": "UYU",
-      "operacion": "alquiler",
-      "http_status": 200
+      "tipologia": null,
+      "m2": null,
+      "precio": null,
+      "http_status": 200,
+      "error": true,
+      "crudo": "Apartamento de 1 dormitorio en Brusco · 1 dormitorio · 66,6 m² · Piso 11 · Centro · UYU 40.000"
     },
     {
       "slug": "b1103",
@@ -2217,8 +1917,6 @@
       "tipologia": null,
       "m2": null,
       "precio": null,
-      "moneda": null,
-      "operacion": null,
       "http_status": 404
     },
     {
@@ -2229,8 +1927,6 @@
       "tipologia": "1 dormitorio",
       "m2": 81.2,
       "precio": 212203,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -2241,8 +1937,6 @@
       "tipologia": "1 dormitorio",
       "m2": 67.1,
       "precio": 175489,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     },
     {
@@ -2253,8 +1947,6 @@
       "tipologia": "Studio",
       "m2": 57.8,
       "precio": 184884,
-      "moneda": "USD",
-      "operacion": "venta",
       "http_status": 200
     }
   ]

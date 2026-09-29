@@ -20,7 +20,7 @@ create table units (
   dorms        integer not null,
   m2           numeric not null,
   orientacion  text not null,
-  precio       numeric not null,
+  precio       numeric,          -- null: sin precio de venta (p.ej. solo alquiler)
   estimado     boolean not null default false,
   estado       text not null default 'sin_dato'
                check (estado in ('disponible', 'reservado', 'vendido', 'sin_dato')),

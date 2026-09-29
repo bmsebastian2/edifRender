@@ -571,7 +571,7 @@ function pintarUnidades(unidades){
       '<td class="num">' + u.m2 + '</td>' +
       '<td class="num"></td>' +
       '<td>' + u.orientacion + '</td>' +
-      '<td class="num">' + formatearPrecio(u.precio, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale) + '</td>' +
+      '<td class="num">' + (u.precio != null ? formatearPrecio(u.precio, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale) : '—') + '</td>' +
       '<td class="num"></td>' +
       '<td></td>' +
       '<td><span class="estado"><span class="punto" style="background:' + e.color + '"></span>' + e.nombre + '</span></td>' +
