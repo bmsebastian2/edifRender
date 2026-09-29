@@ -9,14 +9,24 @@
   <title>Disponibilidad navegable</title>
   <style>
     :root {
-      --fondo: #DEE2E4;
-      --tinta: #1A2124;
-      --suave: #546065;
-      --linea: rgba(26, 33, 36, .14);
+      --fondo: #F7F8F7;
+      --tinta: #17201E;
+      --suave: #6B7471;
+      --linea: rgba(20, 40, 35, .10);
       --papel: rgba(255, 255, 255, .86);
-      --verde: #2F7A68;
-      --gris: #646C6E;
-      --ambar: #C08429;
+      /* Verde de marca: más oscuro y menos saturado que el anterior
+         (#2F7A68). Reservado para lo DISPONIBLE y para acentos de UI —
+         nunca para decorar. */
+      --verde: #2B6656;
+      --verde-suave: #E7EFEC;
+      --gris: #7A8380;
+      --ambar: #C9993F;
+      /* Superficies flotantes (barra superior, ficha): radios grandes y
+         sombras muy suaves, para que se lean como capa liviana sobre la
+         escena y no como paneles técnicos. */
+      --radio: 18px;
+      --sombra: 0 1px 2px rgba(20, 40, 35, .04), 0 8px 28px rgba(20, 40, 35, .08);
+      --alto-barra: 64px;
       /* Azul de selección de interfaz (riel de pisos): a propósito ningún
          verde/ámbar/rojo/gris — esos cuatro ya significan un ESTADO de
          unidad. Un quinto color de esa familia, aunque fuera distinto,
@@ -69,77 +79,235 @@
       font-size: 13px
     }
 
+    /* Cabezal = barra superior (64px, blanca translúcida) + ficha flotante.
+       #cabezal ocupa todo el ancho arriba pero no captura el puntero: solo
+       la barra y la ficha lo hacen, así arrastrar sobre el cielo vacío a la
+       derecha de la ficha sigue girando el edificio. */
     #cabezal {
       position: fixed;
       top: 0;
       left: 0;
-      padding: 22px 24px;
+      right: 0;
       z-index: 10;
-      max-width: 330px
+      pointer-events: none;
     }
 
-    #cabezal-panel {
-      background: var(--papel);
-      border: 1px solid var(--linea);
-      border-radius: 10px;
-      padding: 14px 16px;
-      backdrop-filter: blur(5px);
-      -webkit-backdrop-filter: blur(5px);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 10px 26px rgba(0, 0, 0, .10);
+    #barra-sup {
+      pointer-events: auto;
+      height: var(--alto-barra);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 24px;
+      background: rgba(255, 255, 255, .78);
+      backdrop-filter: blur(14px) saturate(1.15);
+      -webkit-backdrop-filter: blur(14px) saturate(1.15);
+      border-bottom: 1px solid rgba(20, 40, 35, .06);
     }
 
     .cb-marca {
       display: flex;
       align-items: center;
-      gap: 9px;
+      gap: 11px;
+      min-width: 0;
     }
 
-    .cb-marca svg {
+    .cb-logo {
       flex: none;
-      color: var(--verde)
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--verde-suave);
+      color: var(--verde);
     }
 
     .cb-titulo {
       display: flex;
       align-items: baseline;
-      gap: 6px;
-      flex-wrap: wrap;
+      gap: 7px;
+      min-width: 0;
       line-height: 1.15;
+    }
+
+    #cabezal h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .cb-dev {
       font-size: 13px;
       font-weight: 500;
-      color: var(--suave)
+      color: var(--suave);
+      white-space: nowrap;
+    }
+
+    .bs-der {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex: none;
+    }
+
+    .bs-ciudad {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--suave);
+    }
+
+    .bs-ciudad[hidden] {
+      display: none
+    }
+
+    .bs-boton {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid var(--linea);
+      background: #fff;
+      color: var(--tinta);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: border-color .15s, background-color .15s;
+    }
+
+    .bs-boton:hover {
+      border-color: rgba(20, 40, 35, .22);
+      background: var(--fondo);
+    }
+
+    .bs-boton[hidden] {
+      display: none
+    }
+
+    #cabezal-utilidades {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #redes {
+      display: flex;
+      gap: 2px;
+    }
+
+    #redes a,
+    #redes button,
+    #cota {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 50%;
+      background: none;
+      padding: 0;
+      cursor: pointer;
+      color: var(--suave);
+      text-decoration: none;
+      transition: background-color .15s, color .15s;
+    }
+
+    #redes a:hover,
+    #redes button:hover,
+    #cota:hover {
+      background: var(--fondo);
+      color: var(--tinta);
+    }
+
+    #redes svg {
+      width: 16px;
+      height: 16px
+    }
+
+    #redes a[hidden] {
+      display: none
+    }
+
+    /* Separador fino entre las redes del proyecto y la firma de Cota. */
+    #cota {
+      position: relative;
+      margin-left: 6px;
+    }
+
+    #cota::before {
+      content: "";
+      position: absolute;
+      left: -6px;
+      top: 8px;
+      bottom: 8px;
+      width: 1px;
+      background: var(--linea);
+    }
+
+    /* Ficha del proyecto: tarjeta blanca compacta, arriba a la izquierda. */
+    #ficha {
+      pointer-events: auto;
+      width: 300px;
+      margin: 16px 0 0 24px;
+      padding: 16px 18px;
+      background: #fff;
+      border: 1px solid var(--linea);
+      border-radius: var(--radio);
+      box-shadow: var(--sombra);
+    }
+
+    /* Solo mobile (ver media query): la ficha plegada a su leyenda. */
+    #ficha-toggle {
+      display: none
     }
 
     .cb-direccion {
       display: flex;
       align-items: flex-start;
-      gap: 6px;
-      margin: 9px 0 0;
+      gap: 7px;
+      margin: 0;
+    }
+
+    .cb-direccion[hidden] {
+      display: none
     }
 
     .cb-direccion svg {
       flex: none;
-      color: var(--suave);
-      margin-top: 1px;
+      color: var(--verde);
+      margin-top: 2px;
     }
 
     .cb-direccion span {
-      font-size: 12.5px;
-      color: var(--suave);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--tinta);
       line-height: 1.4;
     }
 
     .cb-datos {
       display: flex;
       align-items: center;
-      margin-top: 11px;
-      padding-top: 11px;
+      margin-top: 12px;
+      padding-top: 12px;
       border-top: 1px solid var(--linea);
       flex-wrap: wrap;
-      row-gap: 8px;
+      gap: 8px 16px;
+    }
+
+    .cb-datos[hidden],
+    .cb-dato[hidden],
+    .cb-div[hidden] {
+      display: none
     }
 
     .cb-dato {
@@ -162,6 +330,7 @@
     .cb-dato-txt b {
       color: var(--tinta);
       font-weight: 650;
+      font-variant-numeric: tabular-nums;
     }
 
     .cb-dato-entrega {
@@ -186,40 +355,50 @@
       font-size: 12.5px
     }
 
+    /* Los divisores verticales quedaban colgando al final del renglón
+       cuando "Entrega" envuelve (la ficha es angosta): el gap ya separa. */
     .cb-div {
-      width: 1px;
-      height: 20px;
-      background: var(--linea);
-      margin: 0 12px;
-      flex: none;
+      display: none
     }
 
+    /* Disponibilidad: barra proporcional + una fila por estado presente. */
     #aviso {
       margin-top: 14px;
-      padding: 12px 15px;
-      border-radius: 5px;
-      background: var(--papel);
-      border: 1px solid var(--linea);
-      border-left: 3px solid var(--ambar);
+      padding-top: 14px;
+      border-top: 1px solid var(--linea);
       font-size: 13px;
+    }
+
+    #aviso[hidden] {
+      display: none
     }
 
     #aviso .punto {
       border-radius: 50%
     }
 
-    /* Lista vertical (desktop): una fila por estado, con su nombre — hay
-     lugar de sobra, así que se lee completo. */
+    .aviso-barra {
+      display: flex;
+      gap: 2px;
+      height: 6px;
+      margin-bottom: 12px;
+    }
+
+    .aviso-barra span {
+      display: block;
+      border-radius: 3px;
+    }
+
     .aviso-lista {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 7px;
     }
 
     .aviso-fila {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 9px;
     }
 
     .aviso-label {
@@ -231,32 +410,6 @@
       font-weight: 650;
       color: var(--tinta);
       font-variant-numeric: tabular-nums;
-    }
-
-    /* Compacta (mobile): una barra proporcional + leyenda de una línea, sin
-     el nombre del estado — ver la media query de abajo por qué. Oculta en
-     desktop, donde gana la lista. */
-    .aviso-compacto {
-      display: none;
-    }
-
-    .aviso-barra {
-      display: flex;
-      height: 6px;
-      border-radius: 3px;
-      overflow: hidden;
-      background: var(--linea);
-    }
-
-    .aviso-barra span {
-      display: block;
-    }
-
-    .aviso-leyenda {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 14px;
-      margin-top: 8px;
     }
 
     .aviso-item {
@@ -272,36 +425,12 @@
     .aviso-item .punto {
       width: 7px;
       height: 7px;
-    }
-
-    /* Envoltorio puramente de layout: en desktop no debe existir como caja
-     (cota/redes siguen siendo position:fixed, independientes entre sí),
-     en mobile pasa a ser la fila que los alinea dentro del flujo del
-     header (ver media query de abajo). */
-    #cabezal-utilidades {
-      display: contents
-    }
-
-    #cota {
-      position: fixed;
-      top: 22px;
-      right: 24px;
-      z-index: 11;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: var(--suave);
-      text-decoration: none;
-    }
-
-    #cota:hover {
-      color: var(--tinta)
+      border-radius: 50%;
     }
 
     #admin-link {
       position: fixed;
-      top: 54px;
+      top: calc(var(--alto-barra) + 14px);
       right: 24px;
       z-index: 11;
       font-size: 11.5px;
@@ -321,49 +450,9 @@
       }
     }
 
-    #redes {
-      position: fixed;
-      top: 76px;
-      right: 24px;
-      z-index: 11;
-      display: flex;
-      gap: 10px
-    }
-
-    #redes a,
-    #redes button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 26px;
-      height: 26px;
-      border: none;
-      background: none;
-      padding: 0;
-      cursor: pointer;
-      color: var(--suave);
-      opacity: .55;
-      transition: opacity .15s, color .15s;
-    }
-
-    #redes a:hover,
-    #redes button:hover {
-      opacity: 1;
-      color: var(--tinta)
-    }
-
-    #redes svg {
-      width: 16px;
-      height: 16px
-    }
-
-    #redes a[hidden] {
-      display: none
-    }
-
     #compartir-aviso {
       position: fixed;
-      top: 110px;
+      top: calc(var(--alto-barra) + 14px);
       right: 24px;
       z-index: 12;
       background: var(--tinta);
@@ -384,62 +473,206 @@
       transform: translateY(0)
     }
 
-    #filtros {
-      position: fixed;
-      left: 24px;
-      bottom: 22px;
-      z-index: 10;
-      max-width: 330px
-    }
-
-    /* Envoltorio de layout, mismo truco que #cabezal-utilidades: en desktop
-     no debe existir como caja (renders-trigger es fixed propio, filtros-
-     trigger queda oculto), en mobile pasa a ser la barra que los alinea
-     lado a lado (ver media query). */
+    /* Barra inferior única (desktop): una píldora flotante centrada con los
+       desplegables de filtro, Restablecer y los accesos a renders / avance /
+       sol. Cada desplegable abre #filtros como popover con un solo grupo. */
     #barra-inferior {
-      display: contents
-    }
-
-    #renders-trigger {
       position: fixed;
-      right: 24px;
-      bottom: 22px;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
       z-index: 10;
       display: flex;
       align-items: center;
-      gap: 7px;
-      padding: 9px 14px;
-      border-radius: 20px;
+      gap: 2px;
+      padding: 5px;
+      max-width: calc(100vw - 200px);
+      background: #fff;
       border: 1px solid var(--linea);
-      background: var(--papel);
-      color: var(--suave);
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: color .15s, border-color .15s;
+      border-radius: 999px;
+      box-shadow: var(--sombra);
     }
 
-    #renders-trigger:hover {
+    .fb-drops {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .fb-drop,
+    .fb-reset,
+    #renders-trigger,
+    #avance-trigger,
+    #sol-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 36px;
+      padding: 0 14px;
+      border: none;
+      border-radius: 999px;
+      background: none;
       color: var(--tinta);
-      border-color: rgba(26, 33, 36, .32)
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background-color .15s, color .15s;
     }
 
-    #renders-trigger svg {
-      flex: none
+    .fb-drop:hover,
+    .fb-reset:hover:not(:disabled),
+    #renders-trigger:hover,
+    #avance-trigger:hover,
+    #sol-trigger:hover {
+      background: var(--fondo)
     }
 
-    #renders-trigger[hidden] {
+    .fb-drop .chev {
+      color: var(--suave);
+      transition: transform .2s ease;
+    }
+
+    .fb-drop[aria-expanded="true"] {
+      background: var(--verde-suave);
+      color: #1E4A3F;
+    }
+
+    .fb-drop[aria-expanded="true"] .chev {
+      transform: rotate(180deg)
+    }
+
+    .fb-drop.filtrado {
+      color: var(--verde)
+    }
+
+    .fb-drop[hidden],
+    #renders-trigger[hidden],
+    #avance-trigger[hidden],
+    #sol-trigger[hidden] {
       display: none
     }
 
-    .grupo {
-      margin-bottom: 11px
+    .fb-n {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 9px;
+      background: var(--verde);
+      color: #fff;
+      font-size: 10.5px;
+      font-weight: 700;
+    }
+
+    .fb-n[hidden] {
+      display: none
+    }
+
+    .fb-reset {
+      color: var(--suave);
+      font-weight: 500;
+    }
+
+    .fb-reset:disabled {
+      opacity: .4;
+      cursor: default;
+    }
+
+    .fb-sep {
+      flex: none;
+      width: 1px;
+      height: 20px;
+      margin: 0 4px;
+      background: var(--linea);
+    }
+
+    #renders-trigger,
+    #avance-trigger,
+    #sol-trigger {
+      color: var(--suave);
+      font-weight: 500;
+    }
+
+    #renders-trigger svg,
+    #avance-trigger svg,
+    #sol-trigger svg {
+      flex: none
+    }
+
+    #sol-trigger[aria-pressed="true"] {
+      background: var(--verde-suave);
+      color: #1E4A3F;
+    }
+
+    /* Ventana angosta de desktop/tablet: los accesos quedan solo con ícono. */
+    @media (max-width:1180px) {
+
+      #renders-trigger span,
+      #avance-trigger span,
+      #sol-trigger span {
+        display: none
+      }
+
+      #renders-trigger,
+      #avance-trigger,
+      #sol-trigger {
+        width: 36px;
+        padding: 0;
+        justify-content: center;
+      }
+    }
+
+    /* #filtros en desktop: popover sobre la barra, un grupo a la vez
+       (data-grupo lo pone abrirGrupoFiltros(); left también, por JS). */
+    #filtros {
+      position: fixed;
+      left: 50%;
+      bottom: 76px;
+      z-index: 11;
+      width: max-content;
+      max-width: min(440px, calc(100vw - 32px));
+      padding: 14px 16px 12px;
+      background: #fff;
+      border: 1px solid var(--linea);
+      border-radius: 16px;
+      box-shadow: 0 12px 36px rgba(20, 40, 35, .14);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity .16s ease, transform .16s ease;
+    }
+
+    #filtros.pop {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    #filtros .grupo {
+      display: none
+    }
+
+    #filtros[data-grupo="dorms"] .grupo[data-grupo="dorms"],
+    #filtros[data-grupo="estado"] .grupo[data-grupo="estado"],
+    #filtros[data-grupo="torre"] .grupo[data-grupo="torre"],
+    #filtros[data-grupo="vista"] .grupo[data-grupo="vista"] {
+      display: block
+    }
+
+    .fb-reset-hoja {
+      display: none
     }
 
     .grupo p {
-      margin: 0 0 6px;
-      font-size: 12.5px;
-      color: var(--suave)
+      margin: 0 0 9px;
+      font-size: 10.5px;
+      font-weight: 650;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--gris);
     }
 
     .fila {
@@ -448,97 +681,93 @@
       gap: 6px
     }
 
+    /* Chips: prendido = fondo verde suave con texto oscuro de marca;
+       apagado = blanco con borde y el punto desvanecido. Nada de negro. */
     .chip {
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      padding: 6px 12px;
-      border-radius: 4px;
+      height: 32px;
+      padding: 0 13px;
+      border-radius: 999px;
       cursor: pointer;
       border: 1px solid var(--linea);
-      background: var(--papel);
+      background: #fff;
       color: var(--suave);
       font-size: 13px;
-      transition: color .15s, background .15s, border-color .15s
+      white-space: nowrap;
+      transition: color .15s, background-color .15s, border-color .15s
     }
 
     .chip:hover {
       color: var(--tinta);
-      border-color: rgba(26, 33, 36, .32)
+      border-color: rgba(20, 40, 35, .22)
     }
 
     .chip[aria-pressed="true"] {
-      color: #fff;
-      background: var(--tinta);
-      border-color: var(--tinta)
+      color: #1E4A3F;
+      background: var(--verde-suave);
+      border-color: transparent;
+      font-weight: 600;
     }
 
     .chip:focus-visible {
-      outline: 2px solid var(--tinta);
+      outline: 2px solid var(--verde);
       outline-offset: 2px
+    }
+
+    .chip .punto {
+      transition: opacity .15s
+    }
+
+    .chip[aria-pressed="false"] .punto {
+      opacity: .35
+    }
+
+    .chip-n {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--suave);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chip[aria-pressed="true"] .chip-n {
+      color: inherit;
+      opacity: .65;
+    }
+
+    .chip-toggle[hidden] {
+      display: none
     }
 
     .punto {
       width: 8px;
       height: 8px;
-      border-radius: 2px;
+      border-radius: 50%;
       flex: none
     }
 
-    #separar {
-      margin-top: 2px;
-      padding: 8px 14px;
-      border-radius: 4px;
-      cursor: pointer;
-      border: 1px solid var(--linea);
-      background: var(--papel);
-      color: var(--suave)
-    }
-
-    #separar[aria-pressed="true"] {
-      color: #fff;
-      background: var(--tinta);
-      border-color: var(--tinta)
-    }
-
-    #obra-toggle {
-      margin-top: 8px;
-      padding: 8px 14px;
-      border-radius: 4px;
-      cursor: pointer;
-      border: 1px solid var(--linea);
-      background: var(--papel);
-      color: var(--suave)
-    }
-
-    #obra-toggle[aria-pressed="true"] {
-      color: #fff;
-      background: var(--tinta);
-      border-color: var(--tinta)
-    }
-
-    /* Riel de pisos: panel propio de la misma familia visual que #cabezal-panel
-     y #filtros (papel + blur + radio + sombra), columna fija a la derecha.
-     Header (marca + control de plegar) y PB quedan fijos arriba/abajo; la
-     lista de pisos en el medio es lo único que scrollea cuando no entra
-     entera en alto de viewport — como los extremos fijos de un panel de
-     ascensor. */
+    /* Riel de pisos: columna blanca a la derecha, flechas arriba/abajo, PB
+       fija abajo. La lista del medio es lo único que scrollea si no entra.
+       Seleccionado = fondo verde suave + texto oscuro de marca. */
     #pisos {
       position: fixed;
       right: 24px;
-      top: 50%;
+      /* Centrado en el hueco entre "Panel interno" (debajo del header) y
+         la toolbar de abajo a la derecha (20px + 48px + aire): nunca se
+         superpone con ninguno de los dos. */
+      top: calc(var(--alto-barra) + 36px + (100vh - var(--alto-barra) - 36px - 84px) / 2);
       transform: translateY(-50%);
       z-index: 10;
-      width: 68px;
+      width: 76px;
       display: flex;
       flex-direction: column;
-      max-height: min(70vh, 560px);
-      background: var(--papel);
+      max-height: min(calc(100vh - var(--alto-barra) - 36px - 100px), 640px);
+      padding-bottom: 6px;
+      background: #fff;
       border: 1px solid var(--linea);
-      border-radius: 10px;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 4px 14px rgba(20, 26, 28, .10);
+      border-radius: var(--radio);
+      box-shadow: var(--sombra);
       overflow: hidden;
     }
 
@@ -548,12 +777,12 @@
       align-items: center;
       justify-content: center;
       gap: 5px;
-      padding: 11px 8px 8px;
-      color: var(--suave);
+      padding: 12px 8px 4px;
+      color: var(--gris);
     }
 
     #pisos .pisos-marca svg {
-      flex: none
+      display: none
     }
 
     #pisos .pisos-marca span {
@@ -563,30 +792,40 @@
       text-transform: uppercase;
     }
 
+    /* El plegado del panel se reemplazó por las flechas; el botón queda
+       oculto (su JS es inofensivo sin él). */
     #pisos-header {
+      display: none
+    }
+
+    #pisos.colapsado #pisos-lista,
+    #pisos.colapsado #pisos-pb {
+      display: none
+    }
+
+    .pisos-flecha {
       flex: none;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 100%;
-      padding: 6px 0 9px;
+      height: 28px;
+      margin: 0 6px;
       border: none;
-      border-bottom: 1px solid var(--linea);
+      border-radius: 10px;
       background: none;
-      cursor: pointer;
       color: var(--suave);
+      cursor: pointer;
+      transition: background-color .15s, color .15s, opacity .15s;
     }
 
-    #pisos-header:hover {
-      color: var(--tinta)
+    .pisos-flecha:hover:not(:disabled) {
+      background: var(--fondo);
+      color: var(--tinta);
     }
 
-    #pisos-header .chev {
-      transition: transform .2s ease
-    }
-
-    #pisos-header[aria-expanded="true"] .chev {
-      transform: rotate(180deg)
+    .pisos-flecha:disabled {
+      opacity: .3;
+      cursor: default;
     }
 
     #pisos-lista {
@@ -601,60 +840,73 @@
       display: none
     }
 
-    #pisos.colapsado #pisos-lista,
-    #pisos.colapsado #pisos-pb {
-      display: none
+    /* Si la lista no entra, un fundido en el borde avisa que hay más pisos
+       (la barra de scroll está oculta). Las clases las pone el JS. */
+    #pisos-lista.mas-abajo {
+      -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+      mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
     }
 
+    #pisos-lista.mas-arriba {
+      -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent);
+      mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent);
+    }
+
+    #pisos-lista.mas-arriba.mas-abajo {
+      -webkit-mask-image: linear-gradient(transparent, #000 28px, #000 calc(100% - 28px), transparent);
+      mask-image: linear-gradient(transparent, #000 28px, #000 calc(100% - 28px), transparent);
+    }
+
+    /* Número a la izquierda, disponibles a la derecha: centrado, un "11"
+       con "10" disponibles se pisaba. */
     .pisos-fila {
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
+      padding: 0 0 0 14px;
       position: relative;
-      width: 100%;
-      height: 36px;
+      width: calc(100% - 12px);
+      height: 32px;
+      margin: 1px 6px;
       flex: none;
       border: none;
-      border-top: 1px solid var(--linea);
+      border-radius: 10px;
       background: none;
       cursor: pointer;
       color: var(--tinta);
       font-size: 13px;
+      font-weight: 500;
       font-variant-numeric: tabular-nums;
       transition: background-color .15s, color .15s
     }
 
-    #pisos-lista .pisos-fila:first-child {
-      border-top: none
-    }
-
     .pisos-fila:hover:not([disabled]) {
-      background: rgba(26, 33, 36, .06)
+      background: var(--fondo)
     }
 
-    .pisos-fila[aria-pressed="true"] {
-      background: var(--azul-sel);
-      color: #fff;
-      font-weight: 650;
+    .pisos-fila[aria-pressed="true"],
+    .pisos-fila[aria-pressed="true"]:hover {
+      background: var(--verde-suave);
+      color: #1E4A3F;
+      font-weight: 700;
     }
 
     .pisos-fila:focus-visible {
-      outline: 2px solid var(--tinta);
+      outline: 2px solid var(--verde);
       outline-offset: -2px;
       z-index: 1;
     }
 
+    /* Unidades disponibles en el piso, en el color de marca. */
     .pf-count {
       position: absolute;
-      right: 8px;
+      right: 6px;
       top: 50%;
       transform: translateY(-50%);
       font-size: 10px;
-      color: var(--suave);
-    }
-
-    .pisos-fila[aria-pressed="true"] .pf-count {
-      color: rgba(255, 255, 255, .75)
+      font-weight: 600;
+      color: var(--verde);
+      opacity: .8;
     }
 
     /* Piso sin construir todavía (ver pisosConstruidos en el script): solo
@@ -671,15 +923,43 @@
      teclado (ver keydown en el script). */
     .pisos-fila--amenities {
       color: var(--suave);
-      font-size: 10px;
-      letter-spacing: .02em;
-      opacity: .5;
+      font-size: 9.5px;
+      line-height: 1.1;
+      opacity: .55;
       cursor: default;
+    }
+
+    #pisos-pb,
+    .pisos-fila--amenities {
+      justify-content: center;
+      padding: 0;
     }
 
     #pisos-pb {
       flex: none;
-      border-top: 1px solid var(--linea);
+      margin-top: 4px;
+    }
+
+    #pisos-pb[hidden] {
+      display: none
+    }
+
+    /* Pantallas bajas de escritorio (laptops de 650–800px de alto): filas
+       más bajas para que un edificio de 13+ pisos entre sin scroll o casi. */
+    @media (max-height:800px) and (min-width:861px) {
+      #pisos .pisos-marca {
+        padding: 9px 8px 2px
+      }
+
+      .pisos-flecha {
+        height: 22px
+      }
+
+      .pisos-fila {
+        height: 27px;
+        margin: 0 6px;
+        font-size: 12.5px;
+      }
     }
 
     #pisos-backdrop {
@@ -700,16 +980,16 @@
 
     #piso-info {
       position: fixed;
-      right: 102px;
-      top: 50%;
+      right: 112px;
+      top: calc(var(--alto-barra) + 36px + (100vh - var(--alto-barra) - 36px - 84px) / 2);
       transform: translateY(-50%) translateX(6px);
       z-index: 10;
       max-width: 210px;
       padding: 13px 15px;
-      border-radius: 5px;
-      background: var(--papel);
+      border-radius: 14px;
+      background: #fff;
       border: 1px solid var(--linea);
-      border-right: 3px solid var(--tinta);
+      box-shadow: var(--sombra);
       font-size: 12.5px;
       color: var(--suave);
       opacity: 0;
@@ -1330,19 +1610,221 @@
       margin: 0
     }
 
+    /* Tooltip: oscuro y chico para textos cortos (cartel de calle); con
+       .tt-unidad pasa a ser una tarjeta blanca con el resumen de la unidad.
+       Entra con un fundido + un leve desplazamiento. .abajo: cerca del
+       borde superior se muestra debajo del puntero. */
     #tooltip {
       position: fixed;
       z-index: 14;
       pointer-events: none;
       opacity: 0;
-      transform: translate(-50%, calc(-100% - 12px));
-      padding: 5px 10px;
-      border-radius: 4px;
+      transform: translate(-50%, calc(-100% - 10px));
+      padding: 6px 11px;
+      border-radius: 10px;
       background: var(--tinta);
       color: #fff;
       font-size: 12.5px;
       white-space: nowrap;
-      transition: opacity .12s
+      transition: opacity .15s ease, transform .15s ease;
+    }
+
+    #tooltip.visible {
+      opacity: 1;
+      transform: translate(-50%, calc(-100% - 16px));
+    }
+
+    #tooltip.abajo {
+      transform: translate(-50%, 18px)
+    }
+
+    #tooltip.abajo.visible {
+      transform: translate(-50%, 24px)
+    }
+
+    #tooltip.tt-unidad {
+      min-width: 210px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--linea);
+      background: #fff;
+      color: var(--tinta);
+      box-shadow: 0 12px 32px rgba(20, 40, 35, .16);
+    }
+
+    .tt-cab {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .tt-num {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+
+    .tt-estado {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--suave);
+    }
+
+    .tt-sub {
+      margin-top: 3px;
+      font-size: 12.5px;
+      color: var(--suave);
+    }
+
+    .tt-precio {
+      margin-top: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tt-precio small {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--suave);
+    }
+
+    .tt-hint {
+      margin-top: 9px;
+      padding-top: 8px;
+      border-top: 1px solid var(--linea);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--verde);
+    }
+
+    /* Tarjeta de unidad en táctil: sube sobre la barra inferior. En
+       desktop nunca se muestra (el hover ya da el resumen). */
+    #tarjeta-unidad {
+      position: fixed;
+      left: 14px;
+      right: 14px;
+      bottom: calc(76px + env(safe-area-inset-bottom));
+      z-index: 11;
+      padding: 14px 16px;
+      background: #fff;
+      border: 1px solid var(--linea);
+      border-radius: var(--radio);
+      box-shadow: 0 12px 36px rgba(20, 40, 35, .16);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    #tarjeta-unidad.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .tarjeta-acciones {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tarjeta-acciones .bton {
+      flex: 1;
+      margin: 0;
+    }
+
+    .tarjeta-cerrar {
+      flex: none;
+      width: 44px;
+      border: 1px solid var(--linea);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--suave);
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    /* Toolbar + brújula, abajo a la derecha. */
+    #herramientas {
+      position: fixed;
+      right: 24px;
+      bottom: 20px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: opacity .2s ease;
+    }
+
+    .hr-grupo {
+      display: flex;
+      gap: 2px;
+      padding: 5px;
+      background: #fff;
+      border: 1px solid var(--linea);
+      border-radius: 999px;
+      box-shadow: var(--sombra);
+    }
+
+    .hr-grupo button {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 50%;
+      background: none;
+      color: var(--suave);
+      cursor: pointer;
+      transition: background-color .15s, color .15s, transform .1s;
+    }
+
+    .hr-grupo button:hover {
+      background: var(--fondo);
+      color: var(--tinta);
+    }
+
+    .hr-grupo button:active {
+      transform: scale(.92)
+    }
+
+    .hr-grupo button[aria-pressed="true"] {
+      background: var(--verde-suave);
+      color: #1E4A3F;
+    }
+
+    #brujula {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      padding: 0;
+      border: 1px solid var(--linea);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--tinta);
+      box-shadow: var(--sombra);
+      cursor: pointer;
+    }
+
+    #brujula[hidden] {
+      display: none
+    }
+
+    /* Tablet / desktop angosto: la barra de filtros se corre a la
+       izquierda para no chocar con la toolbar. */
+    @media (max-width:1180px) and (min-width:861px) {
+      #barra-inferior {
+        left: 24px;
+        transform: none;
+        max-width: calc(100vw - 300px);
+      }
     }
 
     /* Galería de renders: overlay oscuro simple, una imagen a la vez. No hay
@@ -1646,41 +2128,6 @@
        panel prende la simulación; cerrarlo la apaga y devuelve la luz de
        siempre — no hay un switch aparte.
        ============================================================ */
-    #sol-trigger {
-      position: fixed;
-      left: 50%;
-      bottom: 22px;
-      transform: translateX(-50%);
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      padding: 9px 14px;
-      border-radius: 20px;
-      border: 1px solid var(--linea);
-      background: var(--papel);
-      color: var(--suave);
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: color .15s, background .15s, border-color .15s;
-    }
-
-    #sol-trigger:hover {
-      color: var(--tinta);
-      border-color: rgba(26, 33, 36, .32)
-    }
-
-    #sol-trigger[hidden] {
-      display: none
-    }
-
-    #sol-trigger[aria-pressed="true"] {
-      color: #fff;
-      background: var(--tinta);
-      border-color: var(--tinta)
-    }
-
     #sol-backdrop {
       display: none
     }
@@ -1688,7 +2135,7 @@
     #sol {
       position: fixed;
       left: 50%;
-      bottom: 68px;
+      bottom: 76px;
       z-index: 11;
       width: 300px;
       max-width: calc(100vw - 48px);
@@ -1862,13 +2309,123 @@
     }
 
     @media (max-width:860px) {
-      #cabezal {
-        max-width: none;
-        padding: 16px 18px
+      /* Barra superior más baja; se queda solo con marca + íconos (ciudad
+       y el texto del brochure no entran sin apretar el nombre). */
+      #barra-sup {
+        height: 56px;
+        padding: 0 10px 0 14px;
+        gap: 10px;
+      }
+
+      .cb-logo {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
       }
 
       #cabezal h1 {
-        font-size: 19px
+        font-size: 16.5px
+      }
+
+      .cb-titulo {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1px;
+      }
+
+      .cb-dev {
+        font-size: 11.5px
+      }
+
+      .bs-der {
+        gap: 6px
+      }
+
+      .bs-ciudad {
+        display: none
+      }
+
+      .bs-boton {
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        justify-content: center;
+      }
+
+      .bs-boton span {
+        display: none
+      }
+
+      #cabezal-utilidades {
+        gap: 4px
+      }
+
+      #redes a,
+      #redes button,
+      #cota {
+        width: 30px;
+        height: 30px;
+      }
+
+      /* Ficha: en mobile una tarjeta de 300px tapa medio edificio. Queda
+       plegada a una píldora con la leyenda de disponibilidad (puntos +
+       cifras, el nombre del estado va en aria-label) y se despliega a
+       pedido; el edificio manda (ver CLAUDE.md). */
+      #ficha {
+        width: max-content;
+        max-width: calc(100% - 28px);
+        margin: 10px 0 0 14px;
+        padding: 0;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, .9);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+
+      #ficha.abierta {
+        width: calc(100% - 28px);
+        background: #fff;
+      }
+
+      #ficha-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 36px;
+        padding: 8px 12px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--tinta);
+      }
+
+      #ficha-resumen {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+        flex: 1;
+      }
+
+      #ficha-toggle .chev {
+        flex: none;
+        color: var(--suave);
+        transition: transform .2s ease;
+      }
+
+      #ficha.abierta #ficha-toggle .chev {
+        transform: rotate(180deg)
+      }
+
+      #ficha-cuerpo {
+        display: none;
+        padding: 2px 14px 14px;
+      }
+
+      #ficha.abierta #ficha-cuerpo {
+        display: block
       }
 
       /* Los divisores verticales entre pisos/unidades/entrega asumen que las
@@ -1884,24 +2441,10 @@
         display: none
       }
 
-      /* El desglose apilado en 4 renglones altos tapa demasiado edificio en
-       mobile (ver CLAUDE.md: la escena manda). Acá no entra la lista de
-       filas — entra la barra proporcional con su leyenda en una sola
-       línea, mucho más baja y menos genérica que repetir la misma celda
-       cuatro veces. El nombre del estado se saca de la vista (el color ya
-       lo identifica, y el nombre completo sigue en los chips "Estado" de
-       más abajo) pero sigue en el DOM para lectores de pantalla vía
-       aria-label en cada ítem de la leyenda. */
-      #aviso {
-        padding: 10px 14px
-      }
-
-      .aviso-lista {
+      /* La leyenda ya está en la píldora: desplegada, la ficha muestra la
+       lista con nombres pero no repite la barra. */
+      .aviso-barra {
         display: none
-      }
-
-      .aviso-compacto {
-        display: block
       }
 
       /* Filtros: en desktop es un panel siempre visible abajo a la izquierda;
@@ -1913,14 +2456,29 @@
        (ver su CSS más abajo) — un botón cuadrado de ícono al lado del de
        texto, en vez de dos elementos flotantes separados compitiendo por
        el mismo rincón de la pantalla. */
+      /* La píldora de desktop se desarma: en mobile la barra es una fila
+       de botones sueltos (Filtros · Pisos · íconos) y los desplegables
+       por grupo no existen — Filtros abre la hoja con todo. */
       #barra-inferior {
         display: flex;
+        align-items: stretch;
         gap: 8px;
         position: fixed;
-        left: 18px;
-        right: 18px;
-        bottom: calc(16px + env(safe-area-inset-bottom));
+        left: 14px;
+        right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
         z-index: 10;
+        transform: none;
+        max-width: none;
+        padding: 0;
+        background: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .fb-drops {
+        display: none
       }
 
       #panel.abierto~#barra-inferior {
@@ -1935,15 +2493,15 @@
         align-items: center;
         justify-content: center;
         gap: 8px;
-        padding: 12px 16px;
-        border-radius: 8px;
+        padding: 12px 14px;
+        border-radius: 14px;
         border: 1px solid var(--linea);
-        background: var(--papel);
+        background: #fff;
         color: var(--tinta);
         font-size: 13.5px;
         font-weight: 600;
         cursor: pointer;
-        box-shadow: 0 4px 14px rgba(20, 26, 28, .10);
+        box-shadow: var(--sombra);
       }
 
       #filtros-trigger .chev {
@@ -1964,7 +2522,7 @@
         height: 18px;
         padding: 0 5px;
         border-radius: 9px;
-        background: var(--tinta);
+        background: var(--verde);
         color: #fff;
         font-size: 10.5px;
         font-weight: 700;
@@ -1976,20 +2534,23 @@
 
       /* Ícono cuadrado al lado del de Filtros — sin texto para no competir
        por ancho con él en una pantalla angosta. */
-      #renders-trigger {
+      #renders-trigger,
+      #avance-trigger {
         position: static;
-        right: auto;
-        bottom: auto;
         flex: none;
         width: 46px;
         height: 46px;
         padding: 0;
         justify-content: center;
-        border-radius: 8px;
-        box-shadow: 0 4px 14px rgba(20, 26, 28, .10);
+        border-radius: 14px;
+        border: 1px solid var(--linea);
+        background: #fff;
+        color: var(--tinta);
+        box-shadow: var(--sombra);
       }
 
-      #renders-trigger span {
+      #renders-trigger span,
+      #avance-trigger span {
         display: none
       }
 
@@ -1999,16 +2560,16 @@
        imprescindible es un slider, no una lista. */
       #sol-trigger {
         position: static;
-        left: auto;
-        bottom: auto;
-        transform: none;
         flex: none;
         width: 46px;
         height: 46px;
         padding: 0;
         justify-content: center;
-        border-radius: 8px;
-        box-shadow: 0 4px 14px rgba(20, 26, 28, .10);
+        border-radius: 14px;
+        border: 1px solid var(--linea);
+        background: #fff;
+        color: var(--tinta);
+        box-shadow: var(--sombra);
       }
 
       #sol-trigger span {
@@ -2095,11 +2656,15 @@
         left: 0;
         transform: translateY(100%);
         z-index: 20;
+        width: auto;
         max-width: none;
         max-height: min(70vh, 520px);
+        opacity: 1;
+        pointer-events: auto;
         background: #fff;
+        border: none;
         border-top: 1px solid var(--linea);
-        border-radius: 14px 14px 0 0;
+        border-radius: 18px 18px 0 0;
         box-shadow: 0 -10px 30px rgba(20, 26, 28, .16);
         padding: 22px 18px calc(18px + env(safe-area-inset-bottom));
         overflow-y: auto;
@@ -2110,6 +2675,27 @@
 
       #filtros.abierto {
         transform: translateY(0)
+      }
+
+      /* Por si quedó un left inline del popover de desktop (ventana que se
+       achicó con el popover abierto). */
+      #filtros[style] {
+        left: 0 !important
+      }
+
+      #filtros .grupo {
+        display: block;
+        margin-bottom: 18px;
+      }
+
+      #filtros .grupo[hidden] {
+        display: none
+      }
+
+      .fb-reset-hoja {
+        display: inline-flex;
+        height: 36px;
+        padding: 0 4px;
       }
 
       #filtros::before {
@@ -2130,20 +2716,22 @@
        como el panel de botones de un ascensor: se abre con un botón
        compacto en el header y no depende del ancho de pantalla. */
       #pisos-trigger {
+        position: static;
+        flex: 1;
+        min-width: 0;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        width: 100%;
-        margin-top: 12px;
-        padding: 10px 13px;
-        border-radius: 5px;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 14px;
+        border-radius: 14px;
         border: 1px solid var(--linea);
-        background: var(--papel);
+        background: #fff;
         color: var(--tinta);
-        font-size: 13px;
+        font-size: 13.5px;
         font-weight: 600;
         cursor: pointer;
+        box-shadow: var(--sombra);
       }
 
       #pisos-trigger .chev {
@@ -2185,10 +2773,12 @@
         display: flex;
         flex-direction: column;
         background: #fff;
+        border: none;
         border-top: 1px solid var(--linea);
-        border-radius: 14px 14px 0 0;
+        border-radius: 18px 18px 0 0;
         box-shadow: 0 -10px 30px rgba(20, 26, 28, .16);
         padding-top: 18px;
+        padding-bottom: 0;
         transition: transform .28s cubic-bezier(.22, .61, .36, 1);
       }
 
@@ -2226,13 +2816,43 @@
         border-top: 1px solid var(--linea);
       }
 
+      /* Las flechas son para mouse; en la hoja se toca el piso directo. */
+      .pisos-flecha {
+        display: none
+      }
+
       .pisos-fila {
-        padding: 0 2px;
+        width: 100%;
+        height: 44px;
+        margin: 2px 0;
+        border-radius: 12px;
+        font-size: 14px;
+      }
+
+      .pisos-fila {
+        padding-left: 18px;
+      }
+
+      /* En la hoja hay ancho: la cifra suelta se aclara ("disp." evita
+       el "1 disponibles"). */
+      .pf-count {
+        right: 16px;
+        font-size: 11.5px;
+      }
+
+      .pf-count::after {
+        content: " disp.";
+        font-weight: 500;
+      }
+
+      #pisos-lista {
+        padding-top: 6px;
+        border-bottom: 1px solid var(--linea);
       }
 
       #pisos-pb {
-        margin: 0 18px calc(16px + env(safe-area-inset-bottom));
-        padding-top: 2px;
+        width: calc(100% - 36px);
+        margin: 4px 18px calc(16px + env(safe-area-inset-bottom));
       }
 
       /* Tarjeta de info del piso: en desktop flota al lado del riel; acá
@@ -2248,46 +2868,8 @@
         transform: none;
         opacity: 1;
         max-width: none;
-        margin-top: 10px;
+        margin: 8px 14px 0;
         padding: 10px 13px;
-      }
-
-      /* En desktop cota/redes flotan fijos arriba a la derecha, sobre cielo
-       vacío del canvas; en mobile esa misma esquina cae encima del techo
-       del edificio. El edificio es lo importante acá, así que esta fila
-       baja al flujo normal pero se mantiene lo más chica posible: sin caja
-       ni fondo (una caja opaca tapaba demasiado techo), solo íconos con
-       sombra propia para tener contraste sobre cualquier tono de la torre,
-       y sin el texto "Armado por Cota" (el ícono solo ya identifica la
-       marca). admin-link no entra acá a propósito: es un link interno, no
-       hace falta en el header público de mobile. */
-      #cabezal-utilidades {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-top: 8px;
-      }
-
-      #cota,
-      #redes {
-        position: static;
-        top: auto;
-        right: auto
-      }
-
-      #cota .cota-txt {
-        display: none
-      }
-
-      #cota svg,
-      #redes svg {
-        filter: drop-shadow(0 0 2px rgba(255, 255, 255, .95)) drop-shadow(0 1px 2px rgba(0, 0, 0, .4));
-      }
-
-      #redes a,
-      #redes button {
-        opacity: 1;
-        color: var(--tinta)
       }
 
       #compartir-aviso {
@@ -2339,6 +2921,43 @@
 
       .nota {
         margin-top: 18px
+      }
+
+      /* Toolbar: en mobile se gira y se acerca con gestos; queda solo la
+       brújula, sin tarjeta (ícono con sombra propia, ver CLAUDE.md), sobre
+       la barra inferior. Se va cuando hay otra capa abierta. */
+      .hr-grupo {
+        display: none
+      }
+
+      #herramientas {
+        right: 14px;
+        bottom: calc(72px + env(safe-area-inset-bottom));
+      }
+
+      #brujula {
+        width: 44px;
+        height: 44px;
+        border: none;
+        background: none;
+        box-shadow: none;
+        filter: drop-shadow(0 0 2px rgba(255, 255, 255, .95)) drop-shadow(0 1px 2px rgba(0, 0, 0, .35));
+      }
+
+      /* Sin tarjeta, el aro y la aguja tienen que leerse solos. */
+      #brujula svg {
+        width: 42px;
+        height: 42px;
+      }
+
+      #brujula circle {
+        stroke-opacity: .5;
+        stroke-width: 1.3;
+      }
+
+      #tarjeta-unidad.visible~#herramientas {
+        opacity: 0;
+        pointer-events: none;
       }
     }
 
@@ -2514,19 +3133,97 @@
   </div>
 
   <header id="cabezal">
-    <div id="cabezal-panel">
+    <!-- Barra superior: el blur vive acá y no en #cabezal a propósito —
+       backdrop-filter crea un containing block para los hijos
+       position:fixed (#piso-info), que dejarían de ubicarse respecto de la
+       ventana. -->
+    <div id="barra-sup">
       <div class="cb-marca">
-        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="5" y="3" width="11" height="18"></rect>
-          <path d="M16 10l4 2v9h-4"></path>
-          <path d="M8 7h1M11 7h1M8 11h1M11 11h1M8 15h1M11 15h1"></path>
-        </svg>
+        <span class="cb-logo" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="3" width="11" height="18"></rect>
+            <path d="M16 10l4 2v9h-4"></path>
+            <path d="M8 7h1M11 7h1M8 11h1M11 11h1M8 15h1M11 15h1"></path>
+          </svg>
+        </span>
         <div class="cb-titulo">
           <h1 id="h1-proyecto"></h1>
           <span class="cb-dev" id="cb-dev"></span>
         </div>
       </div>
+
+      <div class="bs-der">
+        <span class="bs-ciudad" id="cb-ciudad" hidden>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 21s7-6.6 7-12a7 7 0 1 0-14 0c0 5.4 7 12 7 12z"></path>
+            <circle cx="12" cy="9" r="2.4"></circle>
+          </svg>
+          <span id="cb-ciudad-txt"></span>
+        </span>
+        <div id="cabezal-utilidades">
+          <div id="redes">
+            <a id="red-instagram" href="#" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="5" />
+                <circle cx="12" cy="12" r="4.2" />
+                <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
+              </svg>
+            </a>
+            <a id="red-youtube" href="#" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
+                <path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none" />
+              </svg>
+            </a>
+            <a id="red-web" href="#" target="_blank" rel="noopener" aria-label="Sitio web" title="Sitio web" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18M12 3c2.6 2.6 4 5.7 4 9s-1.4 6.4-4 9c-2.6-2.6-4-5.7-4-9s1.4-6.4 4-9z" />
+              </svg>
+            </a>
+            <button id="red-compartir" type="button" aria-label="Compartir" title="Compartir">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="18" cy="5" r="2.6" />
+                <circle cx="6" cy="12" r="2.6" />
+                <circle cx="18" cy="19" r="2.6" />
+                <path d="M8.3 10.7l7.4-4.1M8.3 13.3l7.4 4.1" />
+              </svg>
+            </button>
+          </div>
+          <a id="cota" href="https://armadoporcotauy.vercel.app/" aria-label="Armado por Cota" title="Armado por Cota">
+            <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M4 13h12" stroke="#2F7A68" stroke-width="1.7" />
+              <path d="M10 5l3.4 5.6H6.6L10 5z" fill="#2F7A68" />
+            </svg>
+          </a>
+        </div>
+        <!-- Solo con settings.brochure_url (columna que todavía no existe, ni
+           en settings ni en public_settings):
+           sin URL el botón no se muestra — nunca un link muerto. -->
+        <a class="bs-boton" id="brochure" href="#" target="_blank" rel="noopener" hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path>
+          </svg>
+          <span>Descargar brochure</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Ficha del proyecto: tarjeta flotante arriba a la izquierda. En
+       mobile se reduce a la leyenda de disponibilidad y se despliega a
+       pedido con #ficha-toggle (el edificio manda, ver CLAUDE.md). -->
+    <section id="ficha" aria-label="Ficha del proyecto">
+      <button id="ficha-toggle" type="button" aria-expanded="false" aria-controls="ficha-cuerpo">
+        <span id="ficha-resumen"></span>
+        <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+      </button>
+      <div id="ficha-cuerpo">
       <p class="cb-direccion" id="cb-direccion" hidden>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2543,7 +3240,7 @@
             <rect x="4" y="9.9" width="16" height="4.2"></rect>
             <rect x="4" y="15.8" width="16" height="4.2"></rect>
           </svg>
-          <span class="cb-dato-txt"><b id="cb-pisos-valor"></b> pisos</span>
+          <span class="cb-dato-txt" id="cb-pisos-txt"><b id="cb-pisos-valor"></b> pisos</span>
         </div>
         <span class="cb-div" id="cb-div-1" hidden></span>
         <div class="cb-dato" id="cb-dato-unidades" hidden>
@@ -2570,59 +3267,10 @@
           </span>
         </div>
       </div>
-    </div>
-    <div id="aviso">Cargando estado de las unidades…</div>
-    <button id="pisos-trigger" type="button" aria-expanded="false" aria-controls="pisos">
-      <span class="pt-label">Todos los pisos</span>
-      <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
-        <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
-          stroke-linejoin="round" />
-      </svg>
-    </button>
-    <div id="piso-info" aria-live="polite"></div>
-
-    <!-- Envoltorio solo de layout (display:contents en desktop, ver CSS):
-       cota/redes siguen siendo position:fixed en desktop igual que antes;
-       en mobile esta fila los baja al flujo normal del header. -->
-    <div id="cabezal-utilidades">
-      <a id="cota" href="https://armadoporcotauy.vercel.app/">
-        <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
-          <path d="M4 13h12" stroke="#2F7A68" stroke-width="1.7" />
-          <path d="M10 5l3.4 5.6H6.6L10 5z" fill="#2F7A68" />
-        </svg>
-        <span class="cota-txt">Armado por Cota</span>
-      </a>
-
-      <div id="redes">
-        <a id="red-instagram" href="#" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram" hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-            <rect x="3" y="3" width="18" height="18" rx="5" />
-            <circle cx="12" cy="12" r="4.2" />
-            <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
-          </svg>
-        </a>
-        <a id="red-youtube" href="#" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube" hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-            <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
-            <path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none" />
-          </svg>
-        </a>
-        <a id="red-web" href="#" target="_blank" rel="noopener" aria-label="Sitio web" title="Sitio web" hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M3 12h18M12 3c2.6 2.6 4 5.7 4 9s-1.4 6.4-4 9c-2.6-2.6-4-5.7-4-9s1.4-6.4 4-9z" />
-          </svg>
-        </a>
-        <button id="red-compartir" type="button" aria-label="Compartir" title="Compartir">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-            <circle cx="18" cy="5" r="2.6" />
-            <circle cx="6" cy="12" r="2.6" />
-            <circle cx="18" cy="19" r="2.6" />
-            <path d="M8.3 10.7l7.4-4.1M8.3 13.3l7.4 4.1" />
-          </svg>
-        </button>
+      <div id="aviso">Cargando estado de las unidades…</div>
       </div>
-    </div>
+    </section>
+    <div id="piso-info" aria-live="polite"></div>
   </header>
 
   <!-- Fuera de #cabezal a propósito: si quedara adentro, su z-index quedaría
@@ -2647,7 +3295,21 @@
           stroke-linejoin="round" />
       </svg>
     </button>
+    <!-- Flechas: suben/bajan un piso el aislado (el mismo click de cada fila,
+       ver moverPisoAislado()). Saltean los niveles "Sin unidades". -->
+    <button class="pisos-flecha" id="pisos-arriba" type="button" aria-label="Piso de arriba">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2.5 7.5L6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+    </button>
     <div id="pisos-lista"></div>
+    <button class="pisos-flecha" id="pisos-abajo" type="button" aria-label="Piso de abajo">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+    </button>
     <button id="pisos-pb" class="pisos-fila" type="button" hidden></button>
   </nav>
 
@@ -2656,6 +3318,59 @@
   <div id="compartir-aviso" role="status" aria-live="polite">Link copiado</div>
 
   <div id="tooltip"></div>
+
+  <!-- Solo pantallas táctiles (sin hover): tocar una unidad muestra este
+     resumen en vez de abrir el panel de entrada; "Ver unidad" abre el
+     panel (y recién ahí se registra el evento, ver abrir()). -->
+  <div id="tarjeta-unidad" role="dialog" aria-label="Resumen de la unidad">
+    <div id="tarjeta-resumen"></div>
+    <div class="tarjeta-acciones">
+      <button class="bton bton-p" id="tarjeta-ver" type="button">Ver unidad</button>
+      <button class="tarjeta-cerrar" id="tarjeta-cerrar" type="button" aria-label="Cerrar">×</button>
+    </div>
+  </div>
+
+  <!-- Controles de vista, abajo a la derecha: brújula (solo con
+     geometria.norte_grados) + vista inicial / zoom / giro automático. -->
+  <div id="herramientas">
+    <button id="brujula" type="button" hidden aria-label="Brújula: girar para ver con el norte arriba"
+      title="Norte arriba">
+      <svg width="36" height="36" viewBox="0 0 30 30" aria-hidden="true">
+        <circle cx="15" cy="15" r="13.6" fill="none" stroke="currentColor" stroke-opacity=".22" stroke-width="1" />
+        <g id="brujula-aguja">
+          <text x="15" y="6.6" text-anchor="middle" font-size="6" font-weight="700" fill="currentColor">N</text>
+          <path d="M15 8.2l3.4 6.8h-6.8z" style="fill: var(--verde)" />
+          <path d="M15 24l-3.4-9h6.8z" fill="#C3C8C6" />
+        </g>
+      </svg>
+    </button>
+    <div class="hr-grupo" role="toolbar" aria-label="Controles de vista">
+      <button id="hr-reset" type="button" aria-label="Vista inicial" title="Vista inicial">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 11l8-6 8 6M6 9.5V19h12V9.5" />
+        </svg>
+      </button>
+      <button id="hr-menos" type="button" aria-label="Alejar" title="Alejar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" aria-hidden="true">
+          <path d="M6 12h12" />
+        </svg>
+      </button>
+      <button id="hr-mas" type="button" aria-label="Acercar" title="Acercar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" aria-hidden="true">
+          <path d="M6 12h12M12 6v12" />
+        </svg>
+      </button>
+      <button id="hr-orbita" type="button" aria-pressed="true" aria-label="Giro automático" title="Giro automático">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4" />
+        </svg>
+      </button>
+    </div>
+  </div>
 
   <!-- En mobile #filtros es una hoja que sube desde abajo (mismo mecanismo
      que #pisos/#pisos-trigger: la data siempre estuvo ahí pero ocupaba
@@ -2671,6 +3386,48 @@
      imagen — la mayoría de los proyectos todavía no van a tener renders
      cargados. -->
   <div id="barra-inferior">
+    <!-- Solo desktop: un desplegable por grupo de #filtros (abre #filtros
+       como popover mostrando solo ese grupo, ver abrirGrupoFiltros()). En
+       mobile esto se oculta y #filtros-trigger abre la hoja completa. -->
+    <div class="fb-drops">
+      <button class="fb-drop" type="button" data-grupo="dorms" aria-expanded="false" aria-controls="filtros">
+        <span>Tipología</span><span class="fb-n" hidden></span>
+        <svg class="chev" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2.5 7.5L6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button class="fb-drop" type="button" data-grupo="estado" aria-expanded="false" aria-controls="filtros">
+        <span>Estado</span><span class="fb-n" hidden></span>
+        <svg class="chev" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2.5 7.5L6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button class="fb-drop" type="button" data-grupo="torre" aria-expanded="false" aria-controls="filtros" hidden>
+        <span>Torre</span><span class="fb-n" hidden></span>
+        <svg class="chev" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2.5 7.5L6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button class="fb-drop" type="button" data-grupo="vista" aria-expanded="false" aria-controls="filtros">
+        <span>Vista</span><span class="fb-n" hidden></span>
+        <svg class="chev" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2.5 7.5L6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button class="fb-reset" type="button" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />
+        </svg>
+        <span>Restablecer</span>
+      </button>
+      <span class="fb-sep" aria-hidden="true"></span>
+    </div>
+
     <button id="renders-trigger" type="button" hidden aria-haspopup="dialog" aria-controls="renders-modal">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2696,7 +3453,17 @@
       <span>Filtros</span>
       <span id="ft-badge" class="ft-badge" hidden></span>
       <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
-        <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+        <path d="M2.5 7.5L6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+    </button>
+
+    <!-- Solo mobile: abre el riel de pisos como hoja (antes vivía en el
+       header; abajo queda junto a Filtros y no le quita alto a la escena). -->
+    <button id="pisos-trigger" type="button" aria-expanded="false" aria-controls="pisos">
+      <span class="pt-label">Pisos</span>
+      <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2.5 7.5L6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
           stroke-linejoin="round" />
       </svg>
     </button>
@@ -2715,26 +3482,40 @@
     </button>
   </div>
 
-  <div id="filtros">
-    <div class="grupo">
+  <!-- Desktop: popover sobre la barra inferior que muestra un solo grupo a la
+     vez (data-grupo). Mobile: hoja con todos los grupos. -->
+  <div id="filtros" role="group" aria-label="Filtros">
+    <div class="grupo" data-grupo="dorms">
       <p>Tipología</p>
       <div class="fila" id="f-dorms"></div>
     </div>
-    <div class="grupo">
+    <div class="grupo" data-grupo="estado">
       <p>Estado</p>
       <div class="fila" id="f-estado"></div>
     </div>
     <!-- Solo en conjuntos con geometria.torres (ver iniciar()). -->
-    <div class="grupo" id="f-torre-grupo" hidden>
+    <div class="grupo" data-grupo="torre" id="f-torre-grupo" hidden>
       <p>Torre</p>
       <div class="fila" id="f-torre"></div>
     </div>
-    <button id="separar" aria-pressed="false">Separar pisos</button>
-    <!-- Oculto hasta que iniciar() confirme que hay al menos un piso marcado
-       como construido (hito categoria='estructura' con fecha_real) — ver
-       pisosConstruidos. Sin eso, ningún proyecto muestra un toggle que no
-       tiene nada que hacer. -->
-    <button id="obra-toggle" type="button" aria-pressed="false" hidden>Ver solo lo construido</button>
+    <div class="grupo" data-grupo="vista">
+      <p>Vista</p>
+      <div class="fila">
+        <button id="separar" class="chip chip-toggle" aria-pressed="false">Separar pisos</button>
+        <!-- Oculto hasta que iniciar() confirme que hay al menos un piso marcado
+           como construido (hito categoria='estructura' con fecha_real) — ver
+           pisosConstruidos. Sin eso, ningún proyecto muestra un toggle que no
+           tiene nada que hacer. -->
+        <button id="obra-toggle" class="chip chip-toggle" type="button" aria-pressed="false" hidden>Ver solo lo construido</button>
+      </div>
+    </div>
+    <button class="fb-reset fb-reset-hoja" type="button" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />
+      </svg>
+      <span>Restablecer filtros</span>
+    </button>
   </div>
 
   <!-- Simulador solar: apagado por default (ver CSS #sol/#sol-trigger).
@@ -2970,11 +3751,30 @@
        ============================================================ */
 
     const ESTADOS = {
-      disponible: { nombre: 'Disponible', color: '#2F7A68' },
-      reservado: { nombre: 'Reservada', color: '#C08429' },
-      vendido: { nombre: 'Vendida', color: '#B3413A' },
-      sin_dato: { nombre: 'Sin estado público', color: '#646C6E' },
+      // opacidad: la del volumen en la escena. El color de marca queda
+      // reservado para lo disponible; lo vendido va en gris casi
+      // transparente (con media torre vendida, un rojo dominaba la escena y
+      // comunicaba lo contrario a lo que se quiere vender). sin_dato NO va
+      // tenue: en ROSSO son 64 de 78 unidades y el edificio quedaría
+      // fantasma — es un gris neutro que sigue leyéndose como volumen.
+      disponible: { nombre: 'Disponible', color: '#2B6656', opacidad: 0.94 },
+      reservado: { nombre: 'Reservada', color: '#D2A24C', opacidad: 0.86 },
+      vendido: { nombre: 'Vendida', color: '#B9BEBC', opacidad: 0.34 },
+      sin_dato: { nombre: 'Sin estado público', color: '#9AA19E', opacidad: 0.62 },
     };
+    // Estado de PRESENTACIÓN, no de datos: las unidades que el desarrollador
+    // ofrece solo en alquiler se cargan como estado = 'sin_dato' +
+    // geom.operacion = 'alquiler' (ver supabase-brusco-precios.sql). Se
+    // pintan como oferta vigente, en un verde más claro que el de venta. El
+    // filtro sigue trabajando sobre u.estado (pasa(u) no cambia). Sin
+    // geom.operacion (ROSSO, Altamira) esto nunca aplica.
+    const ALQUILER = { nombre: 'En alquiler', color: '#86AC9F', opacidad: 0.86 };
+    function esAlquiler(u) {
+      return u.estado === 'sin_dato' && !!u.geom && u.geom.operacion === 'alquiler';
+    }
+    function aspectoDe(u) {
+      return esAlquiler(u) ? ALQUILER : ESTADOS[u.estado];
+    }
 
     // Qué edificio mostrar: primero un path bonito (/rosso, vía un rewrite de
     // Vercel que todavía no existe pero deja la puerta abierta), después
@@ -3643,15 +4443,39 @@
         (grupo[m.tipo] || (grupo[m.tipo] = [])).push(m);
       });
 
-      document.getElementById('h1-proyecto').textContent = proyecto.nombre;
-
+      // Barra superior: "BRUSCO" + "by IXOU". Varios nombres ya traen el
+      // "by X" adentro ("ROSSO by Block"); se parte ahí para no duplicarlo
+      // con desarrolla ("ROSSO by Block by Block Desarrollos").
+      const partesNombre = /^(.+?)\s+by\s+(.+)$/i.exec(proyecto.nombre || '');
+      document.getElementById('h1-proyecto').textContent = partesNombre ? partesNombre[1] : proyecto.nombre;
+      const firma = partesNombre ? partesNombre[2] : proyecto.desarrolla;
       const cbDev = document.getElementById('cb-dev');
-      cbDev.hidden = !proyecto.desarrolla;
-      if (proyecto.desarrolla) cbDev.textContent = 'by ' + proyecto.desarrolla;
+      cbDev.hidden = !firma;
+      if (firma) cbDev.textContent = 'by ' + firma;
+
+      document.getElementById('cb-ciudad').hidden = !proyecto.ciudad;
+      document.getElementById('cb-ciudad-txt').textContent = proyecto.ciudad || '';
+
+      // settings.brochure_url todavía no existe (haría falta la columna y
+      // sumarla a public_settings): mientras falte, el botón queda oculto.
+      const brochure = document.getElementById('brochure');
+      if (settingsRow && settingsRow.brochure_url) {
+        brochure.href = settingsRow.brochure_url;
+        brochure.hidden = false;
+      }
 
       const direccionTxt = [proyecto.direccion, proyecto.ciudad].filter(Boolean).join(', ');
       document.getElementById('cb-direccion').hidden = !direccionTxt;
       document.getElementById('cb-direccion-txt').textContent = direccionTxt;
+
+      // Ficha en mobile: plegada a la leyenda; se despliega a pedido.
+      const ficha = document.getElementById('ficha');
+      const fichaToggle = document.getElementById('ficha-toggle');
+      fichaToggle.addEventListener('click', () => {
+        const abierta = !ficha.classList.contains('abierta');
+        ficha.classList.toggle('abierta', abierta);
+        fichaToggle.setAttribute('aria-expanded', abierta);
+      });
 
       // Cada celda depende solo de su propio dato — si falta, se saca junto
       // con el divisor de al lado, nunca queda un guion ni una línea
@@ -3659,6 +4483,26 @@
       const hayPisos = !!proyecto.pisos, hayUnidades = !!UNIDADES.length, hayEntrega = !!proyecto.entrega;
       document.getElementById('cb-dato-pisos').hidden = !hayPisos;
       document.getElementById('cb-pisos-valor').textContent = proyecto.pisos;
+      // Conjuntos de varias torres (geom.torre en las unidades): un solo
+      // proyecto.pisos no describe el edificio. Los pisos de cada torre salen
+      // en vivo de las unidades cargadas (el piso más alto de cada una), sin
+      // contar el basamento.
+      const pisosPorTorre = {};
+      UNIDADES.forEach(u => {
+        const t = torreDe(u);
+        if (t && t !== 'Basamento') pisosPorTorre[t] = Math.max(pisosPorTorre[t] || 0, u.piso);
+      });
+      const torresFicha = Object.keys(pisosPorTorre).sort();
+      if (torresFicha.length > 1) {
+        const txt = document.getElementById('cb-pisos-txt');
+        txt.textContent = '';
+        torresFicha.forEach((t, i) => {
+          const b = document.createElement('b');
+          b.textContent = pisosPorTorre[t];
+          txt.append((i ? ' · ' : '') + 'Torre ' + t + ' ', b);
+        });
+        txt.append(' pisos');
+      }
       document.getElementById('cb-dato-unidades').hidden = !hayUnidades;
       document.getElementById('cb-unidades-valor').textContent = UNIDADES.length;
       document.getElementById('cb-dato-entrega').hidden = !hayEntrega;
@@ -3667,25 +4511,30 @@
       document.getElementById('cb-div-2').hidden = !(hayUnidades && hayEntrega);
       document.getElementById('cb-datos').hidden = !(hayPisos || hayUnidades || hayEntrega);
 
+      // Disponibilidad: contada en vivo por aspectoDe(u) (así "En alquiler"
+      // aparece como tal en BRUSCO). Solo los estados con unidades: un
+      // "Vendida 0" en un edificio que no publica vendidas es ruido. Los
+      // nombres y colores son constantes del código, no datos — por eso
+      // innerHTML es seguro acá.
       if (proyecto.muestra_totales) {
-        const conteos = Object.entries(ESTADOS).map(([k, e]) =>
-          ({ nombre: e.nombre, color: e.color, cantidad: UNIDADES.filter(u => u.estado === k).length }));
+        const conteos = [ESTADOS.disponible, ALQUILER, ESTADOS.reservado, ESTADOS.vendido, ESTADOS.sin_dato]
+          .map(e => ({ nombre: e.nombre, color: e.color, cantidad: UNIDADES.filter(u => aspectoDe(u) === e).length }))
+          .filter(e => e.cantidad > 0);
         document.getElementById('aviso').innerHTML =
+          '<div class="aviso-barra">' + conteos.map(e =>
+            '<span style="flex:' + e.cantidad + ';background:' + e.color + '"></span>'
+          ).join('') + '</div>' +
           '<div class="aviso-lista">' + conteos.map(e =>
             '<div class="aviso-fila"><span class="punto" style="background:' + e.color + '"></span>' +
             '<span class="aviso-label">' + e.nombre + '</span><span class="aviso-cant">' + e.cantidad + '</span></div>'
-          ).join('') + '</div>' +
-          '<div class="aviso-compacto">' +
-            '<div class="aviso-barra">' + conteos.map(e =>
-              '<span style="flex:' + e.cantidad + ';background:' + e.color + '"></span>'
-            ).join('') + '</div>' +
-            '<div class="aviso-leyenda">' + conteos.map(e =>
-              '<span class="aviso-item" aria-label="' + e.nombre + ': ' + e.cantidad + ' unidades">' +
-              '<span class="punto" style="background:' + e.color + '"></span>' + e.cantidad + '</span>'
-            ).join('') + '</div>' +
-          '</div>';
+          ).join('') + '</div>';
+        document.getElementById('ficha-resumen').innerHTML = conteos.map(e =>
+          '<span class="aviso-item" aria-label="' + e.nombre + ': ' + e.cantidad + ' unidades">' +
+          '<span class="punto" style="background:' + e.color + '"></span>' + e.cantidad + '</span>'
+        ).join('');
       } else {
         document.getElementById('aviso').hidden = true;
+        document.getElementById('ficha-resumen').textContent = 'Ver ficha';
       }
       document.getElementById('p-tira-tope').textContent = proyecto.pisos;
 
@@ -4141,10 +4990,10 @@
             u._centro = centro; // enfocar() lo usa para orientar la cámara sin col/frente
           }
 
-          const color = new THREE.Color(ESTADOS[u.estado].color);
+          const color = new THREE.Color(aspectoDe(u).color);
           const caja = new THREE.Mesh(geoU, new THREE.MeshStandardMaterial({
             color, roughness: 0.45, metalness: 0.05, transparent: true,
-            opacity: u.estado === 'disponible' ? 0.94 : 0.72,
+            opacity: aspectoDe(u).opacidad,
           }));
           caja.position.set(posX, altoUnidad / 2, posZ);
           caja.castShadow = caja.receiveShadow = true;
@@ -5170,14 +6019,16 @@
         (pisoAislado === null || u.piso === pisoAislado) &&
         (!verSoloConstruido || pisosConstruidos.has(u.piso));
 
+      const COLOR_FILTRADO = new THREE.Color(0x98A1A4);
       function aplicar() {
         cajas.forEach(c => {
           const u = c.userData.unidad, ok = pasa(u);
           c.userData.activa = ok;
-          c.material.opacity = ok ? (u.estado === 'disponible' ? 0.94 : 0.72) : 0.06;
-          c.material.color.copy(ok ? c.userData.colorBase : new THREE.Color(0x98A1A4));
+          // Valores objetivo: animar() los interpola (fundido al filtrar).
+          c.userData.opObj = ok ? aspectoDe(u).opacidad : 0.06;
+          c.userData.colorObj = ok ? c.userData.colorBase : COLOR_FILTRADO;
           c.castShadow = ok;
-          c.userData.borde.material.opacity = ok ? 0.26 : 0.04;
+          c.userData.bordeObj = ok ? 0.26 : 0.04;
         });
         if (elegida && !pasa(elegida)) cerrar();
         actualizarBadgeFiltros();
@@ -5199,14 +6050,28 @@
       // Guardados por valor para poder sincronizar su aria-pressed cuando
       // "ver unidades similares" cambia los filtros por código (ver
       // mostrarSimilares()), no solo cuando el visitante los toca a mano.
-      const chipsDorms = {}, chipsEstado = {};
-      dormsDisponibles.forEach(d => chipsDorms[d] = chip(document.getElementById('f-dorms'), etiquetaDorms(d), null,
+      const chipsDorms = {}, chipsEstado = {}, chipsTorre = {};
+      const cifra = n => ' <span class="chip-n">' + n + '</span>';
+      dormsDisponibles.forEach(d => chipsDorms[d] = chip(document.getElementById('f-dorms'),
+        etiquetaDorms(d) + cifra(UNIDADES.filter(u => u.dorms === d).length), null,
         on => on ? fDorms.add(d) : fDorms.delete(d)));
-      Object.entries(ESTADOS).forEach(([k, e]) => chipsEstado[k] = chip(document.getElementById('f-estado'), e.nombre, e.color,
-        on => on ? fEstado.add(k) : fEstado.delete(k)));
+      // Un chip por estado, pero solo los que tienen unidades: "Vendida 0"
+      // en un edificio sin vendidas es ruido. Los estados sin unidades
+      // siguen en fEstado (prendidos), así que pasa(u) no cambia. Si todas
+      // las sin_dato de un proyecto son de alquiler (BRUSCO), el chip se
+      // presenta como "En alquiler" — sigue filtrando por u.estado.
+      Object.entries(ESTADOS).forEach(([k, e]) => {
+        const deEstado = UNIDADES.filter(u => u.estado === k);
+        if (!deEstado.length) return;
+        const vista = deEstado.every(esAlquiler) ? ALQUILER : e;
+        chipsEstado[k] = chip(document.getElementById('f-estado'), vista.nombre + cifra(deEstado.length), vista.color,
+          on => on ? fEstado.add(k) : fEstado.delete(k));
+      });
       if (torresDisponibles.length) {
         document.getElementById('f-torre-grupo').hidden = false;
-        torresDisponibles.forEach(t => chip(document.getElementById('f-torre'), t === 'Basamento' ? t : 'Torre ' + t, null,
+        document.querySelector('.fb-drop[data-grupo="torre"]').hidden = false;
+        torresDisponibles.forEach(t => chipsTorre[t] = chip(document.getElementById('f-torre'),
+          (t === 'Basamento' ? t : 'Torre ' + t) + cifra(UNIDADES.filter(u => torreDe(u) === t).length), null,
           on => on ? fTorre.add(t) : fTorre.delete(t)));
       }
 
@@ -5343,7 +6208,72 @@
           (torresDisponibles.length - fTorre.size);
         ftBadge.textContent = excluidos;
         ftBadge.hidden = excluidos === 0;
+        // Barra de desktop: cuántas opciones quedan activas en cada grupo
+        // filtrado ("Estado 2"), y Restablecer habilitado solo si hay algo
+        // que restablecer (filtros, piso aislado, separar, solo construido).
+        const activas = {
+          dorms: fDorms.size < dormsDisponibles.length ? fDorms.size : 0,
+          estado: Object.keys(chipsEstado).filter(k => fEstado.has(k)).length,
+          torre: fTorre.size < torresDisponibles.length ? fTorre.size : 0,
+          vista: (separado ? 1 : 0) + (verSoloConstruido ? 1 : 0),
+        };
+        if (activas.estado === Object.keys(chipsEstado).length) activas.estado = 0;
+        document.querySelectorAll('.fb-drop').forEach(b => {
+          const n = activas[b.dataset.grupo], badge = b.querySelector('.fb-n');
+          badge.hidden = !n;
+          badge.textContent = n;
+          b.classList.toggle('filtrado', !!n);
+        });
+        const hayAlgo = excluidos > 0 || pisoAislado !== null || separado || verSoloConstruido;
+        document.querySelectorAll('.fb-reset').forEach(b => b.disabled = !hayAlgo);
       }
+
+      // Restablecer: vuelve todo a la vista inicial reusando los mismos
+      // caminos que los controles (sets de filtro + aplicar(), click en los
+      // toggles), así no hay una segunda lógica de filtrado.
+      function restablecerFiltros() {
+        fDorms = new Set(dormsDisponibles);
+        fEstado = new Set(Object.keys(ESTADOS));
+        fTorre = new Set(torresDisponibles);
+        [chipsDorms, chipsEstado, chipsTorre].forEach(g =>
+          Object.values(g).forEach(b => b.setAttribute('aria-pressed', 'true')));
+        if (separado) btnSep.click();
+        if (verSoloConstruido) btnObra.click();
+        if (pisoAislado !== null) {
+          pisoAislado = null;
+          actualizarRielPisos();
+          enfocarPiso(null);
+        }
+        aplicar();
+      }
+      document.querySelectorAll('.fb-reset').forEach(b => b.addEventListener('click', restablecerFiltros));
+
+      // Popover de desktop: #filtros muestra un solo grupo, anclado sobre su
+      // botón de la barra. En mobile los .fb-drop no se ven y esto no corre.
+      const drops = document.querySelectorAll('.fb-drop');
+      function cerrarGrupoFiltros() {
+        filtrosEl.classList.remove('pop');
+        delete filtrosEl.dataset.grupo;
+        drops.forEach(b => b.setAttribute('aria-expanded', 'false'));
+      }
+      function abrirGrupoFiltros(boton) {
+        const g = boton.dataset.grupo;
+        if (filtrosEl.dataset.grupo === g) { cerrarGrupoFiltros(); return; }
+        filtrosEl.dataset.grupo = g;
+        filtrosEl.classList.add('pop');
+        drops.forEach(b => b.setAttribute('aria-expanded', String(b === boton)));
+        // Centrado sobre el botón, sin salirse de la pantalla.
+        const r = boton.getBoundingClientRect(), w = filtrosEl.offsetWidth;
+        const x = Math.min(window.innerWidth - w - 16, Math.max(16, r.left + r.width / 2 - w / 2));
+        filtrosEl.style.left = x + 'px';
+      }
+      drops.forEach(b => b.addEventListener('click', () => abrirGrupoFiltros(b)));
+      document.addEventListener('pointerdown', e => {
+        if (!filtrosEl.classList.contains('pop')) return;
+        if (filtrosEl.contains(e.target) || e.target.closest('.fb-drop')) return;
+        cerrarGrupoFiltros();
+      });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarGrupoFiltros(); });
 
       /* Plegar/desplegar el panel entero: solo tiene efecto visual en
          desktop (ver #pisos.colapsado en el CSS). En mobile #pisos-header
@@ -5445,11 +6375,53 @@
           if (!b.disabled) b.setAttribute('aria-pressed', String(pisoAislado === PISOS - i));
         });
         if (tienePB) btnPB.setAttribute('aria-pressed', String(pisoAislado === 0));
+        const sel = filasNavegables.find(b => b.getAttribute('aria-pressed') === 'true');
+        if (sel) sel.scrollIntoView({ block: 'nearest', behavior: REDUCIR_MOVIMIENTO ? 'auto' : 'smooth' });
         pisosTriggerLabel.textContent =
-          pisoAislado === null ? 'Todos los pisos' : pisoAislado === 0 ? 'Planta baja' : 'Piso ' + pisoAislado;
+          pisoAislado === null ? 'Pisos' : pisoAislado === 0 ? 'PB' : 'Piso ' + pisoAislado;
         actualizarInfoPiso();
+        actualizarFlechasPiso();
         cerrarHoja();
       }
+
+      // Flechas del riel: "arriba" sin piso elegido arranca desde abajo (el
+      // recorrido natural de un edificio), "abajo" desde el último piso. Cada
+      // paso es un click en la fila destino — el mismo camino que tocarla.
+      const btnArriba = document.getElementById('pisos-arriba');
+      const btnAbajo = document.getElementById('pisos-abajo');
+      function filaSeleccionada() {
+        return filasNavegables.find(b => b.getAttribute('aria-pressed') === 'true') || null;
+      }
+      function moverPisoAislado(haciaArriba) {
+        const actual = filaSeleccionada(), n = filasNavegables.length;
+        const i = actual ? filasNavegables.indexOf(actual) : (haciaArriba ? n : -1);
+        const destino = filasNavegables[i + (haciaArriba ? -1 : 1)];
+        if (destino && destino !== actual) destino.click();
+      }
+      function actualizarFlechasPiso() {
+        const i = filasNavegables.indexOf(filaSeleccionada());
+        btnArriba.disabled = i === 0;
+        btnAbajo.disabled = i === filasNavegables.length - 1;
+      }
+      function actualizarBordesLista() {
+        const L = listaPisos;
+        L.classList.toggle('mas-arriba', L.scrollTop > 2);
+        L.classList.toggle('mas-abajo', L.scrollTop + L.clientHeight < L.scrollHeight - 2);
+      }
+      listaPisos.addEventListener('scroll', actualizarBordesLista, { passive: true });
+      addEventListener('resize', actualizarBordesLista);
+      requestAnimationFrame(actualizarBordesLista);
+      btnArriba.addEventListener('click', () => moverPisoAislado(true));
+      btnAbajo.addEventListener('click', () => moverPisoAislado(false));
+      btnSep.addEventListener('click', actualizarBadgeFiltros);
+
+      // Mobile: nunca dos capas abiertas a la vez — abrir Filtros o Pisos
+      // pliega la ficha.
+      [pisosTrigger, filtrosTrigger].forEach(t => t.addEventListener('click', () => {
+        ficha.classList.remove('abierta');
+        fichaToggle.setAttribute('aria-expanded', 'false');
+      }));
+      fichaToggle.addEventListener('click', () => { cerrarHoja(); cerrarFiltros(); });
 
       /* ============================================================
          Planta real de la tipología (subida por el cliente desde admin.html,
@@ -5491,7 +6463,7 @@
         for (let p = 0; p <= PISOS; p++) {
           const marca = document.createElement('i');
           marca.className = 'p-tira-marca' + (p === u.piso ? ' activa' : '');
-          if (p === u.piso) marca.style.background = ESTADOS[u.estado].color;
+          if (p === u.piso) marca.style.background = aspectoDe(u).color;
           cont.appendChild(marca);
         }
       }
@@ -5715,12 +6687,185 @@
         });
       });
 
+      /* ============================================================
+         Resumen de unidad: el mismo contenido en el tooltip (hover en
+         desktop) y en la tarjeta táctil. Armado con nodos, no innerHTML:
+         número y tipología vienen de la base.
+         ============================================================ */
+      const esTactil = matchMedia('(hover: none)').matches;
+      const fmtAlquiler = new Intl.NumberFormat(proyecto.locale,
+        { style: 'currency', currency: 'UYU', currencyDisplay: 'code', maximumFractionDigits: 0 });
+
+      function nodo(tag, clase, texto) {
+        const n = document.createElement(tag);
+        if (clase) n.className = clase;
+        if (texto != null) n.textContent = texto;
+        return n;
+      }
+
+      function pintarResumenUnidad(cont, u, conPista) {
+        const a = aspectoDe(u);
+        const torreU = torresDisponibles.length ? torreDe(u) : null;
+        cont.textContent = '';
+
+        const cab = nodo('div', 'tt-cab');
+        cab.appendChild(nodo('span', 'tt-num', 'Unidad ' + numeroDe(u)));
+        const est = nodo('span', 'tt-estado');
+        const punto = nodo('span', 'punto');
+        punto.style.background = a.color;
+        est.append(punto, a.nombre);
+        cab.appendChild(est);
+        cont.appendChild(cab);
+
+        cont.appendChild(nodo('div', 'tt-sub', [
+          torreU ? (torreU === 'Basamento' ? torreU : 'Torre ' + torreU) : null,
+          'Piso ' + u.piso,
+          tipologiaDe(u) || etiquetaDorms(u.dorms),
+          u.m2 != null ? u.m2 + ' m²' : null,
+        ].filter(Boolean).join(' · ')));
+
+        // Precio: el de alquiler (UYU por mes) si es de alquiler; el de venta
+        // si hay uno y no está vendida. Sin dato, no se inventa nada.
+        const alquiler = esAlquiler(u) && u.geom.precio_alquiler_uyu;
+        if (alquiler) {
+          const p = nodo('div', 'tt-precio', fmtAlquiler.format(u.geom.precio_alquiler_uyu));
+          p.appendChild(nodo('small', null, ' / mes'));
+          cont.appendChild(p);
+        } else if (u.precio != null && u.estado !== 'vendido') {
+          cont.appendChild(nodo('div', 'tt-precio', formatearPrecio(u.precio, proyecto.moneda, proyecto.locale)));
+        }
+        if (conPista) cont.appendChild(nodo('div', 'tt-hint', 'Click para ver la unidad'));
+      }
+
+      // Sobre el puntero, centrado; sin salirse de la pantalla por los
+      // costados, y debajo del puntero si arriba no entra (bajo el header).
+      function ubicarTooltip() {
+        const w = tooltip.offsetWidth, h = tooltip.offsetHeight;
+        const x = Math.min(innerWidth - w / 2 - 12, Math.max(w / 2 + 12, posRaton.x));
+        tooltip.classList.toggle('abajo', posRaton.y - h - 24 < 76);
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = posRaton.y + 'px';
+      }
+
+      // Tarjeta táctil: tocar una unidad la resalta y muestra el resumen;
+      // recién "Ver unidad" abre el panel (y registra el evento en abrir()).
+      const tarjeta = document.getElementById('tarjeta-unidad');
+      let cajaTarjeta = null;
+      function mostrarTarjeta(caja) {
+        if (cajaTarjeta && cajaTarjeta !== caja) cajaTarjeta.userData.emObj = 0;
+        cajaTarjeta = caja;
+        caja.userData.emObj = 0.22;
+        pintarResumenUnidad(document.getElementById('tarjeta-resumen'), caja.userData.unidad, false);
+        tarjeta.classList.add('visible');
+      }
+      function ocultarTarjeta() {
+        if (cajaTarjeta) cajaTarjeta.userData.emObj = 0;
+        cajaTarjeta = null;
+        tarjeta.classList.remove('visible');
+      }
+      document.getElementById('tarjeta-ver').addEventListener('click', () => {
+        const u = cajaTarjeta && cajaTarjeta.userData.unidad;
+        ocultarTarjeta();
+        if (u) abrir(u);
+      });
+      document.getElementById('tarjeta-cerrar').addEventListener('click', ocultarTarjeta);
+      [pisosTrigger, filtrosTrigger, fichaToggle].forEach(t => t.addEventListener('click', ocultarTarjeta));
+
+      /* ============================================================
+         Toolbar de vista: vista inicial, zoom, giro automático. Los
+         movimientos se interpolan (~400ms) con los mismos límites que el
+         arrastre y la rueda (radio 34–190), siempre vía ubicarCamara().
+         ============================================================ */
+      const REDUCIR_MOVIMIENTO = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let transicionCamara = null;
+      function moverCamara(destino, ms = 420) {
+        tocado = true;
+        const desde = { giro, phi, radio, objetivo: objetivo.clone() };
+        // Giro por el camino corto.
+        let dGiro = 0;
+        if (destino.giro != null) {
+          dGiro = ((destino.giro - giro) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+        }
+        const t0 = performance.now(), dur = REDUCIR_MOVIMIENTO ? 1 : ms;
+        const id = transicionCamara = {};
+        (function paso(ahora) {
+          if (transicionCamara !== id) return; // otro movimiento lo reemplazó
+          const k = Math.min(1, (ahora - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+          giro = desde.giro + dGiro * e;
+          if (destino.phi != null) phi = desde.phi + (destino.phi - desde.phi) * e;
+          if (destino.radio != null) radio = desde.radio + (destino.radio - desde.radio) * e;
+          if (destino.objetivo) objetivo.lerpVectors(desde.objetivo, destino.objetivo, e);
+          ubicarCamara();
+          if (k < 1) requestAnimationFrame(paso);
+        })(t0);
+      }
+      // Arrastrar o usar la rueda corta cualquier transición en curso.
+      lienzo.addEventListener('pointerdown', () => { transicionCamara = null; });
+      lienzo.addEventListener('wheel', () => { transicionCamara = null; }, { passive: true });
+
+      document.getElementById('hr-reset').addEventListener('click', () => {
+        // Mismo encuadre que enfocarPiso() / "Separar pisos", con el giro en 0.
+        if (pisoAislado !== null) {
+          moverCamara({
+            giro: 0, phi: 1.28,
+            radio: CONJUNTO ? Math.max(72, radioGeneral * 0.75) : 72,
+            objetivo: new THREE.Vector3(CENTRO_X, pisoAislado * PASO + ALTO / 2, CENTRO_Z),
+          });
+        } else {
+          const extra = separado ? (pisosGrupo.length - 1) * 2.5 : 0;
+          const obj = objetivoGeneral.clone();
+          obj.y += extra / 2;
+          moverCamara({ giro: 0, phi: phiGeneral, radio: radioGeneral + extra * 0.85, objetivo: obj });
+        }
+      });
+      document.getElementById('hr-mas').addEventListener('click', () =>
+        moverCamara({ radio: Math.max(34, radio - 16) }, 260));
+      document.getElementById('hr-menos').addEventListener('click', () =>
+        moverCamara({ radio: Math.min(190, radio + 16) }, 260));
+      const btnOrbita = document.getElementById('hr-orbita');
+      btnOrbita.addEventListener('click', () => {
+        transicionCamara = null;
+        tocado = !tocado;
+      });
+
+      /* Brújula (solo con norte_grados): el rumbo del modelo −Z es
+         norte_grados, así que el norte en coordenadas del modelo es
+         (−sin N, −cos N) (mismo contrato que direccionSolModelo()). Se lo
+         gira con el edificio (giro) y se proyecta sobre la pantalla con la
+         cámara fija en theta: ángulo horario desde "arriba" de la pantalla. */
+      const brujula = document.getElementById('brujula');
+      const aguja = document.getElementById('brujula-aguja');
+      const tieneBrujula = geo.norte_grados != null;
+      brujula.hidden = !tieneBrujula;
+      function anguloNorte(g) {
+        const n = THREE.MathUtils.degToRad(geo.norte_grados);
+        const mx = -Math.sin(n), mz = -Math.cos(n);
+        const wx = mx * Math.cos(g) + mz * Math.sin(g), wz = -mx * Math.sin(g) + mz * Math.cos(g);
+        const sx = wx * Math.cos(theta) - wz * Math.sin(theta);   // · derecha de la cámara
+        const sy = -wx * Math.sin(theta) - wz * Math.cos(theta);  // · adelante de la cámara
+        return Math.atan2(sx, sy);
+      }
+      let anguloBrujula = null;
+      function actualizarBrujula() {
+        if (!tieneBrujula) return;
+        const a = THREE.MathUtils.radToDeg(anguloNorte(giro));
+        if (anguloBrujula !== null && Math.abs(a - anguloBrujula) < 0.1) return;
+        anguloBrujula = a;
+        aguja.setAttribute('transform', 'rotate(' + a.toFixed(1) + ' 15 15)');
+      }
+      // Click: gira el edificio hasta dejar el norte arriba.
+      brujula.addEventListener('click', () => {
+        const a = anguloNorte(giro);
+        const g = Math.abs(anguloNorte(giro + a)) < Math.abs(anguloNorte(giro - a)) ? giro + a : giro - a;
+        moverCamara({ giro: g });
+      });
+
       function abrir(u, mover) {
         registrarEvento(proyecto.id, u.id);
         elegida = u;
-        tooltip.style.opacity = 0; // en touch queda pegado en la última posición tocada
+        tooltip.classList.remove('visible'); // en touch queda pegado en la última posición tocada
         if (mover) enfocar(u);
-        const e = ESTADOS[u.estado];
+        const e = aspectoDe(u);
         const torreU = torresDisponibles.length ? torreDe(u) : null;
         document.getElementById('p-eyebrow').textContent =
           (torreU ? (torreU === 'Basamento' ? torreU : 'Torre ' + torreU) + ' · ' : '') + 'Piso ' + u.piso;
@@ -5728,9 +6873,11 @@
         document.getElementById('p-estado-txt').textContent = e.nombre;
         document.getElementById('p-color').style.background = e.color;
         const pEstado = document.getElementById('p-estado');
+        // El color va en el punto y el fondo; el texto siempre en tinta:
+        // con los grises claros (vendida) el texto en su color no se leía.
         pEstado.style.background = e.color + '1A';
         pEstado.style.borderColor = e.color + '4D';
-        pEstado.style.color = e.color;
+        pEstado.style.color = 'var(--tinta)';
         actualizarTiraPiso(u);
         pintarPlantaUnidad(u);
         const tipologia = tipologiaDe(u);
@@ -5744,9 +6891,13 @@
         document.getElementById('p-orient').textContent = textoOrientacion(u);
         unidadAsol = u;
         actualizarAsoleamiento();
-        document.getElementById('p-precio-wrap').hidden = u.precio == null;
-        document.getElementById('p-precio').textContent =
-          u.precio != null ? formatearPrecio(u.precio, proyecto.moneda, proyecto.locale) : '';
+        // Alquiler: precio mensual en UYU (geom.precio_alquiler_uyu), igual
+        // que en el tooltip. Si no, el de venta, como siempre.
+        const alquilerUYU = esAlquiler(u) && u.geom.precio_alquiler_uyu;
+        document.getElementById('p-precio-wrap').hidden = u.precio == null && !alquilerUYU;
+        document.getElementById('p-precio').textContent = alquilerUYU
+          ? fmtAlquiler.format(alquilerUYU) + ' / mes'
+          : u.precio != null ? formatearPrecio(u.precio, proyecto.moneda, proyecto.locale) : '';
 
         const terrazaDt = document.getElementById('p-terraza-dt');
         const terrazaDd = document.getElementById('p-terraza-dd');
@@ -5793,7 +6944,17 @@
 
       document.getElementById('cerrar').addEventListener('click', cerrar);
       addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
-      lienzo.addEventListener('click', () => {
+      lienzo.addEventListener('click', e => {
+        // Táctil: el rayo sale del punto tocado (no hay hover que lo haya
+        // calculado antes) y muestra la tarjeta en vez de abrir el panel.
+        if (esTactil) {
+          raton.x = (e.clientX / innerWidth) * 2 - 1;
+          raton.y = -(e.clientY / innerHeight) * 2 + 1;
+          rayo.setFromCamera(raton, camara);
+          const toque = rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
+          if (toque.length) { mostrarTarjeta(toque[0].object); return; }
+          ocultarTarjeta();
+        }
         if (sobre) abrir(sobre.userData.unidad);
         else if (sobreCalle) window.open(cartelCalle.userData.mapsUrl, '_blank', 'noopener');
         else cerrar();
@@ -5822,22 +6983,41 @@
           g.position.y = i * PASO + d.offset;
         });
 
+        // Fundido de color/opacidad al filtrar y de resaltado al pasar el
+        // mouse: aplicar() y el hover fijan objetivos, acá se interpolan.
+        const kF = REDUCIR_MOVIMIENTO ? 1 : 0.16, kH = REDUCIR_MOVIMIENTO ? 1 : 0.25;
+        for (const c of cajas) {
+          const d = c.userData, m = c.material;
+          if (d.opObj != null) m.opacity = Math.abs(d.opObj - m.opacity) < 0.003 ? d.opObj : m.opacity + (d.opObj - m.opacity) * kF;
+          if (d.colorObj) m.color.lerp(d.colorObj, kF);
+          if (d.bordeObj != null) {
+            const bm = d.borde.material;
+            bm.opacity = Math.abs(d.bordeObj - bm.opacity) < 0.003 ? d.bordeObj : bm.opacity + (d.bordeObj - bm.opacity) * kF;
+          }
+          const em = d.emObj || 0, cur = m.emissive.r;
+          if (cur !== em) m.emissive.setScalar(Math.abs(em - cur) < 0.004 ? em : cur + (em - cur) * kH);
+        }
+        actualizarBrujula();
+        if (btnOrbita.getAttribute('aria-pressed') !== String(!tocado)) btnOrbita.setAttribute('aria-pressed', String(!tocado));
+
         rayo.setFromCamera(raton, camara);
-        const golpes = rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
+        // En táctil no hay hover: la posición del "ratón" es la del último
+        // arrastre y resaltaría unidades al azar. El tap se resuelve aparte
+        // (ver el click del lienzo).
+        const golpes = esTactil ? [] : rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
         const nuevo = golpes.length ? golpes[0].object : null;
         if (nuevo !== sobre) {
-          if (sobre) sobre.material.emissive.setHex(0x000000);
+          if (sobre && sobre !== cajaTarjeta) sobre.userData.emObj = 0;
           sobre = nuevo;
           lienzo.style.cursor = sobre ? 'pointer' : 'grab';
           if (sobre) {
-            sobre.material.emissive.setScalar(0.22);
-            const u = sobre.userData.unidad;
-            tooltip.textContent = [numeroDe(u), tipologiaDe(u) || u.dorms + ' dorm', u.m2 != null ? u.m2 + ' m²' : null]
-              .filter(Boolean).join(' · ');
-            tooltip.style.opacity = 1;
-          } else tooltip.style.opacity = 0;
+            sobre.userData.emObj = 0.22;
+            tooltip.classList.add('tt-unidad');
+            pintarResumenUnidad(tooltip, sobre.userData.unidad, true);
+            tooltip.classList.add('visible');
+          } else tooltip.classList.remove('visible');
         }
-        if (sobre) { tooltip.style.left = posRaton.x + 'px'; tooltip.style.top = posRaton.y + 'px'; }
+        if (sobre) ubicarTooltip();
 
         // Cartel de calle: mismo patrón de hover/tooltip que las unidades,
         // pero sin emissive que resaltar — solo cursor + tooltip para dejar
@@ -5847,10 +7027,13 @@
         if (nuevoSobreCalle !== sobreCalle) {
           sobreCalle = nuevoSobreCalle;
           if (!sobre) lienzo.style.cursor = sobreCalle ? 'pointer' : 'grab';
-          if (sobreCalle) { tooltip.textContent = 'Ver en Google Maps'; tooltip.style.opacity = 1; }
-          else if (!sobre) tooltip.style.opacity = 0;
+          if (sobreCalle) {
+            tooltip.classList.remove('tt-unidad');
+            tooltip.textContent = 'Ver en Google Maps';
+            tooltip.classList.add('visible');
+          } else if (!sobre) tooltip.classList.remove('visible');
         }
-        if (sobreCalle) { tooltip.style.left = posRaton.x + 'px'; tooltip.style.top = posRaton.y + 'px'; }
+        if (sobreCalle) ubicarTooltip();
         // Como el material es MeshBasicMaterial (no-lit, sin emissive que
         // resaltar como en las unidades), el feedback de hover es un
         // agrandado suave — crece desde el borde apoyado en la calzada

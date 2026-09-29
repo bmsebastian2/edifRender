@@ -127,7 +127,8 @@ UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra)` arma todo.
 El script está organizado en secciones numeradas:
 
 1. **DATOS** — mapa `ESTADOS` (`disponible` / `reservado` / `vendido` / `sin_dato`, con
-   sus colores), resolución del slug, `cargarProyecto()`, formateo (`formatearPrecio`
+   `color` y `opacidad` del volumen), más `ALQUILER` y `aspectoDe(u)` (ver "Estados de
+   presentación" más abajo), resolución del slug, `cargarProyecto()`, formateo (`formatearPrecio`
    usa `moneda`/`locale` del proyecto), matemática solar, tracking de eventos/leads
    (`obtenerSesion()` = uuid en localStorage, `obtenerOrigen()` = atribución por `?src=`),
    y los que pintan cosas fuera de la escena 3D (redes, amenities, texto legal, lightbox
@@ -140,19 +141,66 @@ El script está organizado en secciones numeradas:
    (estables entre recargas), autos GLB cargados una vez y reutilizados con `.clone()`,
    faroles, bancos.
 3. **TORRE** — `for (let piso = 1; piso <= PISOS; piso++)` con `PISOS = proyecto.pisos`:
-   losa, núcleo, y un mesh por unidad, coloreado con `ESTADOS[u.estado].color`, con
+   losa, núcleo, y un mesh por unidad, coloreado con `aspectoDe(u).color`, con
    `userData.unidad` apuntando al objeto de la unidad (así el raycasting mapea un mesh a
    su unidad). Los meshes de unidades viven en `cajas`.
 4. **CÁMARA** — cámara orbital (`theta`/`phi`/`radio`), vista inicial desde el frente
    del edificio, radio escalado según la altura del edificio y el aspecto de la
    pantalla; rotación automática lenta hasta el primer toque. Los controles del
    simulador solar también viven acá.
-5. **INTERACCIÓN** — hover (tooltip + emissive) y click (`abrir(u)`). Los filtros (chips
-   de dormitorios armados desde los datos, chips de estado, aislar piso, "separar pisos")
-   pasan todos por `pasa(u)` / `aplicar()`, que atenúan/desactivan los meshes que no
-   coinciden en vez de sacarlos. El riel de pisos (`#pisos`) y los filtros (`#filtros`)
-   son hojas inferiores en mobile.
-6. **BUCLE** — loop de render.
+5. **INTERACCIÓN** — hover (tooltip con resumen + emissive) y click (`abrir(u)`). Los
+   filtros (chips de dormitorios armados desde los datos, chips de estado, torre, aislar
+   piso, "separar pisos") pasan todos por `pasa(u)` / `aplicar()`, que atenúan/desactivan
+   los meshes que no coinciden en vez de sacarlos. `aplicar()` no toca el material: fija
+   objetivos (`userData.opObj` / `colorObj` / `bordeObj`) y el bucle los interpola (fundido
+   al filtrar); el hover hace lo mismo con `userData.emObj`. Toolbar de vista y brújula
+   (ver "Interfaz" más abajo) también viven acá.
+6. **BUCLE** — loop de render + las interpolaciones de arriba + la brújula.
+
+### Interfaz alrededor del visor
+
+Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--verde`
+`#2B6656` es el color de marca, reservado para lo disponible y acentos).
+
+- **Barra superior** (`#barra-sup`, 64px, 56px en mobile): logo + nombre partido en
+  "by" (`"ROSSO by Block"` → `ROSSO` / `by Block`; sin "by" en el nombre usa
+  `desarrolla`), ciudad, redes, firma de Cota, y `#brochure` (oculto hasta que exista
+  `settings.brochure_url`, columna que todavía no existe). El blur vive en `#barra-sup`
+  y no en `#cabezal`: un `backdrop-filter` en `#cabezal` rompería el `position: fixed`
+  de `#piso-info`.
+- **Ficha** (`#ficha`): dirección, pisos (por torre si hay `geom.torre`, calculado en
+  vivo), unidades, entrega y disponibilidad contada en vivo por `aspectoDe(u)`, solo
+  estados con unidades y solo si `muestra_totales`. En mobile se pliega a una píldora
+  con puntos + cifras y se despliega a pedido.
+- **Barra inferior única** (`#barra-inferior`): en desktop, desplegables Tipología /
+  Estado / Torre / Vista que abren `#filtros` como popover con un solo grupo
+  (`data-grupo`, `abrirGrupoFiltros()`), Restablecer (`restablecerFiltros()`, reusa los
+  sets + `aplicar()` + click en los toggles) y los accesos a renders / avance / sol. En
+  mobile: Filtros · Pisos + íconos, cada uno abre su hoja; nunca dos capas abiertas.
+- **Riel de pisos** (`#pisos`): cifra = unidades **disponibles** del piso; flechas que
+  hacen click en la fila vecina (`moverPisoAislado()`); centrado entre "Panel interno" y
+  la toolbar para no superponerse; en pantallas bajas compacta filas y un fundido en el
+  borde avisa que hay más pisos.
+- **Tooltip / tarjeta táctil**: `pintarResumenUnidad()` (número, estado, torre/piso,
+  tipología, m², precio — alquiler en UYU/mes, vendidas sin precio). Desktop: hover =
+  tooltip, click = `abrir(u)` directo. Táctil (`matchMedia('(hover: none)')`): tap =
+  `#tarjeta-unidad` con "Ver unidad"; recién eso llama a `abrir(u)`, que es lo que
+  registra el evento — en mobile Demanda cuenta aperturas de ficha, no taps.
+- **Toolbar** (`#herramientas`): vista inicial, zoom, giro automático (`moverCamara()`
+  interpola giro/phi/radio/objetivo con los mismos límites que el arrastre). **Brújula**
+  (solo con `norte_grados`): `anguloNorte(giro)` proyecta el norte del modelo
+  `(−sin N, −cos N)` girado por `giro` sobre la pantalla con la cámara en `theta`; click
+  = norte arriba. En mobile queda solo la brújula.
+
+### Estados de presentación: `aspectoDe(u)` / `ALQUILER`
+
+El color y la opacidad del volumen salen de `aspectoDe(u)`, no de `ESTADOS` directo.
+Vendida va en gris casi transparente (no rojo); `sin_dato` en gris neutro legible (en
+ROSSO son la mayoría). Una unidad con `estado = 'sin_dato'` y `geom.operacion =
+'alquiler'` se presenta como **En alquiler** (verde salvia, precio de
+`geom.precio_alquiler_uyu`). Es solo presentación: `pasa(u)` sigue filtrando por
+`u.estado`; el chip de `sin_dato` se llama "En alquiler" únicamente si todas las
+`sin_dato` del proyecto son de alquiler (BRUSCO).
 
 ### Panel de detalle de la unidad (`abrir(u)`)
 
@@ -295,5 +343,5 @@ opcionales por edificio: `geometria` (dimensiones, contornos, calle, norte_grado
 lat/lon, tiene_pb, financiacion, tipologías + imágenes, avance de obra.
 
 Lo que sigue hardcodeado en `index.html` y puede necesitar cambios: `DEFAULT_SLUG`,
-`BASE`, la marca/colores de Cota (variables CSS en `:root`), y el copy de aviso de demo
+`BASE`, la marca/colores (variables CSS en `:root`, compartidas por todos los proyectos), y el copy de aviso de demo
 (`#aviso`, la última `.nota` del panel).
