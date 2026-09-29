@@ -3739,6 +3739,8 @@
       const FRENTE_GIRO = { '-z': 0, '-x': Math.PI / 2, '+z': Math.PI, '+x': -Math.PI / 2 }[geo.frente_eje] ?? 0;
       // Dirección del frente en el mundo: lo que en grupoCalle es (0, -1).
       const FRENTE_DIR = { x: -Math.sin(FRENTE_GIRO), z: -Math.cos(FRENTE_GIRO) };
+      // Barrido lateral de la vista inicial — ver theta en CÁMARA.
+      const ANGULO_LATERAL = 0.7;
       const GIRO_LADO = { '-z': 0, '-x': Math.PI / 2, '+z': Math.PI, '+x': -Math.PI / 2 };
       const LADO_FRENTE = geo.frente_eje in GIRO_LADO ? geo.frente_eje : '-z';
       // Cada lado de la manzana en coordenadas "de frente" de ese lado (como
@@ -4381,8 +4383,15 @@
         borde.position.set((c.x0 + c.x1) / 2, 0.03, zc - ANCHO_CALLE / 2 + 0.15);
         g.add(borde);
 
+        // Cartel en la punta de la cuadra más cercana a la cámara inicial
+        // (a 4m de la esquina, como CARTEL_X en el frente), no en el medio:
+        // así queda en primer plano y se lee desde la vista con que arranca.
+        const thetaIni = ANGULO_LATERAL - Math.PI + FRENTE_GIRO;
+        const haciaCam = x => (x * Math.cos(c.giro) + zc * Math.sin(c.giro)) * Math.sin(thetaIni)
+          + (-x * Math.sin(c.giro) + zc * Math.cos(c.giro)) * Math.cos(thetaIni);
+        c.xCartel = haciaCam(c.x0) > haciaCam(c.x1) ? c.x0 + 4 : c.x1 - 4;
         const cartel = crearCartelCalle(c.nombre);
-        cartel.position.set((c.x0 + c.x1) / 2, 0.035, zc - ANCHO_CALLE * 0.22);
+        cartel.position.set(c.xCartel, 0.035, zc - ANCHO_CALLE * 0.22);
         g.add(cartel);
       }
       // Arbolado y autos: contexto urbano, deliberadamente apagado para no
@@ -4432,17 +4441,16 @@
         });
       }
       // Calles laterales: solo la fila pegada al cordón, a lo largo de la
-      // cuadra, dejando libre el cartel del medio. Se arma en coordenadas del
+      // cuadra, dejando libre el cartel (c.xCartel). Se arma en coordenadas del
       // lado y se pasa a las de grupoCalle (girar c.giro - FRENTE_GIRO), así
       // todos los árboles siguen siendo un único InstancedMesh.
       for (const c of CALLES_LATERALES) {
         const a = c.giro - FRENTE_GIRO, cos = Math.cos(a), sin = Math.sin(a);
-        const xCartel = (c.x0 + c.x1) / 2;
         for (let x = c.x0 + margenX; x < c.x1 - margenX; x += 3.2 + azar() * 1.4) {
           const xl = x + (azar() - 0.5) * 0.6;
           const zl = c.borde - VEREDA + 0.4 + (azar() - 0.5) * 0.3;
           const s = 0.8 + azar() * 0.25;
-          if (Math.abs(xl - xCartel) < 3.2) continue;
+          if (Math.abs(xl - c.xCartel) < 3.2) continue;
           posicionesArbol.push({ x: xl * cos + zl * sin, z: -xl * sin + zl * cos, y0: VEREDA_ALTO, s });
         }
       }
@@ -4750,7 +4758,8 @@
       // cambiar de lado lateral (el cartel vive del lado X negativo, ver
       // CARTEL_X, y así la cámara arranca de ese mismo lado, con el cartel
       // en primer plano en vez de en el borde del cuadro).
-      const ANGULO_LATERAL = 0.7;
+      // (ANGULO_LATERAL está declarado arriba, junto a FRENTE_GIRO: los
+      // carteles de las calles laterales lo usan para ubicarse.)
       // + FRENTE_GIRO: si el frente no está en -Z (BRUSCO, frente en -X), la
       // cámara gira igual que grupoCalle, así arranca mirando desde la calle
       // de la dirección con el cartel en primer plano, como siempre.
