@@ -1076,6 +1076,45 @@
       background: rgba(84, 96, 101, .08)
     }
 
+    /* Asoleamiento por fachada de la unidad (ver actualizarAsoleamiento()). */
+    .p-asol {
+      margin: 14px 0 0;
+      padding: 12px 14px;
+      border: 1px solid var(--linea);
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.45
+    }
+
+    .p-asol-titulo {
+      margin: 0 0 6px;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--suave)
+    }
+
+    .p-asol ul {
+      margin: 0;
+      padding: 0;
+      list-style: none
+    }
+
+    .p-asol li + li {
+      margin-top: 4px
+    }
+
+    .p-asol-nota {
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: var(--suave)
+    }
+
+    .p-asol-nota:empty {
+      display: none
+    }
+
     /* Planta/renders reales de la tipología (subidos desde admin.html) — ver
      pintarPlantaUnidad(). Varias imágenes posibles (planta + renders): se
      apilan con un margen fino entre cada una, y cada una abre el lightbox
@@ -2814,6 +2853,13 @@
       <dt id="p-cochera-dt" hidden>Cochera</dt>
       <dd id="p-cochera-dd" hidden></dd>
     </dl>
+    <!-- Asoleamiento por fachada — solo en proyectos con geometria.calles
+       (ver calcularFachadas() / actualizarAsoleamiento()). -->
+    <div class="p-asol" id="p-asol" hidden>
+      <p class="p-asol-titulo">Sol directo · <span id="p-asol-fecha"></span></p>
+      <ul id="p-asol-lista"></ul>
+      <p class="p-asol-nota" id="p-asol-nota"></p>
+    </div>
     <div class="p-precio-wrap" id="p-precio-wrap">
       <p id="p-precio"></p>
       <span id="p-fuente" class="p-tag"></span>
@@ -3159,15 +3205,122 @@
     // lado que da a la calle (eje -Z) — no el contrafrente: es el dato que
     // cualquiera lee de un mapa mirando hacia dónde da la calle, nadie mide
     // "hacia dónde mira la parte de atrás". El contrafrente (+Z) mira
-    // entonces a norteGrados+180, de ahí la resta de 180 acá.
+    // entonces a norteGrados+180.
+    //
+    // Visto desde arriba con -Z hacia arriba de la pantalla, three.js deja +X
+    // a la DERECHA: si -Z mira al rumbo N, +X mira a N+90 (horario). Un rumbo
+    // relativo r = azimut - N cae entonces en (sin r, -cos r). Antes esto
+    // devolvía (-sin r, -cos r): frente y contrafrente bien, pero los
+    // laterales invertidos — el sol de la mañana entraba por la fachada del
+    // oeste. calcularFachadas() usa esta misma convención (RUMBO_LADO).
     function direccionSolModelo(altitud, azimut, norteGrados) {
       const altRad = altitud * Math.PI / 180;
-      const phiRad = (azimut - norteGrados - 180) * Math.PI / 180;
+      const r = (azimut - norteGrados) * Math.PI / 180;
       return new THREE.Vector3(
-        Math.cos(altRad) * Math.sin(phiRad),
+        Math.cos(altRad) * Math.sin(r),
         Math.sin(altRad),
-        Math.cos(altRad) * Math.cos(phiRad)
+        -Math.cos(altRad) * Math.cos(r)
       );
+    }
+
+    // ---- Fachadas y asoleamiento por unidad -------------------------------
+    // Solo para proyectos con geometria.calles (hoy BRUSCO) y contornos
+    // reales: con eso se puede decir a qué calle da cada unidad sin
+    // adivinar. Criterio (ver chat del 2026-09-29, validado a mano contra
+    // los 172 contornos):
+    //   · La "manzana" es la caja envolvente de todos los contornos del
+    //     proyecto. Un lado de una unidad da a una calle solo si su normal
+    //     hacia afuera apunta a ese borde (±45°) y está a <= FACHADA_MARGEN
+    //     de él (los retiros/balcones medidos van de 1 a 3 m).
+    //   · Se suman los metros por calle (los contornos tienen quiebres de
+    //     menos de 1 m que partirían una misma fachada); la principal es la
+    //     de más metros, y una segunda calle cuenta desde FACHADA_MIN metros
+    //     (esquinas reales sí, quiebres chicos no).
+    //   · Sin ningún lado a una calle → "interior de manzana", sin inventar
+    //     orientación: sin núcleos/pasillos cargados no hay forma confiable
+    //     de distinguir el lado al patio del lado al pasillo.
+    //   · units.geom.fachadas (p.ej. ["norte"] o [] = interior) pisa el
+    //     cálculo — para corregir a mano lo que la tabla de control marque.
+    //   · units.orientacion (texto libre, ROSSO) gana sobre todo lo anterior.
+    const FACHADA_MARGEN = 3.5, FACHADA_MIN = 2;
+    const DIR_LADO = { '-z': [0, -1], '+x': [1, 0], '+z': [0, 1], '-x': [-1, 0] };
+    const RUMBO_LADO = { '-z': 0, '+x': 90, '+z': 180, '-x': 270 }; // + norte_grados
+    const CARDINALES = ['norte', 'este', 'sur', 'oeste'];
+    const RUMBO_CARDINAL = { norte: 0, este: 90, sur: 180, oeste: 270 };
+    const cardinalDe = rumbo => CARDINALES[Math.round((((rumbo % 360) + 360) % 360) / 90) % 4];
+
+    // Devuelve Map id -> [{ cardinal, rumbo, calle, metros }] (principal
+    // primero; [] = interior de manzana), o null si el proyecto no aplica.
+    function calcularFachadas(unidades, geometria) {
+      const calles = geometria && geometria.calles;
+      const norte = geometria && geometria.norte_grados;
+      if (!calles || norte == null) return null;
+      const conContorno = unidades.filter(u => u.geom && Array.isArray(u.geom.contorno) && u.geom.contorno.length >= 3);
+      if (!conContorno.length) return null;
+      const pts = conContorno.flatMap(u => u.geom.contorno);
+      const borde = {
+        '-x': Math.min(...pts.map(p => p[0])), '+x': Math.max(...pts.map(p => p[0])),
+        '-z': Math.min(...pts.map(p => p[1])), '+z': Math.max(...pts.map(p => p[1])),
+      };
+      const distBorde = (lado, [x, z]) => lado[0] === '-'
+        ? (lado[1] === 'x' ? x - borde[lado] : z - borde[lado])
+        : (lado[1] === 'x' ? borde[lado] - x : borde[lado] - z);
+      const fachada = (cardinal, metros) => ({
+        cardinal, rumbo: RUMBO_CARDINAL[cardinal], calle: calles[cardinal] || null, metros,
+      });
+
+      const res = new Map();
+      for (const u of unidades) {
+        if (u.geom && Array.isArray(u.geom.fachadas)) {
+          res.set(u.id, u.geom.fachadas.filter(c => c in RUMBO_CARDINAL).map(c => fachada(c, null)));
+          continue;
+        }
+        if (!conContorno.includes(u)) continue;
+        let p = u.geom.contorno;
+        if (areaConSigno(p) < 0) p = [...p].reverse(); // así la normal (dz, -dx) apunta afuera
+        const metros = {};
+        for (let i = 0; i < p.length; i++) {
+          const a = p[i], b = p[(i + 1) % p.length];
+          const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          if (L < 0.3) continue;
+          const n = [(b[1] - a[1]) / L, -(b[0] - a[0]) / L];
+          const medio = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          for (const lado in DIR_LADO) {
+            const coseno = n[0] * DIR_LADO[lado][0] + n[1] * DIR_LADO[lado][1];
+            if (coseno > Math.SQRT1_2 && distBorde(lado, medio) <= FACHADA_MARGEN) {
+              metros[lado] = (metros[lado] || 0) + L * coseno;
+            }
+          }
+        }
+        res.set(u.id, Object.entries(metros)
+          .filter(([, m]) => m >= FACHADA_MIN)
+          .sort((x, y) => y[1] - x[1])
+          .map(([lado, m]) => fachada(cardinalDe(norte + RUMBO_LADO[lado]), m)));
+      }
+      return res;
+    }
+
+    // Franjas (minutos locales, reloj del proyecto) en que el sol está sobre
+    // el horizonte y del lado de la fachada (a menos de 90° de su normal).
+    // Geométrico: no sabe de edificios vecinos ni de la otra torre. Las
+    // franjas de menos de FRANJA_MIN_MINUTOS se descartan: cerca de los
+    // equinoccios una fachada sur "recibe" 15 minutos de sol rasante al
+    // amanecer, que en la práctica tapa cualquier cosa y leído en el panel
+    // parece un error.
+    const FRANJA_MIN_MINUTOS = 30;
+    function franjasSolFachada(lat, lon, tzOffsetHoras, fecha, rumbo) {
+      const h = horarioSolar(lat, lon, tzOffsetHoras, fecha);
+      if (!h) return { horario: null, franjas: [] };
+      const franjas = [];
+      let inicio = null;
+      for (let m = h.amanecer; m <= h.atardecer; m++) {
+        const { altitud, azimut } = posicionSolar(lat, lon, tzOffsetHoras, fecha, m);
+        const da = altitud > 0 && Math.cos((azimut - rumbo) * Math.PI / 180) > 0;
+        if (da && inicio == null) inicio = m;
+        if (!da && inicio != null) { franjas.push([inicio, m]); inicio = null; }
+      }
+      if (inicio != null) franjas.push([inicio, h.atardecer]);
+      return { horario: h, franjas: franjas.filter(([a, b]) => b - a >= FRANJA_MIN_MINUTOS) };
     }
 
     // Sesión anónima persistida en este navegador — sin esto no se puede
@@ -4689,6 +4842,66 @@
         const dentroDeRango = actual >= horario.amanecer && actual <= horario.atardecer;
         sliderHoraSol.value = dentroDeRango ? actual : Math.round((horario.amanecer + horario.atardecer) / 2);
         onSliderSolCambio();
+        actualizarAsoleamiento();
+      }
+
+      // Fachadas por unidad (ver calcularFachadas()): null salvo en proyectos
+      // con geometria.calles + norte + lat/lon — ROSSO y Altamira no entran.
+      const FACHADAS = tieneNorte() ? calcularFachadas(UNIDADES, geo) : null;
+      // Unidad del panel, para refrescar el bloque al cambiar la fecha del
+      // simulador (no se usa `elegida` porque se declara más abajo).
+      let unidadAsol = null;
+
+      function nombreFachada(f) {
+        return f.calle ? `${f.calle} (${f.cardinal})` : f.cardinal[0].toUpperCase() + f.cardinal.slice(1);
+      }
+      function unirConY(lista) {
+        return lista.length > 1 ? lista.slice(0, -1).join(', ') + ' y ' + lista[lista.length - 1] : lista[0] || '';
+      }
+
+      // Texto de la fila "Orientación": units.orientacion si está cargado
+      // (ROSSO), si no las fachadas calculadas, si no vacío como siempre.
+      function textoOrientacion(u) {
+        if (u.orient) return u.orient;
+        const fs = FACHADAS && FACHADAS.get(u.id);
+        if (!fs) return '';
+        return fs.length ? unirConY(fs.map(nombreFachada)) : 'Interior de manzana';
+      }
+
+      function actualizarAsoleamiento() {
+        const caja = document.getElementById('p-asol');
+        const u = unidadAsol;
+        const fs = u && !u.orient && FACHADAS && FACHADAS.get(u.id);
+        if (!fs) { caja.hidden = true; return; }
+        document.getElementById('p-asol-fecha').textContent = etiquetaFechaSol.textContent;
+        const lista = document.getElementById('p-asol-lista');
+        const nota = document.getElementById('p-asol-nota');
+        lista.replaceChildren();
+        if (!fs.length) {
+          nota.textContent = 'Da al interior de la manzana: sus horas de sol dependen de lo que tiene enfrente, así que no las estimamos.';
+          caja.hidden = false;
+          return;
+        }
+        for (const f of fs) {
+          const { horario, franjas } = franjasSolFachada(proyecto.lat, proyecto.lon, tzOffsetHoras, fechaSol, f.rumbo);
+          let txt;
+          if (!franjas.length) txt = 'sin sol directo';
+          else if (franjas.length === 1 && franjas[0][0] <= horario.amanecer + 1 && franjas[0][1] >= horario.atardecer - 1)
+            txt = `todo el día, de ${formatoHoraSol(horario.amanecer)} a ${formatoHoraSol(horario.atardecer)}`;
+          else txt = unirConY(franjas.map(([a, b]) => `de ${formatoHoraSol(a)} a ${formatoHoraSol(b)}`));
+          const li = document.createElement('li');
+          const b = document.createElement('strong');
+          b.textContent = nombreFachada(f) + ': ';
+          li.append(b, txt + '.');
+          lista.appendChild(li);
+        }
+        // Hemisferio sur: el sol del mediodía viene del norte (y al revés en
+        // el norte, p.ej. Managua). Una línea, sin exagerar.
+        const ecuatorial = proyecto.lat < 0 ? 'norte' : 'sur';
+        nota.textContent = (fs.some(f => f.cardinal === ecuatorial)
+          ? `El sol del mediodía viene del ${ecuatorial}: es la orientación con más horas de sol en invierno. `
+          : '') + 'Según la orientación de la fachada; no considera la sombra de edificios vecinos.';
+        caja.hidden = false;
       }
 
       // Las etiquetas de estación dependen del hemisferio: el 21 de junio es
@@ -5389,7 +5602,9 @@
         const m2Dt = document.getElementById('p-m2-dt'), m2Dd = document.getElementById('p-m2');
         m2Dt.hidden = m2Dd.hidden = u.m2 == null;
         m2Dd.textContent = u.m2 != null ? u.m2 + ' m²' : '';
-        document.getElementById('p-orient').textContent = u.orient;
+        document.getElementById('p-orient').textContent = textoOrientacion(u);
+        unidadAsol = u;
+        actualizarAsoleamiento();
         document.getElementById('p-precio-wrap').hidden = u.precio == null;
         document.getElementById('p-precio').textContent =
           u.precio != null ? formatearPrecio(u.precio, proyecto.moneda, proyecto.locale) : '';
@@ -5420,6 +5635,7 @@
 
       function cerrar() {
         elegida = null;
+        unidadAsol = null;
         panel.classList.remove('abierto');
         const qp = queryProyecto();
         marcarURL(location.pathname + (qp ? '?' + qp : ''));

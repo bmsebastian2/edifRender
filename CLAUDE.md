@@ -212,9 +212,15 @@ para los datos de cualquier edificio:
   punto al final.
 - **Origen `(0, 0)`**: centro de la placa; todos los pisos lo comparten, sin offset por
   piso.
-- **X**: positivo hacia la derecha mirando el frente desde la calle (igual que `col`).
-- **Z**: negativo hacia la calle (frente), positivo hacia el contrafrente (igual que
-  `frente`).
+- **X / Z**: ejes de three.js vistos **desde arriba con −Z hacia arriba de la
+  pantalla: +X queda a la derecha**, como un mapa. Si −Z mira al norte, +X es el este
+  (así están los contornos de BRUSCO, `geometria.contorno_ejes = "xz"`). Ojo: parado
+  en la calle mirando un frente en −Z, +X queda a la **izquierda**. `col` / `frente`
+  usan los mismos ejes (`x = col·SEP_X`, `z = frente·SEP_Z`).
+- **Frente**: por default la calle está en −Z. `geometria.frente_eje` (`"-z"`, `"-x"`,
+  `"+z"`, `"+x"`) lo cambia: gira la calle, el cartel, los árboles, los autos y la
+  cámara inicial (`FRENTE_GIRO`), no el edificio ni el sol. BRUSCO: `"-x"` (Aquiles
+  Lanza, al oeste).
 - **Y**: no va en `contorno`. Las unidades se extruyen desde la losa hasta `geom.alto`
   (fallback: `ALTO` global).
 - **Sentido de giro**: no importa — `formaDesdeContorno()` lo normaliza por área con
@@ -247,8 +253,31 @@ proyecta las sombras. El control **se oculta salvo que estén los tres datos**
   no confiar en rosas de los vientos de planos en PDF. Chequeo: el frente tiene que
   seguir iluminado hasta el mediodía solar siempre que `|azimut - norte_grados| < 90°`.
 
-Funciona en cualquier hemisferio siempre que `lat` tenga el signo correcto. ROSSO no
-tiene ninguno de los tres cargado.
+Funciona en cualquier hemisferio siempre que `lat` tenga el signo correcto. Hoy los
+tres proyectos (ROSSO, Altamira, BRUSCO) tienen los tres datos cargados.
+
+`norte_grados` es el rumbo del eje **−Z del modelo**, que coincide con el frente salvo
+que haya `frente_eje`. `direccionSolModelo()` pone un rumbo relativo `r` en
+`(sin r, −cos r)`. Hasta 2026-09-29 devolvía `(−sin r, −cos r)`: frente y contrafrente
+bien, laterales invertidos (el sol de la mañana entraba por el oeste). El chequeo del
+frente de arriba no lo detecta. Para verificar los laterales: a media mañana, la
+sombra tiene que caer hacia el oeste.
+
+### Fachadas y asoleamiento por unidad (`geometria.calles`)
+
+Solo con `geometria.calles` (`{norte, sur, este, oeste}` → nombre de calle), contornos
+y los tres datos del sol (hoy solo BRUSCO). `calcularFachadas()`: un lado de una unidad
+da a una calle solo si su normal apunta a ese borde de la manzana (±45°) y está a
+≤ 3,5 m de él (la manzana = caja envolvente de todos los contornos). Se suman metros
+por calle: la principal es la de más metros, y una segunda calle cuenta desde 2 m.
+Sin ningún lado a una calle → "Interior de manzana", sin inventar orientación (no hay
+núcleos ni pasillos modelados que permitan distinguir el patio del pasillo).
+`franjasSolFachada()` da las horas de sol directo del día elegido en el simulador,
+según la orientación geométrica, sin sombras de vecinos, y descarta franjas de menos
+de 30 min. Precedencia: `units.orientacion` (texto libre, ROSSO/Altamira) >
+`units.geom.fachadas` (override manual, p.ej. `["norte"]`; `[]` = interior) > cálculo.
+Tabla de control para revisar a mano: `node scripts/fachadas-control.mjs <slug>` →
+`datos/<slug>-fachadas.csv` (usa las funciones de `index.html` tal cual).
 
 ## Selector de pisos: `projects.tiene_pb`
 
