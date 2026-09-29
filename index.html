@@ -3739,6 +3739,44 @@
       const FRENTE_GIRO = { '-z': 0, '-x': Math.PI / 2, '+z': Math.PI, '+x': -Math.PI / 2 }[geo.frente_eje] ?? 0;
       // Dirección del frente en el mundo: lo que en grupoCalle es (0, -1).
       const FRENTE_DIR = { x: -Math.sin(FRENTE_GIRO), z: -Math.cos(FRENTE_GIRO) };
+      const GIRO_LADO = { '-z': 0, '-x': Math.PI / 2, '+z': Math.PI, '+x': -Math.PI / 2 };
+      const LADO_FRENTE = geo.frente_eje in GIRO_LADO ? geo.frente_eje : '-z';
+      // Cada lado de la manzana en coordenadas "de frente" de ese lado (como
+      // grupoCalle, pero girado GIRO_LADO[lado]): borde = -Z local del borde
+      // de las unidades + franja de losa; x0/x1 = extensión de la manzana a lo
+      // largo de la calle. Rotar no cambia distancias al origen, así que
+      // RADIO_DISCO se puede calcular directo en estas coordenadas.
+      const LADOS_MANZANA = (() => {
+        if (!CONJUNTO) return null;
+        const pts = UNIDADES.flatMap(u => u.geom && Array.isArray(u.geom.contorno) ? u.geom.contorno : []);
+        const res = {};
+        for (const lado in GIRO_LADO) {
+          const g = GIRO_LADO[lado];
+          const dir = [-Math.sin(g), -Math.cos(g)], ejeX = [Math.cos(g), -Math.sin(g)];
+          const px = pts.map(([x, z]) => x * ejeX[0] + z * ejeX[1]);
+          // Lados vecinos: el que queda en +X local y el que queda en -X local.
+          const ladoDe = (dx, dz) => Object.keys(DIR_LADO).find(l =>
+            Math.abs(DIR_LADO[l][0] - dx) < 0.5 && Math.abs(DIR_LADO[l][1] - dz) < 0.5);
+          res[lado] = {
+            lado, giro: g,
+            borde: -Math.max(...pts.map(([x, z]) => x * dir[0] + z * dir[1])) - 0.5,
+            x0: Math.min(...px) - 0.5, x1: Math.max(...px) + 0.5,
+            ladoMenosX: ladoDe(-ejeX[0], -ejeX[1]), ladoMasX: ladoDe(ejeX[0], ejeX[1]),
+          };
+        }
+        return res;
+      })();
+      // Calles de los otros lados de la manzana (geometria.calles, hoy solo
+      // BRUSCO): el lado del frente ya tiene su calle completa (grupoCalle);
+      // los demás lados con nombre cargado suman calzada + vereda + líneas +
+      // cartel, sin árboles/autos/mobiliario. Necesita norte_grados para
+      // saber qué cardinal es cada lado — sin eso, nada (no se adivina).
+      const CALLES_LATERALES = (!LADOS_MANZANA || !geo.calles || geo.norte_grados == null) ? [] :
+        Object.keys(GIRO_LADO).filter(l => l !== LADO_FRENTE).map(lado => {
+          const nombre = geo.calles[cardinalDe(geo.norte_grados + RUMBO_LADO[lado])];
+          return nombre ? { ...LADOS_MANZANA[lado], nombre } : null;
+        }).filter(Boolean);
+      const hayCalleEn = lado => lado === LADO_FRENTE || CALLES_LATERALES.some(c => c.lado === lado);
       // Frente del edificio (lado calle): con CONJUNTO, el borde real de las
       // unidades más una franja de losa, medido sobre FRENTE_DIR y expresado
       // como -Z local de grupoCalle (con FRENTE_GIRO = 0 es minZ - 0.5, igual
@@ -3755,7 +3793,17 @@
         const zLejana = BORDE_FRENTE - (calleCfg.vereda ?? 2) - (calleCfg.ancho ?? 8);
         const esquina = Math.max(...[CONJUNTO.minX, CONJUNTO.maxX].flatMap(x =>
           [CONJUNTO.minZ, CONJUNTO.maxZ].map(z => Math.hypot(x, z))));
-        return Math.max(30, Math.hypot((calleCfg.largo ?? 44) / 2, zLejana) + 1, esquina + 3);
+        // Calles laterales: calzada hasta el cruce con las vecinas (ver
+        // tramoCalzada más abajo), y el frente estirado hasta esos cruces.
+        const anchoTotal = (calleCfg.vereda ?? 2) + (calleCfg.ancho ?? 8);
+        const lejos = [LADOS_MANZANA[LADO_FRENTE], ...CALLES_LATERALES].map(c => {
+          const zl = c.borde - anchoTotal;
+          const xa = hayCalleEn(c.ladoMenosX) ? c.x0 - anchoTotal : c.x0;
+          const xb = hayCalleEn(c.ladoMasX) ? c.x1 + anchoTotal : c.x1;
+          return Math.hypot(Math.max(Math.abs(xa), Math.abs(xb)), zl) + 1;
+        });
+        return Math.max(30, Math.hypot((calleCfg.largo ?? 44) / 2, zLejana) + 1, esquina + 3,
+          ...(CALLES_LATERALES.length ? lejos : []));
       })();
 
       const escena = new THREE.Scene();
@@ -3892,14 +3940,32 @@
       const VEREDA_ALTO = calleCfg.vereda_alto ?? 0.12;
       const Z_CALLE = BORDE_FRENTE - VEREDA - ANCHO_CALLE / 2;
 
-      const calle = new THREE.Mesh(
-        new THREE.PlaneGeometry(LARGO_CALLE, ANCHO_CALLE),
-        new THREE.MeshStandardMaterial({ color: 0x686F72, roughness: 0.95 })
-      );
+      const matCalle = new THREE.MeshStandardMaterial({ color: 0x686F72, roughness: 0.95 });
+      const calle = new THREE.Mesh(new THREE.PlaneGeometry(LARGO_CALLE, ANCHO_CALLE), matCalle);
       calle.rotation.x = -Math.PI / 2;
       calle.position.set(0, 0.02, Z_CALLE);
       calle.receiveShadow = true;
       grupoCalle.add(calle);
+
+      // Tramo de calzada (asfalto solo) de xa a xb, centrado en zc, en el grupo
+      // dado. Los tramos se pisan en los cruces: mismo material y color, así
+      // que el z-fighting entre planos casi coplanares no se ve.
+      function tramoCalzada(grupo, xa, xb, zc, y) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(xb - xa, ANCHO_CALLE), matCalle);
+        m.rotation.x = -Math.PI / 2;
+        m.position.set((xa + xb) / 2, y, zc);
+        m.receiveShadow = true;
+        grupo.add(m);
+      }
+      // Con calles laterales, la calzada del frente sigue hasta cruzarlas
+      // (debajo de la de siempre, que conserva largo, líneas, autos y árboles).
+      if (CALLES_LATERALES.length) {
+        const f = LADOS_MANZANA[LADO_FRENTE], ext = VEREDA + ANCHO_CALLE;
+        tramoCalzada(grupoCalle,
+          Math.min(-LARGO_CALLE / 2, hayCalleEn(f.ladoMenosX) ? f.x0 - ext : -LARGO_CALLE / 2),
+          Math.max(LARGO_CALLE / 2, hayCalleEn(f.ladoMasX) ? f.x1 + ext : LARGO_CALLE / 2),
+          Z_CALLE, 0.018);
+      }
 
       // Vereda + cordón en una sola malla: el volumen del box ES el escalón (cara
       // de arriba = vereda, cara que mira a la calzada = cordón, vía material por
@@ -4142,7 +4208,9 @@
       // hace nada clickeable).
       let cartelCalle = null;
 
-      if (NOMBRE_CALLE) {
+      // Arma el cartel (plano + textura) para un nombre de calle, ya inclinado;
+      // falta posicionarlo y agregarlo al grupo de su calle.
+      function crearCartelCalle(NOMBRE_CALLE) {
         // Canvas bien sobreescalado (px por metro final, no un tamaño fijo)
         // para que el texto se vea nítido en escorzo — el ángulo en que
         // siempre se lo va a mirar, nunca de frente.
@@ -4249,14 +4317,19 @@
         // espejo) mirando hacia el edificio, que es justo el lado que
         // tiene que quedar vacío.
         const INCLINACION_CARTEL = THREE.MathUtils.degToRad(25);
-        cartelCalle = new THREE.Mesh(
+        const cartel = new THREE.Mesh(
           geoCartelCalle,
           new THREE.MeshBasicMaterial({
             map: texCartelCalle, transparent: true, side: THREE.FrontSide,
             polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
           })
         );
-        cartelCalle.rotation.x = -INCLINACION_CARTEL - Math.PI / 2;
+        cartel.rotation.x = -INCLINACION_CARTEL - Math.PI / 2;
+        return cartel;
+      }
+
+      if (NOMBRE_CALLE) {
+        cartelCalle = crearCartelCalle(NOMBRE_CALLE);
         // Corrido hacia el borde del disco (mismo costado que ya despejaba el
         // rayo cámara→cartel de la propia torre, ver debajo) y apoyado unos
         // milímetros sobre la calzada — el polygonOffset de arriba hace el
@@ -4269,6 +4342,48 @@
         const consultaMapaCalle = [proyecto.direccion, proyecto.ciudad, proyecto.pais].filter(Boolean).join(', ') || NOMBRE_CALLE;
         cartelCalle.userData.mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(consultaMapaCalle);
         grupoCalle.add(cartelCalle);
+      }
+
+      // Calles de los otros lados de la manzana (ver CALLES_LATERALES): mismo
+      // armado que la del frente — calzada, vereda con cordón, línea
+      // discontinua, borde continuo y cartel con el nombre — cada una en su
+      // grupo girado GIRO_LADO[lado], en coordenadas "de frente" de ese lado.
+      // La calzada sigue hasta el cruce con la calle vecina si la hay; la
+      // vereda cubre también la esquina. Los carteles laterales no son
+      // clickeables (el link a Maps es de la dirección, que da al frente).
+      for (const c of CALLES_LATERALES) {
+        const g = new THREE.Group();
+        g.rotation.y = c.giro;
+        grupoEdificio.add(g);
+        const zc = c.borde - VEREDA - ANCHO_CALLE / 2, ext = VEREDA + ANCHO_CALLE;
+        tramoCalzada(g,
+          hayCalleEn(c.ladoMenosX) ? c.x0 - ext : c.x0,
+          hayCalleEn(c.ladoMasX) ? c.x1 + ext : c.x1,
+          zc, 0.019);
+
+        const va = c.x0 - VEREDA, vb = c.x1 + VEREDA;
+        const vereda = new THREE.Mesh(
+          new THREE.BoxGeometry(vb - va, VEREDA_ALTO, VEREDA),
+          [matVereda, matVereda, matVereda, matVereda, matVereda, matCordonCara]
+        );
+        vereda.position.set((va + vb) / 2, VEREDA_ALTO / 2, c.borde - VEREDA / 2);
+        vereda.castShadow = vereda.receiveShadow = true;
+        g.add(vereda);
+
+        for (let x = c.x0 + 2; x < c.x1 - 2; x += 2.8) {
+          const guion = new THREE.Mesh(geoGuion, matGuion);
+          guion.rotation.x = -Math.PI / 2;
+          guion.position.set(x, 0.03, zc);
+          g.add(guion);
+        }
+        const borde = new THREE.Mesh(new THREE.PlaneGeometry(c.x1 - c.x0, 0.12), matGuion);
+        borde.rotation.x = -Math.PI / 2;
+        borde.position.set((c.x0 + c.x1) / 2, 0.03, zc - ANCHO_CALLE / 2 + 0.15);
+        g.add(borde);
+
+        const cartel = crearCartelCalle(c.nombre);
+        cartel.position.set((c.x0 + c.x1) / 2, 0.035, zc - ANCHO_CALLE * 0.22);
+        g.add(cartel);
       }
       // Arbolado y autos: contexto urbano, deliberadamente apagado para no
       // competir con los colores de estado de las unidades. Semilla
@@ -4315,6 +4430,21 @@
           y0: 0,
           s: 0.8 + azar() * 0.25,
         });
+      }
+      // Calles laterales: solo la fila pegada al cordón, a lo largo de la
+      // cuadra, dejando libre el cartel del medio. Se arma en coordenadas del
+      // lado y se pasa a las de grupoCalle (girar c.giro - FRENTE_GIRO), así
+      // todos los árboles siguen siendo un único InstancedMesh.
+      for (const c of CALLES_LATERALES) {
+        const a = c.giro - FRENTE_GIRO, cos = Math.cos(a), sin = Math.sin(a);
+        const xCartel = (c.x0 + c.x1) / 2;
+        for (let x = c.x0 + margenX; x < c.x1 - margenX; x += 3.2 + azar() * 1.4) {
+          const xl = x + (azar() - 0.5) * 0.6;
+          const zl = c.borde - VEREDA + 0.4 + (azar() - 0.5) * 0.3;
+          const s = 0.8 + azar() * 0.25;
+          if (Math.abs(xl - xCartel) < 3.2) continue;
+          posicionesArbol.push({ x: xl * cos + zl * sin, z: -xl * sin + zl * cos, y0: VEREDA_ALTO, s });
+        }
       }
       posicionesArbol = posicionesArbol.filter(p => p.x * p.x + p.z * p.z <= (RADIO_DISCO - 3) ** 2);
       // El cartel, inclinado, ocupa más espacio real que un punto — un árbol
