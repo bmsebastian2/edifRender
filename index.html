@@ -891,6 +891,12 @@
       margin: 18px 0 4px
     }
 
+    /* Unidad sin precio cargado (ver abrir()): el display:flex de arriba le
+       ganaría al atributo hidden. */
+    #p-precio-wrap[hidden] {
+      display: none
+    }
+
     #p-precio {
       font-size: 22px;
       font-weight: 650;
@@ -2679,6 +2685,11 @@
       <p>Estado</p>
       <div class="fila" id="f-estado"></div>
     </div>
+    <!-- Solo en conjuntos con geometria.torres (ver iniciar()). -->
+    <div class="grupo" id="f-torre-grupo" hidden>
+      <p>Torre</p>
+      <div class="fila" id="f-torre"></div>
+    </div>
     <button id="separar" aria-pressed="false">Separar pisos</button>
     <!-- Oculto hasta que iniciar() confirme que hay al menos un piso marcado
        como construido (hito categoria='estructura' con fecha_real) — ver
@@ -2792,9 +2803,9 @@
     <p class="p-sol" id="p-sol" hidden></p>
     <figure class="planta" id="p-planta"></figure>
     <dl>
-      <dt>Dormitorios</dt>
+      <dt id="p-dorms-dt">Dormitorios</dt>
       <dd id="p-dorms"></dd>
-      <dt>Superficie total</dt>
+      <dt id="p-m2-dt">Superficie total</dt>
       <dd id="p-m2"></dd>
       <dt id="p-terraza-dt" hidden>Terraza</dt>
       <dd id="p-terraza-dd" hidden></dd>
@@ -2803,7 +2814,7 @@
       <dt id="p-cochera-dt" hidden>Cochera</dt>
       <dd id="p-cochera-dd" hidden></dd>
     </dl>
-    <div class="p-precio-wrap">
+    <div class="p-precio-wrap" id="p-precio-wrap">
       <p id="p-precio"></p>
       <span id="p-fuente" class="p-tag"></span>
     </div>
@@ -2989,7 +3000,10 @@
         fotosObra: fotosObra || [],
         unidades: unidades.map(r => ({
           id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
-          dorms: r.dorms, m2: Number(r.m2), orient: r.orientacion, precio: Number(r.precio),
+          // m2/precio null (unidad cargada sin dato todavía, p.ej. BRUSCO) quedan
+          // en null — Number(null) daría 0 y se mostraría "0 m²" / "$0".
+          dorms: r.dorms, m2: r.m2 != null ? Number(r.m2) : null, orient: r.orientacion,
+          precio: r.precio != null ? Number(r.precio) : null,
           estimado: r.estimado, estado: r.estado,
           m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
           cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
@@ -3001,6 +3015,61 @@
 
     function formatearPrecio(valor, moneda, locale) {
       return new Intl.NumberFormat(locale, { style: 'currency', currency: moneda, maximumFractionDigits: 0 }).format(valor);
+    }
+
+    // Número de venta que ve el visitante. u.id sigue siendo la clave (?u=,
+    // leads, events); geom.numero existe cuando el id no es presentable —
+    // p.ej. BRUSCO, donde Torre B repite números y su id es 10000 + número.
+    function numeroDe(u) {
+      return u.geom && u.geom.numero ? u.geom.numero : u.id;
+    }
+
+    // Nombre de tipología cargado en el propio geom ("Estudio", "Flex"...)
+    // para unidades sin typology_id asignada. null = seguir mostrando dorms.
+    function tipologiaDe(u) {
+      return !u.typologyId && u.geom && u.geom.tipologia ? u.geom.tipologia : null;
+    }
+
+    // Torre de la unidad en proyectos con geometria.torres (null si no tiene).
+    function torreDe(u) {
+      return u.geom && u.geom.torre ? u.geom.torre : null;
+    }
+
+    // Envolvente convexa (cadena monótona de Andrew) de una lista de puntos
+    // [x, z]. La usa la losa por torre: la unión exacta de los contornos
+    // deja huecos de pasillo entre unidades; la envolvente se lee como placa.
+    function envolventeConvexa(pts) {
+      const p = pts.map(([x, z]) => [x, z]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      if (p.length < 3) return p;
+      const cruz = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+      const abajo = [], arriba = [];
+      p.forEach(q => {
+        while (abajo.length >= 2 && cruz(abajo[abajo.length - 2], abajo[abajo.length - 1], q) <= 0) abajo.pop();
+        abajo.push(q);
+      });
+      for (let i = p.length - 1; i >= 0; i--) {
+        const q = p[i];
+        while (arriba.length >= 2 && cruz(arriba[arriba.length - 2], arriba[arriba.length - 1], q) <= 0) arriba.pop();
+        arriba.push(q);
+      }
+      return abajo.slice(0, -1).concat(arriba.slice(0, -1));
+    }
+
+    // Agranda un polígono convexo `d` metros hacia afuera (cada vértice se
+    // corre por la bisectriz de sus dos aristas) — la losa asoma un poco
+    // más allá de las unidades, como en las placas de ROSSO/Altamira.
+    function expandirConvexo(pts, d) {
+      const n = pts.length;
+      const sentido = areaConSigno(pts) > 0 ? 1 : -1;
+      const normal = (a, b) => {
+        const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1;
+        return [sentido * dz / l, -sentido * dx / l];
+      };
+      return pts.map((q, i) => {
+        const n1 = normal(pts[(i - 1 + n) % n], q), n2 = normal(q, pts[(i + 1) % n]);
+        const k = d / (1 + n1[0] * n2[0] + n1[1] * n2[1]);
+        return [q[0] + (n1[0] + n2[0]) * k, q[1] + (n1[1] + n2[1]) * k];
+      });
     }
 
     /* ============================================================
@@ -3490,6 +3559,35 @@
       const NUCLEO_CONTORNO = Array.isArray(geo.nucleo_contorno) && geo.nucleo_contorno.length >= 3 ? geo.nucleo_contorno : null;
       const ORIGEN_PLACA = { x: 0, z: 0 };
 
+      // Conjuntos de varias torres sobre un basamento (geometria.torres, p.ej.
+      // BRUSCO). Todo lo que depende de esto — losa por torre, calle al frente
+      // real, disco, encuadre, filtro por torre — queda apagado cuando falta,
+      // así ROSSO/Altamira siguen exactamente por el camino de siempre.
+      const TORRES = Array.isArray(geo.torres) && geo.torres.length ? geo.torres : null;
+      // Caja envolvente real del conjunto, desde los contornos de las unidades
+      // (no desde ANCHO/PROF, que son los de una unidad de grilla).
+      const CONJUNTO = (() => {
+        if (!TORRES) return null;
+        const pts = UNIDADES.flatMap(u => u.geom && Array.isArray(u.geom.contorno) ? u.geom.contorno : []);
+        if (!pts.length) return null;
+        const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
+        const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
+        return { minX, maxX, minZ, maxZ, cx: (minX + maxX) / 2, cz: (minZ + maxZ) / 2 };
+      })();
+      // Frente del edificio (lado calle, -Z): con CONJUNTO, el borde real de
+      // las unidades más una franja de losa; si no, el de la grilla de siempre.
+      const BORDE_FRENTE = CONJUNTO ? CONJUNTO.minZ - 0.5 : -(SEP_Z + PROF / 2);
+      // Radio del disco de base: 30 de siempre, salvo que el conjunto + la
+      // calle al frente no entren (BRUSCO, ~42m de lado) — ahí crece hasta
+      // que los 44m de calle y la esquina más lejana quepan adentro.
+      const RADIO_DISCO = (() => {
+        if (!CONJUNTO) return 30;
+        const zLejana = BORDE_FRENTE - (calleCfg.vereda ?? 2) - (calleCfg.ancho ?? 8);
+        const esquina = Math.max(...[CONJUNTO.minX, CONJUNTO.maxX].flatMap(x =>
+          [CONJUNTO.minZ, CONJUNTO.maxZ].map(z => Math.hypot(x, z))));
+        return Math.max(30, Math.hypot((calleCfg.largo ?? 44) / 2, zLejana) + 1, esquina + 3);
+      })();
+
       const escena = new THREE.Scene();
       // Sin scene.background: el fondo es blanco liso, puesto por CSS en el
       // <body> (ver <style>), no un color ni una textura de three.js. Si acá
@@ -3563,7 +3661,7 @@
       const matCanto = new THREE.MeshStandardMaterial({ map: crearTexturaCanto(), roughness: 0.95 });
       const matTerreno = new THREE.MeshStandardMaterial({ color: 0xA9AF9E, roughness: 0.95 });
       const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(30, 30, 1.2, 72),
+        new THREE.CylinderGeometry(RADIO_DISCO, RADIO_DISCO, 1.2, 72),
         [matCanto, matTerreno, matTerreno]
       );
       base.position.y = -0.6;
@@ -3618,7 +3716,6 @@
       // lado da a una vía vehicular y no es un lado cualquiera.
       const ANCHO_CALLE = calleCfg.ancho ?? 8, LARGO_CALLE = calleCfg.largo ?? 44, VEREDA = calleCfg.vereda ?? 2;
       const VEREDA_ALTO = calleCfg.vereda_alto ?? 0.12;
-      const BORDE_FRENTE = -(SEP_Z + PROF / 2);
       const Z_CALLE = BORDE_FRENTE - VEREDA - ANCHO_CALLE / 2;
 
       const calle = new THREE.Mesh(
@@ -3686,16 +3783,59 @@
       const geoPB = new THREE.BoxGeometry(LOSA_ANCHO, ALTO, LOSA_LARGO);
       const matPB = new THREE.MeshStandardMaterial({ color: 0xC7CBCC, roughness: 0.9, transparent: true, opacity: 0.55 });
 
+      // Placas de un conjunto con varias torres (solo con TORRES): no hay una
+      // losa única del edificio, así que cada piso arma la suya desde los
+      // contornos reales de las unidades que tiene — una envolvente por torre,
+      // agrandada 0.5m. El basamento da la huella de PB, de los niveles
+      // comerciales sin unidades (nivel 1 de BRUSCO) y del techo del podio
+      // (el primer nivel de torres). Sin nucleo_contorno no se dibuja núcleo:
+      // uno genérico quedaría flotando entre las dos torres.
+      const puntosDe = lista => lista.flatMap(u => u.geom && Array.isArray(u.geom.contorno) ? u.geom.contorno : []);
+      const placaDe = pts => pts.length >= 3 ? expandirConvexo(envolventeConvexa(pts), 0.5) : null;
+      const NIVELES_BASAMENTO = TORRES
+        ? new Set((geo.basamento && geo.basamento.niveles) || UNIDADES.filter(u => torreDe(u) === 'Basamento').map(u => u.piso))
+        : null;
+      const TECHO_BASAMENTO = TORRES && NIVELES_BASAMENTO.size ? Math.max(...NIVELES_BASAMENTO) : 0;
+      const PLACA_BASAMENTO = TORRES
+        ? placaDe(puntosDe(UNIDADES.filter(u => NIVELES_BASAMENTO.has(u.piso)))) || placaDe(puntosDe(UNIDADES))
+        : null;
+      const geoPlacaBasamento = PLACA_BASAMENTO ? geometriaExtruida(PLACA_BASAMENTO, LOSA, ORIGEN_PLACA) : null;
+      const geoVolumenBasamento = PLACA_BASAMENTO ? geometriaExtruida(PLACA_BASAMENTO, ALTO, ORIGEN_PLACA) : null;
+
+      // Niveles sin unidades por debajo del basamento (PB, locales del nivel
+      // 1): mismo volumen translúcido que la PB, con la huella del basamento.
+      function esNivelComercial(piso) {
+        return !!PLACA_BASAMENTO && piso < Math.min(...UNIDADES.map(u => u.piso)) && !UNIDADES.some(u => u.piso === piso);
+      }
+
+      // Geometrías de losa de un piso con TORRES: el techo del podio usa una
+      // sola envolvente (basamento + lo que arranque encima) para no apilar
+      // dos losas en el mismo plano; el resto, una por torre.
+      function losasPorTorre(piso) {
+        const enPiso = UNIDADES.filter(u => u.piso === piso);
+        if (!enPiso.length) return esNivelComercial(piso) ? [geoPlacaBasamento] : [];
+        if (piso === TECHO_BASAMENTO + 1) {
+          const techo = placaDe(puntosDe(UNIDADES.filter(u => NIVELES_BASAMENTO.has(u.piso))).concat(puntosDe(enPiso)));
+          return techo ? [geometriaExtruida(techo, LOSA, ORIGEN_PLACA)] : [];
+        }
+        const porTorre = {};
+        enPiso.forEach(u => (porTorre[torreDe(u) || ''] || (porTorre[torreDe(u) || ''] = [])).push(u));
+        return Object.values(porTorre)
+          .map(lista => placaDe(puntosDe(lista)))
+          .filter(Boolean)
+          .map(placa => geometriaExtruida(placa, LOSA, ORIGEN_PLACA));
+      }
+
       const pb = new THREE.Group();
       pb.position.y = 0;
       pb.userData = { offset: 0, objetivo: 0 };
 
-      const losaPB = new THREE.Mesh(geoLosa, matLosa);
+      const losaPB = new THREE.Mesh(geoPlacaBasamento || geoLosa, matLosa);
       losaPB.position.y = -LOSA / 2;
       losaPB.castShadow = losaPB.receiveShadow = true;
       pb.add(losaPB);
 
-      const volumenPB = new THREE.Mesh(geoPB, matPB);
+      const volumenPB = new THREE.Mesh(geoVolumenBasamento || geoPB, matPB);
       volumenPB.position.y = ALTO / 2;
       volumenPB.receiveShadow = true;
       pb.add(volumenPB);
@@ -3709,16 +3849,40 @@
         g.position.y = piso * PASO;
         g.userData = { offset: 0, objetivo: 0 };
 
-        const losa = new THREE.Mesh(geoLosa, matLosa);
-        losa.position.y = -LOSA / 2;
-        losa.castShadow = losa.receiveShadow = true;
-        g.add(losa);
+        if (TORRES) {
+          losasPorTorre(piso).forEach(geoL => {
+            const losa = new THREE.Mesh(geoL, matLosa);
+            losa.position.y = -LOSA / 2;
+            losa.castShadow = losa.receiveShadow = true;
+            g.add(losa);
+            ocludoresSol.push(losa);
+          });
+          if (esNivelComercial(piso)) {
+            const volumen = new THREE.Mesh(geoVolumenBasamento, matPB);
+            volumen.position.y = ALTO / 2;
+            volumen.receiveShadow = true;
+            g.add(volumen);
+            ocludoresSol.push(volumen);
+          }
+          if (NUCLEO_CONTORNO) {
+            const nucleo = new THREE.Mesh(geoNucleo, matNucleo);
+            nucleo.position.y = ALTO / 2;
+            nucleo.castShadow = true;
+            g.add(nucleo);
+            ocludoresSol.push(nucleo);
+          }
+        } else {
+          const losa = new THREE.Mesh(geoLosa, matLosa);
+          losa.position.y = -LOSA / 2;
+          losa.castShadow = losa.receiveShadow = true;
+          g.add(losa);
 
-        const nucleo = new THREE.Mesh(geoNucleo, matNucleo);
-        nucleo.position.y = ALTO / 2;
-        nucleo.castShadow = true;
-        g.add(nucleo);
-        ocludoresSol.push(losa, nucleo);
+          const nucleo = new THREE.Mesh(geoNucleo, matNucleo);
+          nucleo.position.y = ALTO / 2;
+          nucleo.castShadow = true;
+          g.add(nucleo);
+          ocludoresSol.push(losa, nucleo);
+        }
 
         UNIDADES.filter(u => u.piso === piso).forEach(u => {
           // Unidad con contorno propio (units.geom.contorno, ver CLAUDE.md) en vez
@@ -3978,7 +4142,7 @@
           s: 0.8 + azar() * 0.25,
         });
       }
-      posicionesArbol = posicionesArbol.filter(p => p.x * p.x + p.z * p.z <= 27 * 27);
+      posicionesArbol = posicionesArbol.filter(p => p.x * p.x + p.z * p.z <= (RADIO_DISCO - 3) ** 2);
       // El cartel, inclinado, ocupa más espacio real que un punto — un árbol
       // pegado a la fila del cordón caía justo delante y lo tapaba a media
       // altura. 3.2m de radio de exclusión (el cartel mide ~2m de alto ya
@@ -4260,7 +4424,10 @@
          4. CÁMARA
          ============================================================ */
 
-      const objetivo = new THREE.Vector3(0, ALTURA * 0.45, 0);
+      // Con CONJUNTO (varias torres) la cámara apunta al centro real de los
+      // contornos, no al origen — ver también radio más abajo.
+      const CENTRO_X = CONJUNTO ? CONJUNTO.cx : 0, CENTRO_Z = CONJUNTO ? CONJUNTO.cz : 0;
+      const objetivo = new THREE.Vector3(CENTRO_X, ALTURA * 0.45, CENTRO_Z);
       // theta ya no orbita: es el azimut fijo de la cámara. Lo que antes
       // hacía "mover la cámara alrededor del edificio" ahora lo hace GIRO,
       // girando grupoEdificio en el lugar (ver ese grupo más arriba) — así
@@ -4302,7 +4469,15 @@
       const factorAspecto = Math.min(2, Math.max(1, ASPECT_REF / aspectInicial));
       // Mismo rango que el zoom a rueda de más abajo (34–190), para no
       // arrancar ya afuera del límite que el usuario puede alcanzar.
-      let radio = Math.min(190, Math.max(55, ALTURA * RADIO_POR_ALTURA) * factorAspecto),
+      // Con CONJUNTO, además, el radio no puede ser menor que la distancia a
+      // la que la esfera que envuelve todo el conjunto (planta real + altura)
+      // entra en el FOV vertical — un conjunto ancho y bajo se cortaría si
+      // solo se mirara la altura.
+      const radioConjunto = CONJUNTO
+        ? Math.hypot((CONJUNTO.maxX - CONJUNTO.minX) / 2, (CONJUNTO.maxZ - CONJUNTO.minZ) / 2, ALTURA / 2) /
+          Math.sin(THREE.MathUtils.degToRad(camara.fov / 2)) * 1.05
+        : 0;
+      let radio = Math.min(190, Math.max(55, ALTURA * RADIO_POR_ALTURA, radioConjunto) * factorAspecto),
         phi = PHI_INICIAL, giro = 0, arrastrando = false, ultimo = { x: 0, y: 0 }, tocado = false;
 
       function ubicarCamara() {
@@ -4385,7 +4560,7 @@
       // recortes sea cual sea la dirección de la luz (la silueta de una
       // esfera vista desde cualquier ángulo mide siempre lo mismo).
       const centroSombraSol = new THREE.Vector3(0, ALTURA / 2, 0);
-      const radioSombraSol = Math.sqrt(30 * 30 + 30 * 30 + (ALTURA / 2) * (ALTURA / 2)) * 1.08;
+      const radioSombraSol = Math.sqrt(RADIO_DISCO * RADIO_DISCO * 2 + (ALTURA / 2) * (ALTURA / 2)) * 1.08;
       const distanciaSol = radioSombraSol * 2.4;
       sol.target.position.copy(centroSombraSol);
       grupoEdificio.add(sol.target);
@@ -4607,7 +4782,15 @@
       const tooltip = document.getElementById('tooltip');
       const panel = document.getElementById('panel');
 
+      // Filtro por torre (solo con TORRES): las opciones salen de las unidades
+      // cargadas, en el orden Basamento → torres de geometria.torres.
+      const torresDisponibles = TORRES
+        ? ['Basamento', ...TORRES.map(t => t.codigo)].filter(t => UNIDADES.some(u => torreDe(u) === t))
+        : [];
+      let fTorre = new Set(torresDisponibles);
+
       const pasa = u => fDorms.has(u.dorms) && fEstado.has(u.estado) &&
+        (!torresDisponibles.length || !torreDe(u) || fTorre.has(torreDe(u))) &&
         (pisoAislado === null || u.piso === pisoAislado) &&
         (!verSoloConstruido || pisosConstruidos.has(u.piso));
 
@@ -4645,6 +4828,11 @@
         on => on ? fDorms.add(d) : fDorms.delete(d)));
       Object.entries(ESTADOS).forEach(([k, e]) => chipsEstado[k] = chip(document.getElementById('f-estado'), e.nombre, e.color,
         on => on ? fEstado.add(k) : fEstado.delete(k)));
+      if (torresDisponibles.length) {
+        document.getElementById('f-torre-grupo').hidden = false;
+        torresDisponibles.forEach(t => chip(document.getElementById('f-torre'), t === 'Basamento' ? t : 'Torre ' + t, null,
+          on => on ? fTorre.add(t) : fTorre.delete(t)));
+      }
 
       // "Ver unidades disponibles similares" desde la lista de espera: misma
       // cantidad de dormitorios + disponibles, resaltadas atenuando el resto
@@ -4692,7 +4880,7 @@
       function enfocarPiso(p) {
         tocado = true;
         if (p === null) { objetivo.copy(objetivoGeneral); radio = radioGeneral; phi = phiGeneral; }
-        else { objetivo.set(0, p * PASO + ALTO / 2, 0); radio = 72; phi = 1.28; }
+        else { objetivo.set(CENTRO_X, p * PASO + ALTO / 2, CENTRO_Z); radio = CONJUNTO ? Math.max(72, radioGeneral * 0.75) : 72; phi = 1.28; }
         ubicarCamara();
       }
 
@@ -4712,7 +4900,15 @@
           '<span>' + (pisoAislado - 1) + ' piso' + (pisoAislado - 1 === 1 ? '' : 's') + ' por debajo · ' +
           (PISOS - pisoAislado) + ' por encima</span>' +
           '<span>' + enPiso.length + ' unidad' + (enPiso.length === 1 ? '' : 'es') +
-          (disponibles ? ' · ' + disponibles + ' disponible' + (disponibles === 1 ? '' : 's') : '') + '</span>';
+          (disponibles ? ' · ' + disponibles + ' disponible' + (disponibles === 1 ? '' : 's') : '') + '</span>' +
+          // Con varias torres, cuántas unidades aporta cada una a este nivel.
+          (torresDisponibles.length
+            ? '<span>' + torresDisponibles
+                .map(t => [t, enPiso.filter(u => torreDe(u) === t).length])
+                .filter(([, n]) => n)
+                .map(([t, n]) => (t === 'Basamento' ? t : 'Torre ' + t) + ': ' + n)
+                .join(' · ') + '</span>'
+            : '');
         infoPiso.classList.add('visible');
       }
 
@@ -4767,7 +4963,8 @@
       // = sin badge), para que se sepa desde afuera si hay un filtro activo sin
       // tener que abrir la hoja.
       function actualizarBadgeFiltros() {
-        const excluidos = (dormsDisponibles.length - fDorms.size) + (Object.keys(ESTADOS).length - fEstado.size);
+        const excluidos = (dormsDisponibles.length - fDorms.size) + (Object.keys(ESTADOS).length - fEstado.size) +
+          (torresDisponibles.length - fTorre.size);
         ftBadge.textContent = excluidos;
         ftBadge.hidden = excluidos === 0;
       }
@@ -4902,7 +5099,7 @@
         }
         cont.innerHTML = items.map((m, i) =>
           '<img src="' + m.url + '" data-idx="' + i + '"' +
-          ' alt="' + (m.tipo === 'planta' ? 'Planta' : 'Render') + ' de la unidad ' + u.id + '">'
+          ' alt="' + (m.tipo === 'planta' ? 'Planta' : 'Render') + ' de la unidad ' + numeroDe(u) + '">'
         ).join('');
         cont.querySelectorAll('img').forEach(img =>
           img.addEventListener('click', () => galeria.abrir(items, Number(img.dataset.idx)))
@@ -4925,14 +5122,19 @@
 
       // Lleva la cámara frente a la unidad, a la altura de su piso.
       function enfocar(u) {
-        objetivo.set(0, u.piso * PASO + ALTO / 2, 0);
+        objetivo.set(CENTRO_X, u.piso * PASO + ALTO / 2, CENTRO_Z);
         // Unidades con contorno propio no tienen col/frente utilizables para
         // orientar la cámara — se deriva un ángulo equivalente del centroide
         // (mismo criterio: signo de Z = lado frente/contrafrente, X = desplazamiento lateral).
         // theta ya no orbita (ver CÁMARA): para dejar esa fachada mirando a
         // la cámara ahora hay que girar el EDIFICIO hasta que ese ángulo
         // quede alineado con el azimut fijo de la cámara, de ahí el theta - (...).
-        giro = theta - (u._centro
+        // Con CONJUNTO la aproximación por SEP_X no sirve (unidades a ±20m del
+        // centro): se usa el ángulo real del centroide visto desde el centro
+        // del conjunto — mismo convenio (frente = π).
+        giro = theta - (CONJUNTO && u._centro
+          ? Math.atan2(u._centro.x - CENTRO_X, u._centro.z - CENTRO_Z)
+          : u._centro
           ? (u._centro.z < 0 ? Math.PI : 0) - (u._centro.x / SEP_X) * 0.16
           : (u.frente < 0 ? Math.PI : 0) - u.col * 0.16);
         phi = 1.32;
@@ -5016,7 +5218,7 @@
 
       function actualizarFinanciacionPanel(u) {
         const finPanel = document.getElementById('p-financiacion');
-        if (!tieneFinanciacion()) { finPanel.hidden = true; finActual = null; return; }
+        if (!tieneFinanciacion() || u.precio == null) { finPanel.hidden = true; finActual = null; return; }
         finPanel.hidden = false;
         finSlider.min = finCfg.entrega_min;
         finSlider.max = finCfg.entrega_max;
@@ -5040,8 +5242,9 @@
       // entrega y la cuota elegidas para que el vendedor arranque la
       // conversación sabiendo el presupuesto del visitante.
       function actualizarLinkWA(u) {
-        let texto = 'Hola, quiero consultar por la unidad ' + u.id + ' de ' + proyecto.nombre + ' (' +
-          etiquetaDorms(u.dorms).toLowerCase() + ', ' + u.m2 + ' m²). ' + linkDe(u);
+        let texto = 'Hola, quiero consultar por la unidad ' + numeroDe(u) + ' de ' + proyecto.nombre + ' (' +
+          [(tipologiaDe(u) || etiquetaDorms(u.dorms)).toLowerCase(), u.m2 != null ? u.m2 + ' m²' : null]
+            .filter(Boolean).join(', ') + '). ' + linkDe(u);
         if (finActual) {
           texto += ' Simulé una entrega del ' + finActual.entregaPct + '% (' +
             formatearPrecio(finActual.entregaMonto, proyecto.moneda, proyecto.locale) + ') y una cuota mensual de ' +
@@ -5142,8 +5345,10 @@
         tooltip.style.opacity = 0; // en touch queda pegado en la última posición tocada
         if (mover) enfocar(u);
         const e = ESTADOS[u.estado];
-        document.getElementById('p-eyebrow').textContent = 'Piso ' + u.piso;
-        document.getElementById('p-unidad').textContent = u.id;
+        const torreU = torresDisponibles.length ? torreDe(u) : null;
+        document.getElementById('p-eyebrow').textContent =
+          (torreU ? (torreU === 'Basamento' ? torreU : 'Torre ' + torreU) + ' · ' : '') + 'Piso ' + u.piso;
+        document.getElementById('p-unidad').textContent = numeroDe(u);
         document.getElementById('p-estado-txt').textContent = e.nombre;
         document.getElementById('p-color').style.background = e.color;
         const pEstado = document.getElementById('p-estado');
@@ -5152,10 +5357,18 @@
         pEstado.style.color = e.color;
         actualizarTiraPiso(u);
         pintarPlantaUnidad(u);
-        document.getElementById('p-dorms').textContent = etiquetaDorms(u.dorms);
-        document.getElementById('p-m2').textContent = u.m2 + ' m²';
+        const tipologia = tipologiaDe(u);
+        document.getElementById('p-dorms-dt').textContent = tipologia ? 'Tipología' : 'Dormitorios';
+        document.getElementById('p-dorms').textContent = tipologia || etiquetaDorms(u.dorms);
+        // Sin m² / precio cargados (null, no 0) se ocultan en vez de mostrar
+        // "null m²" o un precio en cero — ver cargarProyecto().
+        const m2Dt = document.getElementById('p-m2-dt'), m2Dd = document.getElementById('p-m2');
+        m2Dt.hidden = m2Dd.hidden = u.m2 == null;
+        m2Dd.textContent = u.m2 != null ? u.m2 + ' m²' : '';
         document.getElementById('p-orient').textContent = u.orient;
-        document.getElementById('p-precio').textContent = formatearPrecio(u.precio, proyecto.moneda, proyecto.locale);
+        document.getElementById('p-precio-wrap').hidden = u.precio == null;
+        document.getElementById('p-precio').textContent =
+          u.precio != null ? formatearPrecio(u.precio, proyecto.moneda, proyecto.locale) : '';
 
         const terrazaDt = document.getElementById('p-terraza-dt');
         const terrazaDd = document.getElementById('p-terraza-dd');
@@ -5240,7 +5453,8 @@
           if (sobre) {
             sobre.material.emissive.setScalar(0.22);
             const u = sobre.userData.unidad;
-            tooltip.textContent = u.id + ' · ' + u.dorms + ' dorm · ' + u.m2 + ' m²';
+            tooltip.textContent = [numeroDe(u), tipologiaDe(u) || u.dorms + ' dorm', u.m2 != null ? u.m2 + ' m²' : null]
+              .filter(Boolean).join(' · ');
             tooltip.style.opacity = 1;
           } else tooltip.style.opacity = 0;
         }
