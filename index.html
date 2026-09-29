@@ -53,7 +53,9 @@
       font-size: 14px;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
-      background-color: #FFFFFF;
+      /* El degradado de fondo de la maqueta lo pinta three.js (ver FONDO en
+         ESCENA); esto es solo lo que se ve antes de que exista el canvas. */
+      background-color: #F7F9F7;
     }
 
     canvas {
@@ -1645,11 +1647,19 @@
     #tooltip.tt-unidad {
       min-width: 210px;
       padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--linea);
-      background: #fff;
+      border-radius: 16px;
+      border: 1px solid rgba(20, 40, 35, .08);
+      background: rgba(255, 255, 255, .94);
       color: var(--tinta);
-      box-shadow: 0 12px 32px rgba(20, 40, 35, .16);
+      box-shadow: 0 15px 40px rgba(20, 40, 35, .12);
+    }
+
+    /* El desenfoque solo mientras se ve: oculto con opacity 0 el navegador
+       igual desenfocaría el canvas (que cambia en cada frame) sin parar. */
+    #tooltip.tt-unidad.visible,
+    #tarjeta-unidad.visible {
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
     }
 
     .tt-cab {
@@ -1711,10 +1721,10 @@
       bottom: calc(76px + env(safe-area-inset-bottom));
       z-index: 11;
       padding: 14px 16px;
-      background: #fff;
-      border: 1px solid var(--linea);
-      border-radius: var(--radio);
-      box-shadow: 0 12px 36px rgba(20, 40, 35, .16);
+      background: rgba(255, 255, 255, .94);
+      border: 1px solid rgba(20, 40, 35, .08);
+      border-radius: 16px;
+      box-shadow: 0 15px 40px rgba(20, 40, 35, .12);
       opacity: 0;
       pointer-events: none;
       transform: translateY(12px);
@@ -4658,19 +4668,40 @@
       })();
 
       const escena = new THREE.Scene();
-      // Sin scene.background: el fondo es blanco liso, puesto por CSS en el
-      // <body> (ver <style>), no un color ni una textura de three.js. Si acá
-      // se pusiera un Color, el clear del renderer lo taparía en cada frame
-      // — el canvas tiene que quedar transparente para que se vea. El color
-      // de niebla es blanco fijo (ver NIEBLA_COLOR), a tono con ese fondo.
-      escena.fog = new THREE.Fog(0xFFFFFF, 130, 280);
+      // FONDO: luz ambiente detrás de la maqueta — más clara donde está la
+      // torre y apenas verdosa hacia las esquinas. Es una textura de canvas
+      // como scene.background (three la dibuja a pantalla completa, fija,
+      // sin seguir a la cámara), rehecha en cada resize para que el círculo
+      // no se deforme. Probado primero como radial-gradient de CSS detrás de
+      // un canvas transparente: se veía igual, pero el navegador tenía que
+      // componer las dos capas en cada frame y los FPS se desplomaban. Con
+      // el fondo adentro de WebGL el canvas es opaco (alpha: false) y cuesta
+      // un solo quad. La niebla (NIEBLA_COLOR) usa el tono de las esquinas,
+      // que es donde llega a notarse.
+      function pintarFondo() {
+        const w = Math.max(2, Math.round(innerWidth / 2)), h = Math.max(2, Math.round(innerHeight / 2));
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d');
+        // = radial-gradient(circle at 55% 45%, ...) de CSS: radio hasta la
+        // esquina más lejana.
+        const cx = w * 0.55, cy = h * 0.45;
+        const r = Math.hypot(Math.max(cx, w - cx), Math.max(cy, h - cy));
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0, '#FFFFFF');
+        grad.addColorStop(0.42, '#F7F9F7');
+        grad.addColorStop(1, '#EEF2EF');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+        if (escena.background) escena.background.dispose();
+        escena.background = new THREE.CanvasTexture(cv);
+      }
+      pintarFondo();
+      escena.fog = new THREE.Fog(0xF1F4F2, 130, 280);
 
       // Grupo que gira en el lugar (ver GIRO en CÁMARA): el edificio + su
-      // plataforma/disco + calle/vereda/árboles/autos/cartel + el sol — todo
-      // el sitio original, como un conjunto rígido. Lo único que NO va
-      // acá es "piso" (el degradado blanco nuevo, más abajo): ese queda fijo
-      // en pantalla mientras se arrastra/auto-rota, en vez de que la cámara
-      // orbite alrededor de todo como antes. Probado al revés primero (solo
+      // terreno + calle/vereda/árboles/autos/cartel + el sol — todo el sitio
+      // original, como un conjunto rígido. Probado al revés primero (solo
       // el edificio+disco adentro, calle/vereda/árboles afuera) y quedó mal:
       // una calle recta fija con la torre girando en diagonal sobre ella se
       // ve rota — la calle tiene que seguir pegada al frente del edificio
@@ -4688,10 +4719,10 @@
       grupoEdificio.add(grupoCalle);
 
       const camara = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 600);
-      const render = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      const render = new THREE.WebGLRenderer({ antialias: true, alpha: false });
       render.setPixelRatio(Math.min(devicePixelRatio, 2));
       render.setSize(innerWidth, innerHeight);
-      render.setClearColor(0x000000, 0);
+      render.setClearColor(0xF7F9F7, 1);
       render.shadowMap.enabled = true;
       render.shadowMap.type = THREE.PCFSoftShadowMap;
       // Sin tone mapping (default NoToneMapping): se probó ACESFilmicToneMapping
@@ -4700,88 +4731,67 @@
       // base — sin ese shader no hay motivo para tocarlo.
       document.body.appendChild(render.domElement);
 
-      const hemi = new THREE.HemisphereLight(0xFFFFFF, 0xA6B0B3, 0.9);
+      // Iluminación de maqueta: UNA sola luz principal (sol, direccional, la
+      // que proyecta sombras) + una hemisférica de ambiente. El simulador
+      // solar (aplicarSol) mueve y tiñe esa misma luz — no hay una "luz de
+      // estudio" aparte que después haya que apagar. Sin tone mapping, lo
+      // que llega a una cara es albedo × (ambiente + sol·cosθ): con 0.9 + 1.0
+      // de antes las caras al sol pasaban de 1 y se recortaban a blanco (se
+      // perdía el volumen); con estos valores una cara de arriba llega a
+      // ~1.2, una fachada al sol a ~1 y una a la sombra a ~0.65 — lectura de
+      // volumen sin sombras negras. El suelo de la hemisférica es claro a
+      // propósito: la cara de abajo de losas y balcones rebota luz del
+      // terreno en vez de quedar en gris sucio.
+      const hemi = new THREE.HemisphereLight(0xFFFFFF, 0xCDD3CF, 0.74);
       escena.add(hemi);
-      const sol = new THREE.DirectionalLight(0xFFF6E8, 1.0);
+      const sol = new THREE.DirectionalLight(0xFFF6E8, 0.62);
       sol.position.set(-34, 58, 30);
       sol.castShadow = true;
       sol.shadow.mapSize.set(2048, 2048);
       const sc = sol.shadow.camera;
-      sc.left = -46; sc.right = 46; sc.top = 64; sc.bottom = -26; sc.near = 5; sc.far = 170;
       grupoEdificio.add(sol);
 
-      // Calidad de sombra de árboles en pantallas chicas (no tiene relación
-      // con el cielo, que ahora es el fondo blanco liso del <body>).
+      // Calidad de sombra de árboles en pantallas chicas.
       const CIELO_ALTA = innerWidth >= 760;
 
-      // Disco de base: textura de canto generada en canvas (gradiente claro→oscuro
-      // de arriba hacia abajo) para que el borde se lea como una placa apoyada y
-      // no como un círculo pintado — hace también de "sombra de contacto" barata
-      // (sin geometría ni pasada de render extra) que despega el disco del cielo
-      // de fondo. La tapa usa el tono de "terreno", que las zonas de calle/vereda
-      // de abajo tapan donde corresponde.
-      function crearTexturaCanto() {
-        const cv = document.createElement('canvas');
-        cv.width = 4; cv.height = 64;
-        const ctx = cv.getContext('2d');
-        const grad = ctx.createLinearGradient(0, 0, 0, cv.height);
-        grad.addColorStop(0, '#B3B9BB');
-        grad.addColorStop(1, '#7C8385');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, cv.width, cv.height);
-        return new THREE.CanvasTexture(cv);
-      }
-      const matCanto = new THREE.MeshStandardMaterial({ map: crearTexturaCanto(), roughness: 0.95 });
-      const matTerreno = new THREE.MeshStandardMaterial({ color: 0xA9AF9E, roughness: 0.95 });
-      const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(RADIO_DISCO, RADIO_DISCO, 1.2, 72),
-        [matCanto, matTerreno, matTerreno]
-      );
-      base.position.y = -0.6;
-      base.receiveShadow = true;
-      grupoEdificio.add(base);
-
-      // Piso que funde el disco con el cielo. Probado primero dejando que lo
-      // resolviera solo la niebla (fog) sobre un plano opaco grande, como
-      // hace el resto de la escena con los árboles/calle — no funcionó: con
-      // la cámara mirando casi rasante (phi llega a ~99°, ver arrastrarCam)
-      // la franja donde la niebla realmente pasa de 0 a 1 queda comprimida a
-      // unos pocos píxeles pegados contra el horizonte por la perspectiva, y
-      // el resto del piso se ve opaco de borde a borde — nada de degradado
-      // visible. Por eso el degradado es una textura radial con ALPHA (no
-      // color) que va de blanco opaco cerca del disco a transparente total
-      // hacia afuera: donde el alpha llega a 0 se ve directamente el fondo
-      // blanco del <body>, así que el empalme de color es exacto por
-      // construcción, no depende de que la niebla lo adivine. El radio del
-      // plano (200) y dónde arranca el fade están pensados para el rango de
-      // zoom real de la cámara (radio 34-190, ver rueda del mouse) — a
-      // radios mayores nunca hizo falta.
-      function crearTexturaPiso() {
+      // Terreno: un disco plano (sin canto) que se desvanece contra el fondo.
+      // Opaco hasta ~0.8 del radio de siempre y transparente del todo a 1.3 —
+      // así no se lee como un plato flotando. El fundido es alpha (no color):
+      // donde llega a 0 se ve el degradado de fondo (pintarFondo) tal cual,
+      // sin tener que adivinar su tono. Recibe la sombra del sol, que se desvanece con él
+      // (antes caía sobre un plano aparte y se cortaba fuera del disco).
+      // renderOrder negativo: es transparente, pero tiene que dibujarse antes
+      // que las unidades (también transparentes) para que se vea a través de
+      // ellas; sin depthWrite no tapa nada de lo que viene después. La calle
+      // y la vereda son opacas y están apenas por encima: le ganan en z.
+      const RADIO_TERRENO = RADIO_DISCO * 1.3;
+      function crearTexturaTerreno() {
         const cv = document.createElement('canvas');
         cv.width = cv.height = 512;
         const ctx = cv.getContext('2d');
         const r = cv.width / 2;
-        const grad = ctx.createRadialGradient(r, r, r * 0.12, r, r, r);
-        grad.addColorStop(0, 'rgba(224,226,221,1)');
-        grad.addColorStop(0.5, 'rgba(224,226,221,0.85)');
-        grad.addColorStop(1, 'rgba(224,226,221,0)');
+        const grad = ctx.createRadialGradient(r, r, 0, r, r, r);
+        const opaco = 0.8 / 1.3;
+        grad.addColorStop(0, 'rgba(255,255,255,1)');
+        grad.addColorStop(opaco, 'rgba(255,255,255,1)');
+        grad.addColorStop(opaco + (1 - opaco) * 0.45, 'rgba(255,255,255,0.55)');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, cv.width, cv.height);
         return new THREE.CanvasTexture(cv);
       }
-      // Color de base ya apagado (no blanco puro): a NdotL≈1 bajo sol
-      // directo (sol.intensity=1, sin tone mapping) un albedo casi blanco
-      // se recorta hacia el tono cálido de la luz (0xFFF6E8) en vez de leer
-      // como blanco — se vio literalmente amarillo probándolo. Este tono
-      // más bajo llega a blanco roto con la luz encima, sin recortarse.
-      const matPiso = new THREE.MeshStandardMaterial({
-        map: crearTexturaPiso(), transparent: true, depthWrite: false, roughness: 0.95,
+      // Albedo más bajo que el tono buscado (#E7E6DC): con ambiente + sol
+      // encima una cara horizontal recibe ~1.2 y el sol es cálido, así que
+      // este gris neutro llega a beige gris claro sin amarillear.
+      const matTerreno = new THREE.MeshStandardMaterial({
+        color: 0xB5B7B3, map: crearTexturaTerreno(), roughness: 0.95,
+        transparent: true, depthWrite: false,
       });
-      const piso = new THREE.Mesh(new THREE.CircleGeometry(200, 64), matPiso);
-      piso.rotation.x = -Math.PI / 2;
-      piso.position.y = -1.2;
-      piso.receiveShadow = true;
-      escena.add(piso);
+      const terreno = new THREE.Mesh(new THREE.CircleGeometry(RADIO_TERRENO, 96), matTerreno);
+      terreno.rotation.x = -Math.PI / 2;
+      terreno.receiveShadow = true;
+      terreno.renderOrder = -2;
+      grupoEdificio.add(terreno);
 
       // Calle: franja de asfalto frente al edificio (lado "frente", ver NOMBRE_CALLE
       // más abajo), vereda elevada con cordón (escalón real, no pintado) y línea de
@@ -4859,8 +4869,13 @@
       const bordesGeo = new THREE.EdgesGeometry(geoUnidad);
       const geoLosa = LOSA_CONTORNO ? geometriaExtruida(LOSA_CONTORNO, LOSA, ORIGEN_PLACA) : new THREE.BoxGeometry(LOSA_ANCHO, LOSA, LOSA_LARGO);
       const geoNucleo = NUCLEO_CONTORNO ? geometriaExtruida(NUCLEO_CONTORNO, ALTO, ORIGEN_PLACA) : new THREE.BoxGeometry(NUCLEO_ANCHO, ALTO, NUCLEO_LARGO);
-      const matLosa = new THREE.MeshStandardMaterial({ color: 0xB4BBBD, roughness: 0.9 });
-      const matNucleo = new THREE.MeshStandardMaterial({ color: 0xA5ADB0, roughness: 0.9 });
+      // Losas claras: su canto es la línea que separa un piso del siguiente,
+      // y con la luz nueva (sin recorte a blanco) un gris medio se perdía
+      // contra las unidades grises.
+      const matLosa = new THREE.MeshStandardMaterial({ color: 0xE1E5E3, roughness: 0.9 });
+      const matNucleo = new THREE.MeshStandardMaterial({ color: 0xC9CFCD, roughness: 0.9 });
+      // Aristas de las unidades (también el objetivo de aplicar()).
+      const BORDE_OPACIDAD = 0.32;
 
       // Todo lo que puede taparle el sol a una unidad — losas, núcleo, PB, y
       // (agregadas más abajo) el resto de las cajas — para el chequeo "¿esta
@@ -4935,6 +4950,79 @@
       pisosGrupo.push(pb);
       ocludoresSol.push(losaPB, volumenPB);
 
+      // Sombra de contacto: halo oscuro y difuso alrededor de la huella de la
+      // PB, para que el edificio pese sobre el terreno sea cual sea la
+      // posición del sol. Una textura hecha una vez en canvas (sin pasada de
+      // render extra ni shadow map más grande): la huella se dibuja con los
+      // triángulos reales de la losa de PB (sirve igual para la caja de ROSSO
+      // que para contornos), se desenfoca con shadowBlur (andan en todos los
+      // navegadores, a diferencia de ctx.filter) y después se recorta la
+      // propia huella — así no oscurece el piso de la PB, que es translúcida.
+      (function crearSombraContacto() {
+        const geoHuella = losaPB.geometry;
+        geoHuella.computeBoundingBox();
+        const bb = geoHuella.boundingBox, MARGEN = 4;
+        const x0 = bb.min.x - MARGEN, z0 = bb.min.z - MARGEN;
+        const anchoM = bb.max.x - bb.min.x + MARGEN * 2, largoM = bb.max.z - bb.min.z + MARGEN * 2;
+        const PX = 512 / Math.max(anchoM, largoM); // px por metro
+        const W = Math.ceil(anchoM * PX), H = Math.ceil(largoM * PX);
+        const pos = geoHuella.attributes.position, idx = geoHuella.index;
+        const nTri = (idx ? idx.count : pos.count) / 3;
+        const v = i => idx ? idx.getX(i) : i;
+        // Huella en blanco, agrandada expM metros con un trazo redondeado
+        // alrededor de cada triángulo (0 = la huella exacta).
+        function huellaCanvas(expM) {
+          const c = document.createElement('canvas');
+          c.width = W; c.height = H;
+          const hc = c.getContext('2d');
+          hc.fillStyle = hc.strokeStyle = '#fff';
+          hc.lineJoin = 'round';
+          hc.lineWidth = Math.max(1, expM * 2 * PX); // 1px mínimo: cierra las costuras entre triángulos
+          for (let t = 0; t < nTri; t++) {
+            hc.beginPath();
+            for (let k = 0; k < 3; k++) {
+              const i = v(t * 3 + k);
+              const px = (pos.getX(i) - x0) * PX, pz = (pos.getZ(i) - z0) * PX;
+              k ? hc.lineTo(px, pz) : hc.moveTo(px, pz);
+            }
+            hc.closePath();
+            hc.fill();
+            hc.stroke();
+          }
+          return c;
+        }
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const ctx = cv.getContext('2d');
+        // Dos pasadas: una amplia y tenue (el peso) y una corta y densa pegada
+        // a la base (el contacto). Cada una desenfoca una huella agrandada,
+        // para que el halo arranque denso justo en el borde real y no a la
+        // mitad como pasaría desenfocando la huella exacta. La imagen se
+        // dibuja fuera del canvas y solo su sombra cae adentro.
+        [[1.0, 3.0, 0.7], [0.35, 0.8, 1]].forEach(([expM, blurM, alfa]) => {
+          ctx.save();
+          ctx.globalAlpha = alfa;
+          ctx.shadowColor = '#fff';
+          ctx.shadowBlur = blurM * PX;
+          ctx.shadowOffsetX = W;
+          ctx.drawImage(huellaCanvas(expM), -W, 0);
+          ctx.restore();
+        });
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.drawImage(huellaCanvas(0), 0, 0);
+        const tex = new THREE.CanvasTexture(cv);
+        const sombra = new THREE.Mesh(
+          new THREE.PlaneGeometry(W / PX, H / PX),
+          new THREE.MeshBasicMaterial({ color: 0x22302B, map: tex, transparent: true, opacity: 0.38, depthWrite: false })
+        );
+        sombra.rotation.x = -Math.PI / 2;
+        // Apenas por encima de la vereda (que rodea la PB y la taparía); sobre
+        // la calzada queda a 10 cm del piso, imperceptible desde la cámara.
+        sombra.position.set(x0 + W / PX / 2, VEREDA_ALTO + 0.015, z0 + H / PX / 2);
+        sombra.renderOrder = -1;
+        grupoEdificio.add(sombra);
+      })();
+
       for (let piso = 1; piso <= PISOS; piso++) {
         const g = new THREE.Group();
         g.position.y = piso * PASO;
@@ -5002,7 +5090,7 @@
           cajas.push(caja);
 
           const borde = new THREE.LineSegments(bordesU,
-            new THREE.LineBasicMaterial({ color: 0x1A2124, transparent: true, opacity: 0.26 }));
+            new THREE.LineBasicMaterial({ color: 0x1A2124, transparent: true, opacity: BORDE_OPACIDAD }));
           borde.position.copy(caja.position);
           caja.userData.borde = borde;
           g.add(borde);
@@ -5697,13 +5785,13 @@
         return proyecto.lat != null && proyecto.lon != null && geo.norte_grados != null;
       }
 
-      // Niebla y hemisférica fijas en blanco, a tono con el fondo blanco liso
-      // del <body>. Antes esto seguía la altitud solar (día/atardecer/noche)
-      // porque el cielo era un shader que se podía redibujar; con un fondo
-      // fijo esa lógica ya no aplica. El simulador solar sigue moviendo
-      // sombras y el color/intensidad del DirectionalLight igual que siempre
-      // (ver aplicarSol) — lo único que se fija acá es niebla/ambiente.
-      const NIEBLA_COLOR = new THREE.Color(0xFFFFFF);
+      // Niebla y hemisférica fijas, a tono con el fondo (pintarFondo; la
+      // niebla con el tono de sus esquinas). Antes esto seguía la altitud solar
+      // (día/atardecer/noche) porque el cielo era un shader que se podía
+      // redibujar; con un fondo fijo esa lógica ya no aplica. El simulador
+      // solar sigue moviendo sombras y el color/intensidad del
+      // DirectionalLight (ver aplicarSol) — acá solo se fija niebla/ambiente.
+      const NIEBLA_COLOR = new THREE.Color(0xF1F4F2);
       const AMBIENTE_COLOR = new THREE.Color(0xFFFFFF);
 
       function aplicarCielo() {
@@ -5718,7 +5806,6 @@
       const solOriginal = {
         color: sol.color.clone(), intensity: sol.intensity, position: sol.position.clone(),
         hemiIntensity: hemi.intensity,
-        sc: { left: sc.left, right: sc.right, top: sc.top, bottom: sc.bottom, near: sc.near, far: sc.far },
       };
       // Radio de la esfera que contiene la torre + el disco de base: una
       // cámara ortográfica ajustada a esa esfera cubre el edificio sin
@@ -5729,6 +5816,24 @@
       const distanciaSol = radioSombraSol * 2.4;
       sol.target.position.copy(centroSombraSol);
       grupoEdificio.add(sol.target);
+      // Luz por defecto (sin simulador): mismo azimut de siempre pero más
+      // alta (~60°) — a ~42° la sombra de una torre de 10 pisos medía ~40 m
+      // y cruzaba la calle como una mancha suelta; así queda pegada al
+      // edificio, como en una maqueta iluminada desde arriba. Va a
+      // distanciaSol del centro para usar el mismo encuadre de sombra que el
+      // simulador (la esfera cubre todo el terreno); antes la vista por
+      // defecto tenía un frustum fijo más chico y la sombra se cortaba en seco.
+      const dirSolDefault = new THREE.Vector3(-34, 0, 30).normalize().setY(1.75).normalize();
+      solOriginal.position.copy(centroSombraSol).addScaledVector(dirSolDefault, distanciaSol);
+      sol.position.copy(solOriginal.position);
+      function encuadrarSombra() {
+        sc.left = -radioSombraSol; sc.right = radioSombraSol;
+        sc.top = radioSombraSol; sc.bottom = -radioSombraSol;
+        sc.near = Math.max(0.1, distanciaSol - radioSombraSol - 4);
+        sc.far = distanciaSol + radioSombraSol + 4;
+        sc.updateProjectionMatrix();
+      }
+      encuadrarSombra();
       aplicarCieloDefault();
 
       let solActivo = false;
@@ -5750,12 +5855,14 @@
           avisoNoche.hidden = true;
           sol.position.copy(centroSombraSol).addScaledVector(dir, distanciaSol);
           // Cálido y rasante cerca del horizonte, blanco y vertical al
-          // mediodía — la ambiente baja en la misma proporción para no
-          // perder el contraste que hace legibles las sombras al amanecer.
+          // mediodía. La ambiente baja apenas (hasta 85%): antes bajaba en
+          // la misma proporción que el sol (hasta 40%) y al amanecer la
+          // maqueta entera se apagaba; con el sol bajo, el contraste ya lo
+          // dan las sombras largas.
           const factor = Math.max(0.4, Math.sin(altitud * Math.PI / 180));
           sol.color.set(0xFFA660).lerp(new THREE.Color(0xFFF6E8), Math.min(1, altitud / 45));
           sol.intensity = solOriginal.intensity * factor;
-          hemi.intensity = solOriginal.hemiIntensity * factor;
+          hemi.intensity = solOriginal.hemiIntensity * (0.85 + 0.15 * factor);
         }
         aplicarCielo();
         document.getElementById('sol-hora').style.setProperty('--sol-color', '#' + sol.color.getHexString());
@@ -5946,21 +6053,12 @@
         solPanel.classList.toggle('abierto', on);
         solBackdrop.classList.toggle('visible', on);
         if (on) {
-          sc.left = -radioSombraSol; sc.right = radioSombraSol;
-          sc.top = radioSombraSol; sc.bottom = -radioSombraSol;
-          sc.near = Math.max(0.1, distanciaSol - radioSombraSol - 4);
-          sc.far = distanciaSol + radioSombraSol + 4;
-          sc.updateProjectionMatrix();
           aplicarSol(fechaSol, Number(sliderHoraSol.value));
         } else {
           sol.color.copy(solOriginal.color);
           sol.intensity = solOriginal.intensity;
           sol.position.copy(solOriginal.position);
           hemi.intensity = solOriginal.hemiIntensity;
-          sc.left = solOriginal.sc.left; sc.right = solOriginal.sc.right;
-          sc.top = solOriginal.sc.top; sc.bottom = solOriginal.sc.bottom;
-          sc.near = solOriginal.sc.near; sc.far = solOriginal.sc.far;
-          sc.updateProjectionMatrix();
           aplicarCieloDefault();
           actualizarSolUnidad();
         }
@@ -6028,7 +6126,7 @@
           c.userData.opObj = ok ? aspectoDe(u).opacidad : 0.06;
           c.userData.colorObj = ok ? c.userData.colorBase : COLOR_FILTRADO;
           c.castShadow = ok;
-          c.userData.bordeObj = ok ? 0.26 : 0.04;
+          c.userData.bordeObj = ok ? BORDE_OPACIDAD : 0.04;
         });
         if (elegida && !pasa(elegida)) cerrar();
         actualizarBadgeFiltros();
@@ -7060,6 +7158,7 @@
         camara.aspect = innerWidth / innerHeight;
         camara.updateProjectionMatrix();
         render.setSize(innerWidth, innerHeight);
+        pintarFondo();
       });
 
     } // fin de iniciar()
