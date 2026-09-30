@@ -2138,10 +2138,6 @@
        panel prende la simulación; cerrarlo la apaga y devuelve la luz de
        siempre — no hay un switch aparte.
        ============================================================ */
-    #sol-backdrop {
-      display: none
-    }
-
     #sol {
       position: fixed;
       left: 50%;
@@ -2228,6 +2224,9 @@
       border-radius: 2px;
       background: linear-gradient(to right, #E2965A, #FFF6E8 50%, #E2965A);
       outline: none;
+      /* Mismo recurso que #p-fin-entrega: en la hoja mobile (con scroll)
+       un arrastre algo diagonal no tiene que convertirse en scroll. */
+      touch-action: none;
     }
 
     #sol-hora::-webkit-slider-thumb {
@@ -2586,24 +2585,17 @@
         display: none
       }
 
-      #sol-backdrop {
-        display: block;
-        position: fixed;
-        inset: 0;
-        z-index: 19;
-        background: rgba(26, 33, 36, .35);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .2s ease;
-      }
-
-      #sol-backdrop.visible {
-        opacity: 1;
-        pointer-events: auto
-      }
-
+      /* Sin velo, a diferencia de #filtros/#pisos: con el sol abierto lo que
+       se mira es la escena (luz y sombras), así que no se oscurece y se
+       puede seguir girando el edificio por encima de la hoja. Tocar el
+       edificio sin arrastrar cierra la hoja (ver activarSol en el script).
+       z-index 20 como #filtros/#pisos, por encima de la barra inferior.
+       (Antes quedaba con el 11 de desktop, debajo del velo que tenía, y el
+       velo se comía todos los toques: el slider no se movía y "Hoy"
+       cerraba la hoja.) */
       #sol {
         position: fixed;
+        z-index: 20;
         left: 0;
         right: 0;
         bottom: 0;
@@ -3531,7 +3523,6 @@
   <!-- Simulador solar: apagado por default (ver CSS #sol/#sol-trigger).
      Abrir el panel prende la simulación, cerrarlo la apaga — no hay un
      interruptor separado del panel mismo. -->
-  <div id="sol-backdrop"></div>
   <div id="sol" role="dialog" aria-label="Simulador solar">
     <div class="sol-cabeza">
       <p class="p-eyebrow">Simulador solar</p>
@@ -6044,14 +6035,13 @@
 
       const solTrigger = document.getElementById('sol-trigger');
       const solPanel = document.getElementById('sol');
-      const solBackdrop = document.getElementById('sol-backdrop');
+      const solEsHoja = matchMedia('(max-width:860px)');
 
       function activarSol(on) {
         solActivo = on;
         solTrigger.setAttribute('aria-pressed', String(on));
         solTrigger.setAttribute('aria-expanded', String(on));
         solPanel.classList.toggle('abierto', on);
-        solBackdrop.classList.toggle('visible', on);
         if (on) {
           aplicarSol(fechaSol, Number(sliderHoraSol.value));
         } else {
@@ -6065,7 +6055,20 @@
       }
       solTrigger.addEventListener('click', () => activarSol(!solActivo));
       document.getElementById('sol-cerrar').addEventListener('click', () => activarSol(false));
-      solBackdrop.addEventListener('click', () => activarSol(false));
+
+      // Mobile: la hoja del sol no tiene velo (ver CSS), así que arrastrar
+      // sobre el edificio lo sigue girando con la hoja abierta. Un toque
+      // sin arrastre hace lo que hacía el velo: cierra la hoja, y no llega
+      // al click del lienzo (no abre además la tarjeta de una unidad).
+      // Registrado antes que ese click, así corre primero.
+      let inicioToqueSol = null;
+      lienzo.addEventListener('pointerdown', e => { inicioToqueSol = { x: e.clientX, y: e.clientY }; });
+      lienzo.addEventListener('click', e => {
+        if (!solActivo || !solEsHoja.matches || !inicioToqueSol) return;
+        if (Math.hypot(e.clientX - inicioToqueSol.x, e.clientY - inicioToqueSol.y) > 8) return;
+        e.stopImmediatePropagation();
+        activarSol(false);
+      });
 
       if (tieneNorte()) {
         solTrigger.hidden = false;
