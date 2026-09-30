@@ -156,6 +156,12 @@
     color:#fff;font:inherit;font-size:12.5px;cursor:pointer}
   .barra-lote button:disabled{opacity:.5;cursor:default}
   .col-check{width:28px}
+  .form-tipologia-nueva select{padding:9px 10px;border:1px solid var(--linea);border-radius:4px;
+    font:inherit;background:#fff;color:var(--tinta)}
+  .form-tipologia-nueva button:disabled{opacity:.6;cursor:default}
+  #acceso-error{color:#B3413A;font-size:12.5px;margin:8px 0 0}
+  #acceso-ok{color:var(--verde);font-size:12.5px;margin:8px 0 0}
+  .btn-borrar:disabled{opacity:.35;cursor:default;color:var(--suave);border-color:var(--linea)}
 </style>
 </head>
 <body>
@@ -203,6 +209,7 @@
     <button class="tab" role="tab" aria-selected="false" data-tab="imagenes" type="button">Imágenes</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="avance" type="button">Avance de obra</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="redes" type="button">Redes</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="accesos" type="button" hidden>Accesos</button>
   </div>
 
   <section id="panel-unidades">
@@ -378,6 +385,35 @@
       <button type="submit">Guardar</button>
     </form>
   </section>
+
+  <section id="panel-accesos" hidden>
+    <p class="sub" style="margin:0 0 12px">
+      Quién puede entrar a este panel para este proyecto. El usuario tiene que estar creado antes
+      en Supabase (Authentication → Users); acá solo se le da acceso.
+    </p>
+    <form id="form-acceso-nuevo" class="form-tipologia-nueva" style="margin:0">
+      <input id="nuevo-acceso-email" class="campo-nombre" type="email" placeholder="Email del usuario" required>
+      <select id="nuevo-acceso-rol" title="Rol">
+        <option value="vendedor">Vendedor</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button type="submit">Agregar</button>
+    </form>
+    <p class="sub" style="margin:8px 0 0">
+      <b>Vendedor:</b> solo cambia el estado de las unidades. <b>Admin:</b> además edita amenities,
+      tipologías, imágenes, avance de obra y redes, y administra estos accesos.
+    </p>
+    <p id="acceso-error" hidden></p>
+    <p id="acceso-ok" hidden></p>
+
+    <div id="cargando-accesos" style="padding:20px 0;color:var(--suave)">Cargando accesos…</div>
+    <div class="tabla-envoltorio" style="margin-top:16px">
+      <table id="tabla-accesos" hidden>
+        <thead><tr><th>Email</th><th>Rol</th><th>Alta</th><th></th></tr></thead>
+        <tbody id="filas-accesos"></tbody>
+      </table>
+    </div>
+  </section>
 </main>
 </div>
 
@@ -393,6 +429,10 @@ const ESTADOS = {
 
 let PROYECTO_ACTUAL = null;
 let MIEMBROS_ACTUALES = {};
+// Solo decide si se MUESTRA la pestaña Accesos. La seguridad real está en
+// supabase-migration-accesos.sql (RPC + policies), no acá.
+let ES_PLATAFORMA = false;
+let PUEDE_ADMINISTRAR_ACCESOS = false;
 let TIPOLOGIAS_ACTUALES = [];
 let UNIDADES_ACTUALES = [];
 
@@ -411,6 +451,7 @@ async function mostrarApp(){
 // selector si tiene más de uno (ej. un vendedor de dos edificios).
 async function elegirProyecto(){
   const { data: esPlataforma } = await sb.rpc('es_admin_plataforma');
+  ES_PLATAFORMA = !!esPlataforma;
   let proyectos = [];
 
   if (esPlataforma){
@@ -456,12 +497,26 @@ async function cargarProyectoActual(p){
   document.getElementById('titulo-doc').textContent = p.nombre + ' · panel interno';
   document.getElementById('main-app').hidden = false;
 
-  const { data: miembros } = await sb.rpc('miembros_proyecto', { p_project_id: p.id });
+  const [{ data: miembros }, { data: esAdminProyecto }] = await Promise.all([
+    sb.rpc('miembros_proyecto', { p_project_id: p.id }),
+    ES_PLATAFORMA ? Promise.resolve({ data: true }) : sb.rpc('es_admin_proyecto', { p_project_id: p.id }),
+  ]);
   MIEMBROS_ACTUALES = Object.fromEntries((miembros || []).map(m => [m.user_id, m]));
+
+  // Accesos: plataforma en todos los proyectos, admin de proyecto en los
+  // suyos, vendedor nunca. Si estaba en esa pestaña y cambió a un proyecto
+  // donde es vendedor, vuelve a Unidades.
+  PUEDE_ADMINISTRAR_ACCESOS = ES_PLATAFORMA || !!esAdminProyecto;
+  const tabAccesos = document.querySelector('.tab[data-tab="accesos"]');
+  tabAccesos.hidden = !PUEDE_ADMINISTRAR_ACCESOS;
 
   demandaCargada = false;
   redesCargadas = false;
   TIPOLOGIAS_ACTUALES = [];
+  if (!PUEDE_ADMINISTRAR_ACCESOS && tabAccesos.getAttribute('aria-selected') === 'true'){
+    document.querySelector('.tab[data-tab="unidades"]').click();
+    return;
+  }
   cargarTab(document.querySelector('.tab[aria-selected="true"]').dataset.tab);
 }
 
@@ -473,6 +528,7 @@ function cargarTab(tab){
   if (tab === 'imagenes') cargarImagenes();
   if (tab === 'avance') cargarAvance();
   if (tab === 'redes') cargarRedes();
+  if (tab === 'accesos') cargarAccesos();
 }
 
 function mostrarLogin(){
@@ -517,6 +573,7 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.getElementById('panel-imagenes').hidden = t.dataset.tab !== 'imagenes';
   document.getElementById('panel-avance').hidden = t.dataset.tab !== 'avance';
   document.getElementById('panel-redes').hidden = t.dataset.tab !== 'redes';
+  document.getElementById('panel-accesos').hidden = t.dataset.tab !== 'accesos';
   cargarTab(t.dataset.tab);
 }));
 
@@ -926,6 +983,132 @@ document.getElementById('form-amenity-nuevo').addEventListener('submit', async (
   if (error){ alert('No se pudo agregar: ' + error.message); return; }
   input.value = '';
   cargarAmenities();
+});
+
+// Accesos (memberships). Todo pasa por supabase-migration-accesos.sql:
+// listar y agregar son RPC security definer (auth.users no se lee desde el
+// cliente); cambiar rol y quitar son update/delete directos, gateados por
+// las policies de memberships. Esas policies filtran en silencio (0 filas,
+// sin error), por eso cada escritura pide .select() y chequea que haya
+// vuelto la fila.
+const ROLES = { admin:'Admin', vendedor:'Vendedor' };
+
+async function cargarAccesos(){
+  const { data, error } = await sb.rpc('accesos_miembros', { p_project_id: PROYECTO_ACTUAL.id });
+  document.getElementById('cargando-accesos').hidden = true;
+  if (error){ alert('No se pudieron cargar los accesos: ' + error.message); return; }
+  pintarAccesos(data || []);
+}
+
+function pintarAccesos(lista){
+  const tbody = document.getElementById('filas-accesos');
+  tbody.innerHTML = '';
+  if (!lista.length){
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 4; td.className = 'sub';
+    td.textContent = 'Todavía no hay nadie con acceso a este proyecto.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+  lista.forEach(m => {
+    const tr = document.createElement('tr');
+
+    const tdEmail = document.createElement('td');
+    tdEmail.textContent = m.email;
+    if (m.es_yo){
+      const vos = document.createElement('span');
+      vos.className = 'modificado'; vos.textContent = ' (vos)';
+      tdEmail.appendChild(vos);
+    }
+    tr.appendChild(tdEmail);
+
+    // Tu propia fila queda bloqueada: la policy igual lo rechazaría
+    // (user_id <> auth.uid()), esto solo evita el intento.
+    const tdRol = document.createElement('td');
+    const select = document.createElement('select');
+    select.className = 'select-estado';
+    select.innerHTML = Object.entries(ROLES).map(([v, n]) => '<option value="' + v + '">' + n + '</option>').join('');
+    select.value = m.rol;
+    select.disabled = m.es_yo;
+    if (m.es_yo) select.title = 'No podés cambiar tu propio rol';
+    select.addEventListener('change', () => cambiarRolAcceso(m, select));
+    tdRol.appendChild(select);
+    tr.appendChild(tdRol);
+
+    const tdAlta = document.createElement('td');
+    tdAlta.className = 'modificado';
+    tdAlta.textContent = m.creado_en
+      ? new Date(m.creado_en).toLocaleDateString(PROYECTO_ACTUAL.locale || 'es-UY', { day:'numeric', month:'short', year:'numeric' })
+      : '—';
+    tr.appendChild(tdAlta);
+
+    const tdQuitar = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'btn-borrar'; btn.textContent = 'Quitar';
+    btn.disabled = m.es_yo;
+    if (m.es_yo) btn.title = 'No podés quitarte a vos mismo';
+    btn.addEventListener('click', () => quitarAcceso(m));
+    tdQuitar.appendChild(btn);
+    tr.appendChild(tdQuitar);
+
+    tbody.appendChild(tr);
+  });
+  document.getElementById('tabla-accesos').hidden = false;
+}
+
+async function cambiarRolAcceso(m, select){
+  const nuevo = select.value;
+  select.disabled = true;
+  const { data, error } = await sb.from('memberships').update({ rol: nuevo })
+    .eq('user_id', m.user_id).eq('project_id', PROYECTO_ACTUAL.id).select('rol');
+  select.disabled = false;
+  if (error || !data || !data.length){
+    alert('No se pudo cambiar el rol' + (error ? ': ' + error.message : ' (sin permiso).'));
+    select.value = m.rol;
+    return;
+  }
+  m.rol = nuevo;
+}
+
+async function quitarAcceso(m){
+  if (!confirm('¿Quitarle a ' + m.email + ' el acceso a ' + PROYECTO_ACTUAL.nombre + '?\n\nLa cuenta sigue existiendo en Supabase; solo deja de ver este proyecto.')) return;
+  const { data, error } = await sb.from('memberships').delete()
+    .eq('user_id', m.user_id).eq('project_id', PROYECTO_ACTUAL.id).select('user_id');
+  if (error || !data || !data.length){
+    alert('No se pudo quitar el acceso' + (error ? ': ' + error.message : ' (sin permiso).'));
+    return;
+  }
+  cargarAccesos();
+}
+
+document.getElementById('form-acceso-nuevo').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const btn = ev.target.querySelector('button');
+  const input = document.getElementById('nuevo-acceso-email');
+  const errorEl = document.getElementById('acceso-error');
+  const okEl = document.getElementById('acceso-ok');
+  errorEl.hidden = true; okEl.hidden = true;
+  const email = input.value.trim();
+  if (!email) return;
+  btn.disabled = true;
+  const rol = document.getElementById('nuevo-acceso-rol').value;
+  const { error } = await sb.rpc('accesos_agregar', {
+    p_project_id: PROYECTO_ACTUAL.id, p_email: email, p_rol: rol,
+  });
+  btn.disabled = false;
+  // Los mensajes de la RPC ya vienen en español y pensados para mostrarse
+  // tal cual ("Ese usuario todavía no está creado en Supabase", etc.).
+  if (error){
+    errorEl.textContent = error.message + (error.hint ? '. ' + error.hint : '');
+    errorEl.hidden = false;
+    return;
+  }
+  okEl.textContent = email + ' ahora tiene acceso como ' + ROLES[rol].toLowerCase() + '.';
+  okEl.hidden = false;
+  setTimeout(() => okEl.hidden = true, 3000);
+  input.value = '';
+  cargarAccesos();
 });
 
 // Imágenes: reordenar/borrar/subir, compartido entre la galería de renders

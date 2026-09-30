@@ -107,7 +107,7 @@ Cada archivo es idempotente o tiene guardas. Orden histórico: `schema` → `aut
 `estados` → `settings` → `cochera-terraza` → `precios-ingar` → `multitenant` (tiene su
 `-rollback`) → `media-storage` → `typology-media` → `altamira-piso5-numeracion` → `solar`
 → `financiacion` → **`avance-obra` (tiene que correr después de `financiacion`)** →
-`lista-espera` → `pisos` → `precio-opcional`. Migraciones nuevas: archivo nuevo
+`lista-espera` → `pisos` → `precio-opcional` → `accesos`. Migraciones nuevas: archivo nuevo
 `supabase-migration-<tema>.sql`, comentario de cabecera en español explicando el porqué,
 idempotente (`if not exists`, `drop policy if exists`, `on conflict`), puramente aditiva
 cuando se pueda (un proyecto sin el dato nuevo tiene que verse exactamente igual que
@@ -245,6 +245,11 @@ tiene uno solo). Pestañas:
   `categoria`; `'estructura'` + `piso` vincula un hito con los pisos del 3D), fotos con
   fecha (`obra_fotos`, fecha leída del EXIF cuando existe).
 - **Redes** — redes sociales / WhatsApp en `settings`.
+- **Accesos** — solo admin de plataforma o de proyecto (`es_admin_proyecto()`): lista
+  miembros (`rpc accesos_miembros`), agrega por email a un usuario que ya existe en Auth
+  (`rpc accesos_agregar`), cambia rol y quita vía update/delete directo sobre
+  `memberships`. Nadie modifica su propio acceso (policy `user_id <> auth.uid()`).
+  Crear usuarios no está: necesita service_role (futura Edge Function).
 
 Todavía no editable desde el admin (se carga directo en Supabase): `geometria`,
 `lat`/`lon`, `tiene_pb`, `settings.financiacion`, `fecha_ocupacion`, `publicado`.
