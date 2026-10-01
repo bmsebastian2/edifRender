@@ -424,6 +424,11 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .aviso-item-txt {
+      font-weight: 500;
+      color: var(--suave);
+    }
+
     .aviso-item .punto {
       width: 7px;
       height: 7px;
@@ -2379,21 +2384,20 @@
       /* Ficha: en mobile una tarjeta de 300px tapa medio edificio. Queda
        plegada a una píldora con la leyenda de disponibilidad (puntos +
        cifras, el nombre del estado va en aria-label) y se despliega a
-       pedido; el edificio manda (ver CLAUDE.md). */
+       pedido; el edificio manda (ver CLAUDE.md). #ficha es solo el ancla:
+       la píldora (#ficha-toggle) y la tarjeta desplegada (#ficha-cuerpo)
+       son dos superficies separadas, así abrir no cambia el tamaño de la
+       píldora y la tarjeta flota debajo con su propio ancho. */
       #ficha {
+        position: relative;
         width: max-content;
         max-width: calc(100% - 28px);
         margin: 10px 0 0 14px;
         padding: 0;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, .9);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-      }
-
-      #ficha.abierta {
-        width: calc(100% - 28px);
-        background: #fff;
+        border: none;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
       }
 
       #ficha-toggle {
@@ -2401,10 +2405,15 @@
         align-items: center;
         gap: 10px;
         width: 100%;
-        min-height: 36px;
+        /* 36px + el borde que antes tenía #ficha: misma píldora de siempre. */
+        min-height: 38px;
         padding: 8px 12px;
-        border: none;
-        background: none;
+        border: 1px solid var(--linea);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, .9);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: var(--sombra);
         cursor: pointer;
         font-size: 12.5px;
         font-weight: 600;
@@ -2428,13 +2437,48 @@
         transform: rotate(180deg)
       }
 
+      /* Tarjeta desplegada: apoyada debajo de la píldora, alineada a su
+       borde izquierdo y con el ancho de su contenido (nunca menos que la
+       píldora, nunca más de 280px). La leyenda ya está completa en la
+       píldora: la tarjeta trae solo los datos del proyecto. */
       #ficha-cuerpo {
-        display: none;
-        padding: 2px 14px 14px;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        width: max-content;
+        min-width: 100%;
+        max-width: min(280px, calc(100vw - 28px));
+        padding: 12px 14px 13px;
+        border: 1px solid var(--linea);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, .9);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: var(--sombra);
+        transform-origin: top left;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-4px) scale(.98);
+        transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
       }
 
       #ficha.abierta #ficha-cuerpo {
-        display: block
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        transition: opacity .18s ease, transform .18s ease;
+      }
+
+      #ficha-cuerpo #aviso {
+        display: none
+      }
+
+      .cb-direccion[hidden]+.cb-datos {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
       }
 
       /* Los divisores verticales entre pisos/unidades/entrega asumen que las
@@ -3758,10 +3802,12 @@
       // comunicaba lo contrario a lo que se quiere vender). sin_dato NO va
       // tenue: en ROSSO son 64 de 78 unidades y el edificio quedaría
       // fantasma — es un gris neutro que sigue leyéndose como volumen.
-      disponible: { nombre: 'Disponible', color: '#2B6656', opacidad: 0.94 },
-      reservado: { nombre: 'Reservada', color: '#D2A24C', opacidad: 0.86 },
-      vendido: { nombre: 'Vendida', color: '#B9BEBC', opacidad: 0.34 },
-      sin_dato: { nombre: 'Sin estado público', color: '#9AA19E', opacidad: 0.62 },
+      // plural / singular: la etiqueta corta de la píldora de mobile ("13
+      // disponibles"); sin singular se usa el nombre en minúscula.
+      disponible: { nombre: 'Disponible', plural: 'disponibles', color: '#2B6656', opacidad: 0.94 },
+      reservado: { nombre: 'Reservada', plural: 'reservadas', color: '#D2A24C', opacidad: 0.86 },
+      vendido: { nombre: 'Vendida', plural: 'vendidas', color: '#B9BEBC', opacidad: 0.34 },
+      sin_dato: { nombre: 'Sin estado público', plural: 'a consultar', singular: 'a consultar', color: '#9AA19E', opacidad: 0.62 },
     };
     // Estado de PRESENTACIÓN, no de datos: las unidades que el desarrollador
     // ofrece solo en alquiler se cargan como estado = 'sin_dato' +
@@ -3769,7 +3815,7 @@
     // pintan como oferta vigente, en un verde más claro que el de venta. El
     // filtro sigue trabajando sobre u.estado (pasa(u) no cambia). Sin
     // geom.operacion (ROSSO, Altamira) esto nunca aplica.
-    const ALQUILER = { nombre: 'En alquiler', color: '#86AC9F', opacidad: 0.86 };
+    const ALQUILER = { nombre: 'En alquiler', plural: 'en alquiler', color: '#86AC9F', opacidad: 0.86 };
     function esAlquiler(u) {
       return u.estado === 'sin_dato' && !!u.geom && u.geom.operacion === 'alquiler';
     }
@@ -4469,14 +4515,25 @@
       document.getElementById('cb-direccion').hidden = !direccionTxt;
       document.getElementById('cb-direccion-txt').textContent = direccionTxt;
 
-      // Ficha en mobile: plegada a la leyenda; se despliega a pedido.
+      // Ficha en mobile: plegada a la leyenda; se despliega a pedido. Se
+      // cierra tocando la píldora de nuevo, tocando fuera o con Escape.
       const ficha = document.getElementById('ficha');
       const fichaToggle = document.getElementById('ficha-toggle');
+      function cerrarFicha() {
+        ficha.classList.remove('abierta');
+        fichaToggle.setAttribute('aria-expanded', 'false');
+      }
       fichaToggle.addEventListener('click', () => {
         const abierta = !ficha.classList.contains('abierta');
         ficha.classList.toggle('abierta', abierta);
         fichaToggle.setAttribute('aria-expanded', abierta);
       });
+      // En fase de captura: ningún stopPropagation del lienzo o de las hojas
+      // puede impedir que se cierre.
+      document.addEventListener('pointerdown', e => {
+        if (ficha.classList.contains('abierta') && !ficha.contains(e.target)) cerrarFicha();
+      }, true);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarFicha(); });
 
       // Cada celda depende solo de su propio dato — si falta, se saca junto
       // con el divisor de al lado, nunca queda un guion ni una línea
@@ -4511,15 +4568,44 @@
       document.getElementById('cb-div-1').hidden = !(hayPisos && (hayUnidades || hayEntrega));
       document.getElementById('cb-div-2').hidden = !(hayUnidades && hayEntrega);
       document.getElementById('cb-datos').hidden = !(hayPisos || hayUnidades || hayEntrega);
+      // Mobile: la tarjeta desplegada trae solo dirección + datos (la leyenda
+      // va en la píldora). Sin nada de eso no hay qué desplegar.
+      if (!direccionTxt && !(hayPisos || hayUnidades || hayEntrega) && proyecto.muestra_totales) {
+        fichaToggle.disabled = true;
+        fichaToggle.querySelector('.chev').style.display = 'none';
+      }
+      // Mobile: arranca desplegada para que quien entra por primera vez vea de
+      // qué se trata; se pliega sola al primer toque fuera (el mismo cierre de
+      // siempre), como el giro automático. Con ?u= no: ahí manda la unidad.
+      if (matchMedia('(max-width: 860px)').matches && !fichaToggle.disabled &&
+        !new URLSearchParams(location.search).has('u')) {
+        ficha.classList.add('abierta');
+        fichaToggle.setAttribute('aria-expanded', 'true');
+      }
 
       // Disponibilidad: contada en vivo por aspectoDe(u) (así "En alquiler"
       // aparece como tal en BRUSCO). Solo los estados con unidades: un
       // "Vendida 0" en un edificio que no publica vendidas es ruido. Los
       // nombres y colores son constantes del código, no datos — por eso
-      // innerHTML es seguro acá.
+      // innerHTML es seguro acá. Si conviven venta y alquiler, "Disponible"
+      // al lado de "En alquiler" se lee como si lo alquilable no estuviera
+      // disponible: se nombra por operación ("En venta") — solo en la
+      // leyenda; ROSSO y Altamira, sin alquiler, siguen diciendo "Disponible".
+      // En la píldora de mobile cada cifra lleva su etiqueta corta en vez de
+      // un punto solo: quien entra por primera vez entiende sin tocar nada.
       if (proyecto.muestra_totales) {
+        const hayAlquiler = UNIDADES.some(esAlquiler);
         const conteos = [ESTADOS.disponible, ALQUILER, ESTADOS.reservado, ESTADOS.vendido, ESTADOS.sin_dato]
-          .map(e => ({ nombre: e.nombre, color: e.color, cantidad: UNIDADES.filter(u => aspectoDe(u) === e).length }))
+          .map(e => {
+            const venta = e === ESTADOS.disponible && hayAlquiler;
+            const cantidad = UNIDADES.filter(u => aspectoDe(u) === e).length;
+            return {
+              nombre: venta ? 'En venta' : e.nombre,
+              corto: venta ? 'en venta' : cantidad === 1 ? (e.singular || e.nombre.toLowerCase()) : e.plural,
+              color: e.color,
+              cantidad
+            };
+          })
           .filter(e => e.cantidad > 0);
         document.getElementById('aviso').innerHTML =
           '<div class="aviso-barra">' + conteos.map(e =>
@@ -4531,7 +4617,8 @@
           ).join('') + '</div>';
         document.getElementById('ficha-resumen').innerHTML = conteos.map(e =>
           '<span class="aviso-item" aria-label="' + e.nombre + ': ' + e.cantidad + ' unidades">' +
-          '<span class="punto" style="background:' + e.color + '"></span>' + e.cantidad + '</span>'
+          '<span class="punto" style="background:' + e.color + '"></span>' + e.cantidad +
+          '<span class="aviso-item-txt">' + e.corto + '</span></span>'
         ).join('');
       } else {
         document.getElementById('aviso').hidden = true;
@@ -6535,10 +6622,7 @@
 
       // Mobile: nunca dos capas abiertas a la vez — abrir Filtros o Pisos
       // pliega la ficha.
-      [pisosTrigger, filtrosTrigger].forEach(t => t.addEventListener('click', () => {
-        ficha.classList.remove('abierta');
-        fichaToggle.setAttribute('aria-expanded', 'false');
-      }));
+      [pisosTrigger, filtrosTrigger].forEach(t => t.addEventListener('click', cerrarFicha));
       fichaToggle.addEventListener('click', () => { cerrarHoja(); cerrarFiltros(); });
 
       /* ============================================================
