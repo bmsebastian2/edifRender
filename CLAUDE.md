@@ -146,7 +146,9 @@ El script está organizado en secciones numeradas:
    su unidad). Los meshes de unidades viven en `cajas`.
 4. **CÁMARA** — cámara orbital (`theta`/`phi`/`radio`), vista inicial desde el frente
    del edificio, radio escalado según la altura del edificio y el aspecto de la
-   pantalla; rotación automática lenta hasta el primer toque. Los controles del
+   pantalla; rotación automática lenta (una vuelta cada 80 s) desde el arranque, que se
+   corta con cualquier interacción y vuelve tras `INACTIVIDAD_MS` (6 s) sin actividad,
+   salvo con un panel, hoja, tarjeta o piso aislado abierto (`puedeGirar()`). Los controles del
    simulador solar también viven acá.
 5. **INTERACCIÓN** — hover (tooltip con resumen + emissive) y click (`abrir(u)`). Los
    filtros (chips de dormitorios armados desde los datos, chips de estado, torre, aislar

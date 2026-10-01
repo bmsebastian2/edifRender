@@ -6063,7 +6063,7 @@
          Arranca como si la inactividad ya se hubiera cumplido: es el giro de
          bienvenida de siempre. giroForzado = el botón de la toolbar ("girar
          ahora"), que no espera la inactividad. Ver puedeGirar() en el BUCLE. */
-      const INACTIVIDAD_MS = 20000, VEL_GIRO = 2 * Math.PI / 80, RAMPA_GIRO_S = 2.5;
+      const INACTIVIDAD_MS = 6000, VEL_GIRO = 2 * Math.PI / 80, RAMPA_GIRO_S = 2.5;
       let ultimaActividad = performance.now() - INACTIVIDAD_MS, giroForzado = false, rampaGiro = 0;
       function registrarActividad() {
         ultimaActividad = performance.now();
@@ -6078,11 +6078,8 @@
       ['pointerdown', 'wheel', 'keydown'].forEach(tipo =>
         document.addEventListener(tipo, e => { if (!esBotonGiro(e)) registrarActividad(); },
           { capture: true, passive: true }));
-      // Mover el mouse sin apretar solo reinicia el contador (no corta el
-      // giro pedido con el botón): así no arranca mientras alguien lee.
-      document.addEventListener('pointermove', e => {
-        if (e.pointerType === 'mouse') ultimaActividad = performance.now();
-      }, { capture: true, passive: true });
+      // Mover el mouse sin apretar no cuenta como actividad: ni corta el
+      // giro ni atrasa que vuelva.
       // Al ocultar y al volver a la pestaña: corta y el contador arranca de cero.
       document.addEventListener('visibilitychange', registrarActividad);
 
@@ -7489,18 +7486,22 @@
          6. BUCLE
          ============================================================ */
 
-      // Giro automático (ver INACTIVIDAD_MS): nunca con la pestaña oculta ni
-      // con el tooltip abierto. El de inactividad además respeta
-      // prefers-reduced-motion y se frena con cualquier panel, hoja, tarjeta
-      // o piso aislado; el pedido con el botón es explícito y solo se corta
-      // con una interacción. La ficha mobile no frena: arranca desplegada y
-      // se llevaría el giro de bienvenida.
+      // Giro automático (ver INACTIVIDAD_MS): nunca con la pestaña oculta.
+      // Pasar el mouse por encima (hover/tooltip) no lo frena: el hover se
+      // recalcula en cada cuadro, así que sigue a lo que quede bajo el
+      // cursor mientras gira. El de inactividad además se frena con
+      // cualquier panel, hoja, tarjeta o piso aislado; el pedido con el botón
+      // es explícito y solo se corta con una interacción. La ficha mobile no
+      // frena: arranca desplegada y se llevaría el giro de bienvenida. No
+      // respeta prefers-reduced-motion a propósito: es un giro muy lento
+      // (una vuelta cada 80 s) y con esa preferencia prendida (común en
+      // Windows/Android) el edificio no giraba nunca.
       const modalRenders = document.getElementById('renders-modal');
       const modalAvance = document.getElementById('avance-modal');
       function puedeGirar(ahora) {
-        if (document.hidden || sobre || sobreCalle) return false;
+        if (document.hidden) return false;
         if (giroForzado) return true;
-        return !REDUCIR_MOVIMIENTO && ahora - ultimaActividad >= INACTIVIDAD_MS &&
+        return ahora - ultimaActividad >= INACTIVIDAD_MS &&
           !elegida && !cajaTarjeta && pisoAislado === null &&
           !riel.classList.contains('abierto') && !filtrosEl.classList.contains('abierto') &&
           !filtrosEl.classList.contains('pop') && !solPanel.classList.contains('abierto') &&
