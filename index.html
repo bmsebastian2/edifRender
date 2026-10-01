@@ -535,6 +535,30 @@
       background: var(--fondo)
     }
 
+    /* Identidad de la barra: los grupos de filtro van en versalitas con
+       aire (como los títulos de grupo de #filtros), separados por un trazo
+       casi imperceptible en vez de cajas. */
+    .fb-drop {
+      position: relative;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    .fb-drop:not([hidden])~.fb-drop:not([hidden])::before {
+      content: "";
+      position: absolute;
+      left: -2px;
+      top: 50%;
+      width: 1px;
+      height: 12px;
+      margin-top: -6px;
+      background: var(--linea);
+      opacity: .7;
+      pointer-events: none;
+    }
+
     .fb-drop .chev {
       color: var(--suave);
       transition: transform .2s ease;
@@ -578,29 +602,63 @@
       display: none
     }
 
+    /* Restablecer solo existe cuando hay algo que restablecer (ver
+       actualizarBadgeFiltros()); aparece con un fundido corto. */
     .fb-reset {
-      color: var(--suave);
+      color: var(--verde);
       font-weight: 500;
+      animation: fb-aparece .2s ease;
     }
 
-    .fb-reset:disabled {
-      opacity: .4;
-      cursor: default;
+    .fb-reset[hidden] {
+      display: none
+    }
+
+    @keyframes fb-aparece {
+      from {
+        opacity: 0;
+        transform: translateX(-4px)
+      }
     }
 
     .fb-sep {
       flex: none;
       width: 1px;
       height: 20px;
-      margin: 0 4px;
+      margin: 0 6px;
       background: var(--linea);
+      opacity: .7;
     }
 
-    #renders-trigger,
     #avance-trigger,
     #sol-trigger {
       color: var(--suave);
       font-weight: 500;
+    }
+
+    /* Ver renders: la acción destacada de la barra (solo desktop; en mobile
+       es un ícono blanco más, ver la media query de 860px). */
+    @media (min-width:861px) {
+      #renders-trigger {
+        background: var(--verde);
+        color: #fff;
+        font-weight: 600;
+      }
+
+      #renders-trigger:hover {
+        background: #1E4A3F
+      }
+    }
+
+    /* Sol: control secundario, solo ícono (el nombre va en title). */
+    #sol-trigger {
+      width: 36px;
+      padding: 0;
+      justify-content: center;
+    }
+
+    #sol-trigger span {
+      display: none
     }
 
     #renders-trigger svg,
@@ -617,12 +675,14 @@
     /* Ventana angosta de desktop/tablet: los accesos quedan solo con ícono. */
     @media (max-width:1180px) {
 
+      .fb-drops .fb-reset span,
       #renders-trigger span,
       #avance-trigger span,
       #sol-trigger span {
         display: none
       }
 
+      .fb-drops .fb-reset,
       #renders-trigger,
       #avance-trigger,
       #sol-trigger {
@@ -3630,12 +3690,12 @@
             stroke-linejoin="round" />
         </svg>
       </button>
-      <button class="fb-reset" type="button" disabled>
+      <button class="fb-reset" type="button" hidden title="Restablecer filtros">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />
         </svg>
-        <span>Restablecer</span>
+        <span>Restablecer filtros</span>
       </button>
       <span class="fb-sep" aria-hidden="true"></span>
     </div>
@@ -3683,7 +3743,7 @@
     <!-- Oculto hasta que iniciar() confirme lat/lon/norte_grados (ver
        tieneNorte() y CLAUDE.md) — sin esos tres datos el simulador no
        aparece, nunca se muestra con un sol inventado. -->
-    <button id="sol-trigger" type="button" hidden aria-pressed="false" aria-expanded="false" aria-controls="sol">
+    <button id="sol-trigger" type="button" hidden title="Simulador solar" aria-pressed="false" aria-expanded="false" aria-controls="sol">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="4.2" />
@@ -3699,7 +3759,7 @@
   <div id="filtros" role="group" aria-label="Filtros">
     <div class="ft-cabeza">
       <p id="ft-resumen" aria-live="polite"></p>
-      <button class="fb-reset fb-reset-hoja" type="button" disabled>
+      <button class="fb-reset fb-reset-hoja" type="button" hidden>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />
@@ -6681,7 +6741,7 @@
           b.classList.toggle('filtrado', !!n);
         });
         const hayAlgo = excluidos > 0 || pisoAislado !== null || separado || verSoloConstruido;
-        document.querySelectorAll('.fb-reset').forEach(b => b.disabled = !hayAlgo);
+        document.querySelectorAll('.fb-reset').forEach(b => b.hidden = !hayAlgo);
       }
 
       // Restablecer: vuelve todo a la vista inicial reusando los mismos
