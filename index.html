@@ -1022,6 +1022,11 @@
       display: block
     }
 
+    /* Versión de una línea, solo mobile (ver media query). */
+    #piso-info .pi-corto {
+      display: none
+    }
+
     .piso-obra-aviso {
       color: var(--suave);
       font-style: italic
@@ -2790,120 +2795,115 @@
         transform: rotate(180deg)
       }
 
+      /* Riel de pisos en mobile: columna angosta y translúcida a la
+       derecha, como el de desktop (el tablero de un ascensor: el piso más
+       alto arriba). Sin velo: elegir un piso es una tarea espacial y el
+       edificio tiene que verse mientras se elige. Elegir no lo cierra — se
+       recorre piso por piso con un toque cada uno. Se cierra con el botón,
+       con un toque sin arrastre sobre el lienzo o con Escape. (Antes era una
+       hoja de 2/3 de pantalla con velo: tapaba justo lo que se elegía.)
+       Arranca debajo de la píldora de la ficha y termina antes de la
+       brújula; con muchos pisos hace scroll adentro. */
       #pisos-backdrop {
-        display: block;
-        position: fixed;
-        inset: 0;
-        z-index: 19;
-        background: rgba(26, 33, 36, .35);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .2s ease;
-      }
-
-      #pisos-backdrop.visible {
-        opacity: 1;
-        pointer-events: auto
+        display: none
       }
 
       #pisos {
         position: fixed;
-        top: auto;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        transform: translateY(100%);
+        top: calc(var(--alto-barra) + 56px);
+        right: 10px;
+        bottom: auto;
+        left: auto;
         z-index: 20;
-        width: auto;
-        max-height: min(72vh, 560px);
+        width: 60px;
+        max-height: calc(100vh - var(--alto-barra) - 56px - 128px - env(safe-area-inset-bottom));
         display: flex;
         flex-direction: column;
-        background: #fff;
-        border: none;
-        border-top: 1px solid var(--linea);
-        border-radius: 18px 18px 0 0;
-        box-shadow: 0 -10px 30px rgba(20, 26, 28, .16);
-        padding-top: 18px;
-        padding-bottom: 0;
-        transition: transform .28s cubic-bezier(.22, .61, .36, 1);
+        padding: 8px 0 4px;
+        background: rgba(255, 255, 255, .72);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--linea);
+        border-radius: 16px;
+        box-shadow: var(--sombra);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateX(8px);
+        transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
       }
 
       #pisos.abierto {
-        transform: translateY(0)
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        transition: opacity .18s ease, transform .18s ease;
       }
 
-      #pisos::before {
-        content: "";
-        position: absolute;
-        top: 8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 36px;
-        height: 4px;
-        border-radius: 2px;
-        background: var(--linea);
-      }
-
-      /* El plegado interno (#pisos-header) queda oculto en mobile: abrir/cerrar
-       la hoja entera ya cumple esa misma función desde #pisos-trigger, en el
-       header de arriba — un segundo control para lo mismo, adentro de la
-       hoja, sería redundante. Acá la marca queda como rótulo fijo, no
-       clickeable. */
       #pisos .pisos-marca {
-        padding: 0 18px 10px;
+        justify-content: center;
+        padding: 0 0 4px;
       }
 
+      #pisos .pisos-marca svg {
+        display: none
+      }
+
+      #pisos .pisos-marca span {
+        font-size: 9px
+      }
+
+      /* El plegado interno no existe en mobile: abrir/cerrar lo hace
+       #pisos-trigger desde la barra de abajo. */
       #pisos-header {
         display: none
       }
 
       #pisos-lista {
-        padding: 0 18px;
-        border-top: 1px solid var(--linea);
+        padding: 0;
+        border: none;
       }
 
-      /* Las flechas son para mouse; en la hoja se toca el piso directo. */
+      /* Las flechas son para mouse; en el riel se toca el piso directo. */
       .pisos-flecha {
         display: none
       }
 
       .pisos-fila {
-        width: 100%;
-        height: 44px;
-        margin: 2px 0;
-        border-radius: 12px;
-        font-size: 14px;
+        width: calc(100% - 8px);
+        height: 32px;
+        margin: 1px 4px;
+        padding-left: 9px;
+        border-radius: 9px;
       }
 
-      .pisos-fila {
-        padding-left: 18px;
-      }
-
-      /* En la hoja hay ancho: la cifra suelta se aclara ("disp." evita
-       el "1 disponibles"). */
       .pf-count {
-        right: 16px;
-        font-size: 11.5px;
+        right: 7px
       }
 
-      .pf-count::after {
-        content: " disp.";
-        font-weight: 500;
+      /* "Sin unidades" no entra en 60px: el número del nivel atenuado con
+       un guion, como un piso sin disponibles. */
+      .pisos-fila--amenities {
+        justify-content: flex-start;
+        padding-left: 9px;
+        font-size: 0;
       }
 
-      #pisos-lista {
-        padding-top: 6px;
-        border-bottom: 1px solid var(--linea);
+      .pisos-fila--amenities::before {
+        content: attr(data-piso) " \2013";
+        font-size: 13px;
       }
 
       #pisos-pb {
-        width: calc(100% - 36px);
-        margin: 4px 18px calc(16px + env(safe-area-inset-bottom));
+        width: calc(100% - 8px);
+        height: 32px;
+        margin: 4px 4px 0;
+        border-radius: 9px;
+        box-shadow: none;
       }
 
-      /* Tarjeta de info del piso: en desktop flota al lado del riel; acá
-       aparece en flujo normal debajo del botón que abre la hoja, solo si
-       hay piso elegido. */
+      /* Info del piso elegido: una sola línea debajo de la píldora, sin
+       llegar al riel (60px + márgenes). "N pisos por debajo" sobra: el riel
+       ya muestra dónde se está. */
       #piso-info {
         display: none
       }
@@ -2913,9 +2913,32 @@
         position: static;
         transform: none;
         opacity: 1;
-        max-width: none;
-        margin: 8px 14px 0;
-        padding: 10px 13px;
+        width: max-content;
+        max-width: calc(100% - 28px - 76px);
+        margin: 6px 14px 0;
+        padding: 7px 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .9);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        font-size: 12px;
+      }
+
+      #piso-info.visible> :not(.pi-corto) {
+        display: none
+      }
+
+      #piso-info .pi-corto {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #piso-info .pi-corto b {
+        display: inline;
+        margin: 0;
+        font-size: 12.5px;
       }
 
       #compartir-aviso {
@@ -6333,13 +6356,28 @@
       function actualizarInfoPiso() {
         if (pisoAislado === null) { infoPiso.classList.remove('visible'); return; }
         if (pisoAislado === 0) {
-          infoPiso.innerHTML = '<b>Planta baja</b><span>Ingreso al edificio · aún sin definir</span>';
+          infoPiso.innerHTML = '<b>Planta baja</b><span>Ingreso al edificio · aún sin definir</span>' +
+            '<span class="pi-corto"><b>Planta baja</b> · ingreso al edificio</span>';
           infoPiso.classList.add('visible');
           return;
         }
         const enPiso = UNIDADES.filter(u => u.piso === pisoAislado);
         const disponibles = enPiso.filter(u => u.estado === 'disponible').length;
         const sinConstruir = pisosConstruidos.size > 0 && !pisosConstruidos.has(pisoAislado);
+        // Mobile: todo en una línea ("Piso 10 · 9 de 16 disponibles · Torre A 10 · B 6").
+        let hayTorrePrevia = false;
+        const corto = '<b>Piso ' + pisoAislado + '</b>' +
+          (sinConstruir ? ' · sin construir' : '') + ' · ' +
+          (disponibles ? disponibles + ' de ' + enPiso.length + ' disponibles'
+            : enPiso.length + ' unidad' + (enPiso.length === 1 ? '' : 'es')) +
+          torresDisponibles
+            .map(t => [t, enPiso.filter(u => torreDe(u) === t).length])
+            .filter(([, n]) => n)
+            .map(([t, n]) => {
+              const nombre = t === 'Basamento' ? t : (hayTorrePrevia ? '' : 'Torre ') + t;
+              if (t !== 'Basamento') hayTorrePrevia = true;
+              return ' · ' + nombre + ' ' + n;
+            }).join('');
         infoPiso.innerHTML =
           '<b>Piso ' + pisoAislado + '</b>' +
           (sinConstruir ? '<span class="piso-obra-aviso">Todavía no construido</span>' : '') +
@@ -6354,7 +6392,8 @@
                 .filter(([, n]) => n)
                 .map(([t, n]) => (t === 'Basamento' ? t : 'Torre ' + t) + ': ' + n)
                 .join(' · ') + '</span>'
-            : '');
+            : '') +
+          '<span class="pi-corto">' + corto + '</span>';
         infoPiso.classList.add('visible');
       }
 
@@ -6380,6 +6419,18 @@
         riel.classList.contains('abierto') ? cerrarHoja() : abrirHoja();
       });
       pisosBackdrop.addEventListener('click', cerrarHoja);
+      // Mobile: el riel no tiene velo (ver CSS), así que arrastrar sobre el
+      // edificio lo sigue girando con el riel abierto. Un toque sin arrastre
+      // lo cierra y sigue de largo: si tocó una unidad del piso elegido, se
+      // abre su tarjeta en el mismo toque.
+      let inicioToquePisos = null;
+      lienzo.addEventListener('pointerdown', e => { inicioToquePisos = { x: e.clientX, y: e.clientY }; });
+      lienzo.addEventListener('click', e => {
+        if (!riel.classList.contains('abierto') || !inicioToquePisos) return;
+        if (Math.hypot(e.clientX - inicioToquePisos.x, e.clientY - inicioToquePisos.y) > 8) return;
+        cerrarHoja();
+      });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarHoja(); });
 
       // Mismo mecanismo de hoja que el riel de pisos, para Tipología/Estado/
       // Separar pisos: en desktop #filtros-trigger/#filtros-backdrop quedan
@@ -6514,6 +6565,7 @@
         b.className = 'pisos-fila';
         if (!tieneUnidades) {
           b.classList.add('pisos-fila--amenities');
+          b.dataset.piso = p;
           b.textContent = 'Sin unidades';
           b.disabled = true;
         } else {
@@ -6586,7 +6638,6 @@
           pisoAislado === null ? 'Pisos' : pisoAislado === 0 ? 'PB' : 'Piso ' + pisoAislado;
         actualizarInfoPiso();
         actualizarFlechasPiso();
-        cerrarHoja();
       }
 
       // Flechas del riel: "arriba" sin piso elegido arranca desde abajo (el
