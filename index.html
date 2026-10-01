@@ -673,6 +673,11 @@
       display: none
     }
 
+    /* Solo mobile (ver media query): resumen + Restablecer arriba de la hoja. */
+    .ft-cabeza {
+      display: none
+    }
+
     .grupo p {
       margin: 0 0 9px;
       font-size: 10.5px;
@@ -2683,82 +2688,219 @@
         background: var(--linea);
       }
 
+      /* Filtros en mobile: tarjeta flotante translúcida apoyada sobre la
+       barra de abajo, sin velo — lo que se filtra es el edificio, y tiene
+       que verse atenuarse en vivo detrás. Cada grupo es una barra
+       segmentada donde el ancho de cada opción es proporcional a cuántas
+       unidades tiene (--n, lo pone el script), y una línea fina debajo de
+       cada segmento, en el color del estado (--c), arma entre todas la
+       composición del edificio: apagar una opción apaga su tramo. Se cierra
+       con el mismo botón, con un toque sin arrastre sobre el lienzo o con
+       Escape. */
       #filtros-backdrop {
-        display: block;
-        position: fixed;
-        inset: 0;
-        z-index: 19;
-        background: rgba(26, 33, 36, .35);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .2s ease;
-      }
-
-      #filtros-backdrop.visible {
-        opacity: 1;
-        pointer-events: auto
+        display: none
       }
 
       #filtros {
         position: fixed;
         top: auto;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        transform: translateY(100%);
+        left: 14px;
+        right: 14px;
+        bottom: calc(14px + 46px + 8px + env(safe-area-inset-bottom));
         z-index: 20;
         width: auto;
         max-width: none;
-        max-height: min(70vh, 520px);
-        opacity: 1;
-        pointer-events: auto;
-        background: #fff;
-        border: none;
-        border-top: 1px solid var(--linea);
-        border-radius: 18px 18px 0 0;
-        box-shadow: 0 -10px 30px rgba(20, 26, 28, .16);
-        padding: 22px 18px calc(18px + env(safe-area-inset-bottom));
+        max-height: calc(100vh - var(--alto-barra) - 140px);
+        padding: 12px 12px 4px;
         overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
         overscroll-behavior: contain;
-        transition: transform .28s cubic-bezier(.22, .61, .36, 1);
+        /* Vidrio: deja ver el edificio atenuándose detrás. La legibilidad
+         la dan los segmentos (blancos casi opacos), no la tarjeta. */
+        background: rgba(255, 255, 255, .38);
+        backdrop-filter: blur(24px) saturate(1.5) brightness(1.08);
+        -webkit-backdrop-filter: blur(24px) saturate(1.5) brightness(1.08);
+        border: 1px solid var(--linea);
+        border-radius: 18px;
+        box-shadow: 0 14px 40px rgba(20, 40, 35, .18);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: auto;
+        transform: translateY(10px);
+        transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
       }
 
       #filtros.abierto {
-        transform: translateY(0)
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        transition: opacity .2s ease, transform .2s ease;
       }
 
       /* Por si quedó un left inline del popover de desktop (ventana que se
        achicó con el popover abierto). */
       #filtros[style] {
-        left: 0 !important
+        left: 14px !important
+      }
+
+      .ft-cabeza {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0 2px 10px;
+      }
+
+      #ft-resumen {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--suave);
+        font-variant-numeric: tabular-nums;
+      }
+
+      #ft-resumen b {
+        color: var(--tinta);
+        font-weight: 700;
+      }
+
+      .fb-reset-hoja {
+        display: inline-flex;
+        height: 28px;
+        padding: 0 2px;
+        font-size: 12px;
       }
 
       #filtros .grupo {
         display: block;
-        margin-bottom: 18px;
+        margin-bottom: 10px;
       }
 
       #filtros .grupo[hidden] {
         display: none
       }
 
-      .fb-reset-hoja {
-        display: inline-flex;
-        height: 36px;
-        padding: 0 4px;
+      #filtros .grupo p {
+        margin: 0 2px 5px;
+        font-size: 9.5px;
+        color: var(--suave);
       }
 
-      #filtros::before {
+      #filtros .fila {
+        flex-wrap: wrap;
+        gap: 2px;
+        padding: 2px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .28);
+      }
+
+      /* Cifra arriba, etiqueta chica abajo — como la píldora ("78 en
+       venta"): así entran 4 opciones por fila a 390px. */
+      #filtros .chip {
+        position: relative;
+        flex: var(--n, 1) 1 0;
+        min-width: max-content;
+        flex-direction: column-reverse;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 1px;
+        height: 50px;
+        padding: 0 8px 7px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--gris);
+        font-size: 10.5px;
+        font-weight: 500;
+        line-height: 1.15;
+        transition: color .15s, background-color .15s, box-shadow .15s;
+      }
+
+      #filtros .chip[aria-pressed="true"] {
+        background: rgba(255, 255, 255, .92);
+        color: var(--suave);
+        box-shadow: 0 1px 3px rgba(20, 40, 35, .1);
+      }
+
+      /* El color va en la línea de composición, no en un punto. */
+      #filtros .chip .punto {
+        display: none
+      }
+
+      #filtros .chip::after {
         content: "";
         position: absolute;
-        top: 8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 36px;
-        height: 4px;
+        left: 8px;
+        right: 8px;
+        bottom: 5px;
+        height: 3px;
         border-radius: 2px;
-        background: var(--linea);
+        background: var(--c, var(--verde));
+        transition: opacity .15s, background-color .15s;
+      }
+
+      #filtros .chip[aria-pressed="false"]::after {
+        background: var(--gris);
+        opacity: .25;
+      }
+
+      #filtros .chip-n {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--gris);
+      }
+
+      #filtros .chip[aria-pressed="true"] .chip-n {
+        color: var(--tinta);
+        opacity: 1;
+      }
+
+      /* Vista: interruptores, no proporciones — una línea y sin barra. */
+      #filtros .chip-toggle {
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        height: 38px;
+        padding: 0 10px;
+        font-size: 12.5px;
+      }
+
+      /* Vista no es una proporción: sin pista gris ni rótulo (el botón se
+       explica solo), botones livianos con borde; prendido = verde suave. */
+      #filtros .grupo[data-grupo="vista"] {
+        margin-bottom: 8px
+      }
+
+      #filtros .grupo[data-grupo="vista"] p {
+        display: none
+      }
+
+      #filtros .grupo[data-grupo="vista"] .fila {
+        gap: 6px;
+        padding: 0;
+        background: none;
+      }
+
+      #filtros .chip-toggle,
+      #filtros .chip-toggle[aria-pressed="false"] {
+        height: 36px;
+        border: 1px solid var(--linea);
+        background: rgba(255, 255, 255, .6);
+        box-shadow: none;
+        color: var(--tinta);
+      }
+
+      #filtros .chip-toggle[aria-pressed="true"] {
+        border-color: transparent;
+        background: var(--verde-suave);
+        color: #1E4A3F;
+        font-weight: 600;
+      }
+
+      #filtros .chip-toggle::after {
+        display: none
+      }
+
+      #filtros .chip-toggle[hidden] {
+        display: none
       }
 
       /* Riel de pisos: en desktop es una columna fija a la derecha; en mobile
@@ -2820,9 +2962,10 @@
         display: flex;
         flex-direction: column;
         padding: 8px 0 4px;
-        background: rgba(255, 255, 255, .72);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        /* Mismo vidrio que la tarjeta de filtros. */
+        background: rgba(255, 255, 255, .38);
+        backdrop-filter: blur(24px) saturate(1.5) brightness(1.08);
+        -webkit-backdrop-filter: blur(24px) saturate(1.5) brightness(1.08);
         border: 1px solid var(--linea);
         border-radius: 16px;
         box-shadow: var(--sombra);
@@ -3554,6 +3697,16 @@
   <!-- Desktop: popover sobre la barra inferior que muestra un solo grupo a la
      vez (data-grupo). Mobile: hoja con todos los grupos. -->
   <div id="filtros" role="group" aria-label="Filtros">
+    <div class="ft-cabeza">
+      <p id="ft-resumen" aria-live="polite"></p>
+      <button class="fb-reset fb-reset-hoja" type="button" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />
+        </svg>
+        <span>Restablecer</span>
+      </button>
+    </div>
     <div class="grupo" data-grupo="dorms">
       <p>Tipología</p>
       <div class="fila" id="f-dorms"></div>
@@ -3578,13 +3731,6 @@
         <button id="obra-toggle" class="chip chip-toggle" type="button" aria-pressed="false" hidden>Ver solo lo construido</button>
       </div>
     </div>
-    <button class="fb-reset fb-reset-hoja" type="button" disabled>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />
-      </svg>
-      <span>Restablecer filtros</span>
-    </button>
   </div>
 
   <!-- Simulador solar: apagado por default (ver CSS #sol/#sol-trigger).
@@ -5849,7 +5995,36 @@
           Math.sin(THREE.MathUtils.degToRad(camara.fov / 2)) * 1.05
         : 0;
       let radio = Math.min(190, Math.max(55, ALTURA * RADIO_POR_ALTURA, radioConjunto) * factorAspecto),
-        phi = PHI_INICIAL, giro = 0, arrastrando = false, ultimo = { x: 0, y: 0 }, tocado = false;
+        phi = PHI_INICIAL, giro = 0, arrastrando = false, ultimo = { x: 0, y: 0 };
+
+      /* Giro automático: tras INACTIVIDAD_MS sin interacción el edificio gira
+         solo, una vuelta cada 80 s, con una rampa suave de arranque. Cualquier
+         interacción lo corta en seco (rampaGiro = 0) y reinicia el contador.
+         Arranca como si la inactividad ya se hubiera cumplido: es el giro de
+         bienvenida de siempre. giroForzado = el botón de la toolbar ("girar
+         ahora"), que no espera la inactividad. Ver puedeGirar() en el BUCLE. */
+      const INACTIVIDAD_MS = 20000, VEL_GIRO = 2 * Math.PI / 80, RAMPA_GIRO_S = 2.5;
+      let ultimaActividad = performance.now() - INACTIVIDAD_MS, giroForzado = false, rampaGiro = 0;
+      function registrarActividad() {
+        ultimaActividad = performance.now();
+        giroForzado = false;
+        rampaGiro = 0;
+      }
+      // Un solo enganche, en fase de captura sobre document: cubre lienzo,
+      // unidades, filtros, pisos, hojas y el deslizador del sol, y ningún
+      // stopPropagation de más abajo lo puede saltear. El botón de giro se
+      // excluye: su click decide solo (ver btnOrbita).
+      const esBotonGiro = e => e.target.closest && e.target.closest('#hr-orbita');
+      ['pointerdown', 'wheel', 'keydown'].forEach(tipo =>
+        document.addEventListener(tipo, e => { if (!esBotonGiro(e)) registrarActividad(); },
+          { capture: true, passive: true }));
+      // Mover el mouse sin apretar solo reinicia el contador (no corta el
+      // giro pedido con el botón): así no arranca mientras alguien lee.
+      document.addEventListener('pointermove', e => {
+        if (e.pointerType === 'mouse') ultimaActividad = performance.now();
+      }, { capture: true, passive: true });
+      // Al ocultar y al volver a la pestaña: corta y el contador arranca de cero.
+      document.addEventListener('visibilitychange', registrarActividad);
 
       function ubicarCamara() {
         phi = Math.max(0.18, Math.min(Math.PI / 2 + 0.16, phi));
@@ -5866,7 +6041,7 @@
       const lienzo = render.domElement;
       lienzo.style.cursor = 'grab';
       lienzo.addEventListener('pointerdown', e => {
-        arrastrando = true; tocado = true;
+        arrastrando = true;
         ultimo = { x: e.clientX, y: e.clientY };
         lienzo.setPointerCapture(e.pointerId);
       });
@@ -5884,7 +6059,7 @@
         posRaton = { x: e.clientX, y: e.clientY };
       });
       lienzo.addEventListener('wheel', e => {
-        e.preventDefault(); tocado = true;
+        e.preventDefault();
         radio = Math.max(34, Math.min(190, radio + e.deltaY * 0.09));
         ubicarCamara();
       }, { passive: false });
@@ -6262,10 +6437,14 @@
         actualizarBadgeFiltros();
       }
 
-      function chip(cont, texto, color, alTocar) {
+      // n: cantidad de unidades de la opción. En mobile da el ancho
+      // proporcional del segmento (--n) y color la línea de composición (--c).
+      function chip(cont, texto, color, alTocar, n) {
         const b = document.createElement('button');
         b.className = 'chip';
         b.setAttribute('aria-pressed', 'true');
+        if (n) b.style.setProperty('--n', n);
+        if (color) b.style.setProperty('--c', color);
         b.innerHTML = (color ? '<span class="punto" style="background:' + color + '"></span>' : '') + texto;
         b.addEventListener('click', () => {
           const on = b.getAttribute('aria-pressed') !== 'true';
@@ -6280,27 +6459,40 @@
       // mostrarSimilares()), no solo cuando el visitante los toca a mano.
       const chipsDorms = {}, chipsEstado = {}, chipsTorre = {};
       const cifra = n => ' <span class="chip-n">' + n + '</span>';
-      dormsDisponibles.forEach(d => chipsDorms[d] = chip(document.getElementById('f-dorms'),
-        etiquetaDorms(d) + cifra(UNIDADES.filter(u => u.dorms === d).length), null,
-        on => on ? fDorms.add(d) : fDorms.delete(d)));
+      dormsDisponibles.forEach(d => {
+        const n = UNIDADES.filter(u => u.dorms === d).length;
+        chipsDorms[d] = chip(document.getElementById('f-dorms'), etiquetaDorms(d) + cifra(n), null,
+          on => on ? fDorms.add(d) : fDorms.delete(d), n);
+      });
       // Un chip por estado, pero solo los que tienen unidades: "Vendida 0"
       // en un edificio sin vendidas es ruido. Los estados sin unidades
       // siguen en fEstado (prendidos), así que pasa(u) no cambia. Si todas
       // las sin_dato de un proyecto son de alquiler (BRUSCO), el chip se
-      // presenta como "En alquiler" — sigue filtrando por u.estado.
-      Object.entries(ESTADOS).forEach(([k, e]) => {
+      // presenta como "En alquiler" — sigue filtrando por u.estado — y va
+      // segundo, y "Disponible" pasa a "En venta": mismo orden y nombres que
+      // la píldora de disponibilidad.
+      const sinDatoAlquiler = UNIDADES.some(u => u.estado === 'sin_dato') &&
+        UNIDADES.filter(u => u.estado === 'sin_dato').every(esAlquiler);
+      const ordenEstados = sinDatoAlquiler
+        ? ['disponible', 'sin_dato', 'reservado', 'vendido'] : Object.keys(ESTADOS);
+      ordenEstados.forEach(k => {
+        const e = ESTADOS[k];
         const deEstado = UNIDADES.filter(u => u.estado === k);
         if (!deEstado.length) return;
-        const vista = deEstado.every(esAlquiler) ? ALQUILER : e;
-        chipsEstado[k] = chip(document.getElementById('f-estado'), vista.nombre + cifra(deEstado.length), vista.color,
-          on => on ? fEstado.add(k) : fEstado.delete(k));
+        const vista = k === 'sin_dato' && sinDatoAlquiler ? ALQUILER : e;
+        const nombre = k === 'disponible' && UNIDADES.some(esAlquiler) ? 'En venta'
+          : k === 'sin_dato' && !sinDatoAlquiler ? 'A consultar' : vista.nombre;
+        chipsEstado[k] = chip(document.getElementById('f-estado'), nombre + cifra(deEstado.length), vista.color,
+          on => on ? fEstado.add(k) : fEstado.delete(k), deEstado.length);
       });
       if (torresDisponibles.length) {
         document.getElementById('f-torre-grupo').hidden = false;
         document.querySelector('.fb-drop[data-grupo="torre"]').hidden = false;
-        torresDisponibles.forEach(t => chipsTorre[t] = chip(document.getElementById('f-torre'),
-          (t === 'Basamento' ? t : 'Torre ' + t) + cifra(UNIDADES.filter(u => torreDe(u) === t).length), null,
-          on => on ? fTorre.add(t) : fTorre.delete(t)));
+        torresDisponibles.forEach(t => {
+          const n = UNIDADES.filter(u => torreDe(u) === t).length;
+          chipsTorre[t] = chip(document.getElementById('f-torre'), (t === 'Basamento' ? t : 'Torre ' + t) + cifra(n), null,
+            on => on ? fTorre.add(t) : fTorre.delete(t), n);
+        });
       }
 
       // "Ver unidades disponibles similares" desde la lista de espera: misma
@@ -6333,7 +6525,7 @@
         // Al explotar la torre gana altura: sin esto la cámara general queda
         // encuadrada para la torre compacta y los pisos de arriba se cortan.
         if (pisoAislado === null) {
-          tocado = true;
+          registrarActividad();
           const extra = separado ? (pisosGrupo.length - 1) * 2.5 : 0;
           objetivo.y = objetivoGeneral.y + extra / 2;
           radio = radioGeneral + extra * 0.85;
@@ -6347,7 +6539,7 @@
 
       // Ubica la cámara a la altura del piso elegido (o vuelve a la vista general del edificio).
       function enfocarPiso(p) {
-        tocado = true;
+        registrarActividad();
         if (p === null) { objetivo.copy(objetivoGeneral); radio = radioGeneral; phi = phiGeneral; }
         else { objetivo.set(CENTRO_X, p * PASO + ALTO / 2, CENTRO_Z); radio = CONJUNTO ? Math.max(72, radioGeneral * 0.75) : 72; phi = 1.28; }
         ubicarCamara();
@@ -6425,12 +6617,14 @@
       // abre su tarjeta en el mismo toque.
       let inicioToquePisos = null;
       lienzo.addEventListener('pointerdown', e => { inicioToquePisos = { x: e.clientX, y: e.clientY }; });
+      // Lo mismo para la tarjeta de filtros (tampoco tiene velo).
       lienzo.addEventListener('click', e => {
-        if (!riel.classList.contains('abierto') || !inicioToquePisos) return;
+        if (!inicioToquePisos) return;
         if (Math.hypot(e.clientX - inicioToquePisos.x, e.clientY - inicioToquePisos.y) > 8) return;
-        cerrarHoja();
+        if (riel.classList.contains('abierto')) cerrarHoja();
+        if (filtrosEl.classList.contains('abierto')) cerrarFiltros();
       });
-      document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarHoja(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarHoja(); cerrarFiltros(); } });
 
       // Mismo mecanismo de hoja que el riel de pisos, para Tipología/Estado/
       // Separar pisos: en desktop #filtros-trigger/#filtros-backdrop quedan
@@ -6464,6 +6658,12 @@
           (torresDisponibles.length - fTorre.size);
         ftBadge.textContent = excluidos;
         ftBadge.hidden = excluidos === 0;
+        // Hoja de mobile: cuántas unidades quedan a la vista con todo lo
+        // aplicado (incluido el piso aislado) — lo mismo que muestra el 3D.
+        const aLaVista = UNIDADES.filter(pasa).length;
+        document.getElementById('ft-resumen').innerHTML = aLaVista === UNIDADES.length
+          ? '<b>' + UNIDADES.length + '</b> unidades'
+          : '<b>' + aLaVista + '</b> de ' + UNIDADES.length + ' unidades';
         // Barra de desktop: cuántas opciones quedan activas en cada grupo
         // filtrado ("Estado 2"), y Restablecer habilitado solo si hay algo
         // que restablecer (filtros, piso aislado, separar, solo construido).
@@ -6740,7 +6940,7 @@
           : (u.frente < 0 ? Math.PI : 0) - u.col * 0.16);
         phi = 1.32;
         radio = 62;
-        tocado = true;
+        registrarActividad();
         ubicarCamara();
       }
 
@@ -7032,7 +7232,7 @@
       const REDUCIR_MOVIMIENTO = matchMedia('(prefers-reduced-motion: reduce)').matches;
       let transicionCamara = null;
       function moverCamara(destino, ms = 420) {
-        tocado = true;
+        registrarActividad();
         const desde = { giro, phi, radio, objetivo: objetivo.clone() };
         // Giro por el camino corto.
         let dGiro = 0;
@@ -7078,7 +7278,10 @@
       const btnOrbita = document.getElementById('hr-orbita');
       btnOrbita.addEventListener('click', () => {
         transicionCamara = null;
-        tocado = !tocado;
+        // Girando (solo o pedido) → corta como cualquier interacción;
+        // quieto → "girar ahora", sin esperar la inactividad.
+        if (giroForzado || rampaGiro > 0) registrarActividad();
+        else giroForzado = true;
       });
 
       /* Brújula (solo con norte_grados): el rumbo del modelo −Z es
@@ -7226,9 +7429,36 @@
          6. BUCLE
          ============================================================ */
 
+      // Giro automático (ver INACTIVIDAD_MS): nunca con la pestaña oculta ni
+      // con el tooltip abierto. El de inactividad además respeta
+      // prefers-reduced-motion y se frena con cualquier panel, hoja, tarjeta
+      // o piso aislado; el pedido con el botón es explícito y solo se corta
+      // con una interacción. La ficha mobile no frena: arranca desplegada y
+      // se llevaría el giro de bienvenida.
+      const modalRenders = document.getElementById('renders-modal');
+      const modalAvance = document.getElementById('avance-modal');
+      function puedeGirar(ahora) {
+        if (document.hidden || sobre || sobreCalle) return false;
+        if (giroForzado) return true;
+        return !REDUCIR_MOVIMIENTO && ahora - ultimaActividad >= INACTIVIDAD_MS &&
+          !elegida && !cajaTarjeta && pisoAislado === null &&
+          !riel.classList.contains('abierto') && !filtrosEl.classList.contains('abierto') &&
+          !filtrosEl.classList.contains('pop') && !solPanel.classList.contains('abierto') &&
+          modalRenders.hidden && modalAvance.hidden;
+      }
+
+      let tCuadro = performance.now();
       function animar() {
         requestAnimationFrame(animar);
-        if (!tocado) { giro -= 0.0013; ubicarCamara(); }
+        // Velocidad por tiempo real, no por cuadro (igual a 60 y a 120 Hz).
+        // Tope de 0,1 s para que un cuadro largo no dé un salto.
+        const ahora = performance.now(), dt = Math.min(0.1, (ahora - tCuadro) / 1000);
+        tCuadro = ahora;
+        if (puedeGirar(ahora)) {
+          rampaGiro = Math.min(1, rampaGiro + dt / RAMPA_GIRO_S);
+          giro -= VEL_GIRO * rampaGiro * rampaGiro * (3 - 2 * rampaGiro) * dt; // smoothstep
+          ubicarCamara();
+        } else rampaGiro = 0; // corte seco, sin salida
 
         pisosGrupo.forEach((g, i) => {
           const d = g.userData;
@@ -7251,7 +7481,8 @@
           if (cur !== em) m.emissive.setScalar(Math.abs(em - cur) < 0.004 ? em : cur + (em - cur) * kH);
         }
         actualizarBrujula();
-        if (btnOrbita.getAttribute('aria-pressed') !== String(!tocado)) btnOrbita.setAttribute('aria-pressed', String(!tocado));
+        const girando = String(rampaGiro > 0);
+        if (btnOrbita.getAttribute('aria-pressed') !== girando) btnOrbita.setAttribute('aria-pressed', girando);
 
         rayo.setFromCamera(raton, camara);
         // En táctil no hay hover: la posición del "ratón" es la del último
