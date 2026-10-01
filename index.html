@@ -836,7 +836,11 @@
       flex-direction: column;
       max-height: min(calc(100vh - var(--alto-barra) - 36px - 100px), 640px);
       padding-bottom: 6px;
-      background: #fff;
+      /* Mismo vidrio que la hoja de filtros de mobile: deja ver el
+         edificio difuminado detrás. */
+      background: rgba(255, 255, 255, .38);
+      backdrop-filter: blur(24px) saturate(1.5) brightness(1.08);
+      -webkit-backdrop-filter: blur(24px) saturate(1.5) brightness(1.08);
       border: 1px solid var(--linea);
       border-radius: var(--radio);
       box-shadow: var(--sombra);
@@ -1835,7 +1839,12 @@
       cursor: pointer;
     }
 
-    /* Toolbar + brújula, abajo a la derecha. */
+    /* Toolbar + brújula, abajo a la derecha. Misma altura (48px), mismo
+       borde y misma sombra que #barra-inferior, alineadas sobre la misma
+       línea de base (bottom: 20px). Dentro de la píldora, tres grupos
+       separados por un trazo: vista inicial · zoom · giro/sol. En desktop
+       #sol-trigger se muda acá por JS (ver activarSol); en mobile vuelve a
+       la barra inferior. */
     #herramientas {
       position: fixed;
       right: 24px;
@@ -1843,13 +1852,15 @@
       z-index: 10;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       transition: opacity .2s ease;
     }
 
     .hr-grupo {
       display: flex;
+      align-items: center;
       gap: 2px;
+      height: 48px;
       padding: 5px;
       background: #fff;
       border: 1px solid var(--linea);
@@ -1857,17 +1868,33 @@
       box-shadow: var(--sombra);
     }
 
-    .hr-grupo button {
+    .hr-sep {
+      flex: none;
+      width: 1px;
+      height: 18px;
+      margin: 0 4px;
+      background: var(--linea);
+    }
+
+    .hr-grupo button,
+    .hr-grupo #sol-trigger {
       display: grid;
       place-items: center;
+      flex: none;
       width: 36px;
       height: 36px;
+      padding: 0;
       border: none;
       border-radius: 50%;
       background: none;
       color: var(--suave);
       cursor: pointer;
       transition: background-color .15s, color .15s, transform .1s;
+    }
+
+    .hr-grupo svg {
+      width: 18px;
+      height: 18px;
     }
 
     .hr-grupo button:hover {
@@ -1879,14 +1906,26 @@
       transform: scale(.92)
     }
 
-    .hr-grupo button[aria-pressed="true"] {
+    .hr-grupo button[aria-pressed="true"],
+    .hr-grupo #sol-trigger[aria-pressed="true"] {
       background: var(--verde-suave);
       color: #1E4A3F;
+    }
+
+    .hr-grupo #sol-trigger[hidden] {
+      display: none
+    }
+
+    .hr-grupo button:focus-visible,
+    #brujula:focus-visible {
+      outline: 2px solid var(--verde);
+      outline-offset: 2px;
     }
 
     #brujula {
       display: grid;
       place-items: center;
+      flex: none;
       width: 48px;
       height: 48px;
       padding: 0;
@@ -1896,6 +1935,20 @@
       color: var(--tinta);
       box-shadow: var(--sombra);
       cursor: pointer;
+      transition: background-color .15s, transform .1s;
+    }
+
+    #brujula svg {
+      width: 34px;
+      height: 34px;
+    }
+
+    #brujula:hover {
+      background: var(--fondo)
+    }
+
+    #brujula:active {
+      transform: scale(.94)
     }
 
     #brujula[hidden] {
@@ -1903,12 +1956,12 @@
     }
 
     /* Tablet / desktop angosto: la barra de filtros se corre a la
-       izquierda para no chocar con la toolbar. */
+       izquierda para no chocar con la toolbar (~290px con brújula y sol). */
     @media (max-width:1180px) and (min-width:861px) {
       #barra-inferior {
         left: 24px;
         transform: none;
-        max-width: calc(100vw - 300px);
+        max-width: calc(100vw - 340px);
       }
     }
 
@@ -2213,10 +2266,13 @@
        panel prende la simulación; cerrarlo la apaga y devuelve la luz de
        siempre — no hay un switch aparte.
        ============================================================ */
+    /* Desktop: sale de la toolbar (donde vive #sol-trigger), 10px por
+       encima, corrido a la izquierda del riel de pisos (76px + aire) para
+       no taparlo. */
     #sol {
       position: fixed;
-      left: 50%;
-      bottom: 76px;
+      right: 112px;
+      bottom: 78px;
       z-index: 11;
       width: 300px;
       max-width: calc(100vw - 48px);
@@ -2228,14 +2284,14 @@
       box-shadow: 0 10px 30px rgba(20, 26, 28, .16);
       opacity: 0;
       pointer-events: none;
-      transform: translate(-50%, 8px);
+      transform: translateY(8px);
       transition: opacity .18s ease, transform .18s ease;
     }
 
     #sol.abierto {
       opacity: 1;
       pointer-events: auto;
-      transform: translate(-50%, 0)
+      transform: none
     }
 
     .sol-cabeza {
@@ -3603,11 +3659,12 @@
   </div>
 
   <!-- Controles de vista, abajo a la derecha: brújula (solo con
-     geometria.norte_grados) + vista inicial / zoom / giro automático. -->
+     geometria.norte_grados) + vista inicial · zoom · giro automático / sol
+     (el sol se muda acá en desktop, ver ubicarSolTrigger()). -->
   <div id="herramientas">
     <button id="brujula" type="button" hidden aria-label="Brújula: girar para ver con el norte arriba"
       title="Norte arriba">
-      <svg width="36" height="36" viewBox="0 0 30 30" aria-hidden="true">
+      <svg width="34" height="34" viewBox="0 0 30 30" aria-hidden="true">
         <circle cx="15" cy="15" r="13.6" fill="none" stroke="currentColor" stroke-opacity=".22" stroke-width="1" />
         <g id="brujula-aguja">
           <text x="15" y="6.6" text-anchor="middle" font-size="6" font-weight="700" fill="currentColor">N</text>
@@ -3623,6 +3680,7 @@
           <path d="M4 11l8-6 8 6M6 9.5V19h12V9.5" />
         </svg>
       </button>
+      <span class="hr-sep" aria-hidden="true"></span>
       <button id="hr-menos" type="button" aria-label="Alejar" title="Alejar">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" aria-hidden="true">
@@ -3635,6 +3693,7 @@
           <path d="M6 12h12M12 6v12" />
         </svg>
       </button>
+      <span class="hr-sep" aria-hidden="true"></span>
       <button id="hr-orbita" type="button" aria-pressed="true" aria-label="Giro automático" title="Giro automático">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -3743,8 +3802,8 @@
     <!-- Oculto hasta que iniciar() confirme lat/lon/norte_grados (ver
        tieneNorte() y CLAUDE.md) — sin esos tres datos el simulador no
        aparece, nunca se muestra con un sol inventado. -->
-    <button id="sol-trigger" type="button" hidden title="Simulador solar" aria-pressed="false" aria-expanded="false" aria-controls="sol">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+    <button id="sol-trigger" type="button" hidden title="Simulador solar" aria-label="Simulador solar" aria-pressed="false" aria-expanded="false" aria-controls="sol">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="4.2" />
         <path
@@ -6413,6 +6472,18 @@
         }
       }
       solTrigger.addEventListener('click', () => activarSol(!solActivo));
+
+      // El sol es un control de la vista: en desktop vive en la toolbar,
+      // al lado del giro automático. En mobile la toolbar se reduce a la
+      // brújula, así que vuelve a la barra inferior como ícono cuadrado.
+      const barraInferior = document.getElementById('barra-inferior');
+      const grupoHerramientas = document.querySelector('#herramientas .hr-grupo');
+      function ubicarSolTrigger() {
+        const destino = solEsHoja.matches ? barraInferior : grupoHerramientas;
+        if (solTrigger.parentElement !== destino) destino.appendChild(solTrigger);
+      }
+      ubicarSolTrigger();
+      solEsHoja.addEventListener('change', ubicarSolTrigger);
       document.getElementById('sol-cerrar').addEventListener('click', () => activarSol(false));
 
       // Mobile: la hoja del sol no tiene velo (ver CSS), así que arrastrar

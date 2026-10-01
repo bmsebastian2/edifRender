@@ -177,8 +177,9 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
 - **Barra inferior única** (`#barra-inferior`): en desktop, desplegables Tipología /
   Estado / Torre / Vista que abren `#filtros` como popover con un solo grupo
   (`data-grupo`, `abrirGrupoFiltros()`), Restablecer (`restablecerFiltros()`, reusa los
-  sets + `aplicar()` + click en los toggles) y los accesos a renders / avance / sol. En
-  mobile: Filtros · Pisos + íconos, cada uno abre su hoja; nunca dos capas abiertas.
+  sets + `aplicar()` + click en los toggles) y los accesos a renders / avance. En
+  mobile: Filtros · Pisos + íconos (renders, avance, sol), cada uno abre su hoja; nunca
+  dos capas abiertas.
 - **Riel de pisos** (`#pisos`): cifra = unidades **disponibles** del piso; flechas que
   hacen click en la fila vecina (`moverPisoAislado()`); centrado entre "Panel interno" y
   la toolbar para no superponerse; en pantallas bajas compacta filas y un fundido en el
@@ -188,7 +189,11 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   tooltip, click = `abrir(u)` directo. Táctil (`matchMedia('(hover: none)')`): tap =
   `#tarjeta-unidad` con "Ver unidad"; recién eso llama a `abrir(u)`, que es lo que
   registra el evento — en mobile Demanda cuenta aperturas de ficha, no taps.
-- **Toolbar** (`#herramientas`): vista inicial, zoom, giro automático (`moverCamara()`
+- **Toolbar** (`#herramientas`): brújula + píldora de 48px (misma altura y línea de base
+  que `#barra-inferior`) con tres grupos separados por `.hr-sep`: vista inicial · zoom ·
+  giro automático / sol. `#sol-trigger` se muda por JS (`ubicarSolTrigger()`): en
+  desktop a la píldora, en mobile a la barra inferior. No sumar más controles acá.
+  Giro y zoom (`moverCamara()`
   interpola giro/phi/radio/objetivo con los mismos límites que el arrastre). **Brújula**
   (solo con `norte_grados`): `anguloNorte(giro)` proyecta el norte del modelo
   `(−sin N, −cos N)` girado por `giro` sobre la pantalla con la cámara en `theta`; click
