@@ -4709,7 +4709,11 @@
       grupoCalle.rotation.y = FRENTE_GIRO;
       grupoEdificio.add(grupoCalle);
 
-      const camara = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 600);
+      // near = 1 (no 0.1): la precisión de profundidad escala con near, y con
+      // 0.1 a radio 190 el error rondaba los 3 cm — más que el centímetro
+      // entre asfalto, líneas y veredas, que parpadeaban al girar. La cámara
+      // nunca queda a menos de unos metros de nada (radio mínimo 34).
+      const camara = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 1, 600);
       const render = new THREE.WebGLRenderer({ antialias: true, alpha: false });
       render.setPixelRatio(Math.min(devicePixelRatio, 2));
       render.setSize(innerWidth, innerHeight);
@@ -4777,6 +4781,10 @@
       const matTerreno = new THREE.MeshStandardMaterial({
         color: 0xB5B7B3, map: crearTexturaTerreno(), roughness: 0.95,
         transparent: true, depthWrite: false,
+        // Empujado hacia atrás en profundidad: se dibuja después de la calle
+        // (pasada transparente) y a 2 cm debajo, así que sin esto le ganaba
+        // al asfalto en parches claros al girar.
+        polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
       });
       const terreno = new THREE.Mesh(new THREE.CircleGeometry(RADIO_TERRENO, 96), matTerreno);
       terreno.rotation.x = -Math.PI / 2;
@@ -4834,7 +4842,12 @@
       grupoCalle.add(vereda);
 
       const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
-      const matGuion = new THREE.MeshStandardMaterial({ color: 0xEDEFEF, roughness: 0.6 });
+      // polygonOffset: la pintura está a 1 cm del asfalto — le gana en
+      // profundidad aunque la cámara esté lejos o rasante.
+      const matGuion = new THREE.MeshStandardMaterial({
+        color: 0xEDEFEF, roughness: 0.6,
+        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+      });
       for (let x = -LARGO_CALLE / 2 + 2; x < LARGO_CALLE / 2 - 2; x += 2.8) {
         const guion = new THREE.Mesh(geoGuion, matGuion);
         guion.rotation.x = -Math.PI / 2;
@@ -5004,7 +5017,11 @@
         const tex = new THREE.CanvasTexture(cv);
         const sombra = new THREE.Mesh(
           new THREE.PlaneGeometry(W / PX, H / PX),
-          new THREE.MeshBasicMaterial({ color: 0x22302B, map: tex, transparent: true, opacity: 0.38, depthWrite: false })
+          new THREE.MeshBasicMaterial({
+            color: 0x22302B, map: tex, transparent: true, opacity: 0.38, depthWrite: false,
+            // 1,5 cm sobre la vereda: sin offset parpadeaba contra ella.
+            polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+          })
         );
         sombra.rotation.x = -Math.PI / 2;
         // Apenas por encima de la vereda (que rodea la PB y la taparía); sobre
