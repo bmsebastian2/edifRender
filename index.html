@@ -33,6 +33,15 @@
          competiría por lectura con el edificio a centímetros de distancia.
          El azul no aparece en ningún otro lado del producto. */
       --azul-sel: #2F6FA0;
+      /* Microinteracciones: una sola curva y dos duraciones para toda la
+         interfaz. --t para hover, presión, tooltips y tarjetas; --t-hoja
+         para lo que entra deslizando desde un borde (panel, hoja del sol).
+         La cámara va aparte, más lenta (ver moverCamara()). */
+      --ease: cubic-bezier(.4, 0, .2, 1);
+      --t: 200ms;
+      --t-hoja: 280ms;
+      /* Fondo al presionar: un paso más oscuro que el hover (--fondo). */
+      --presion: #ECEFED;
     }
 
     * {
@@ -182,7 +191,7 @@
       font-size: 13px;
       font-weight: 600;
       text-decoration: none;
-      transition: border-color .15s, background-color .15s;
+      transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease);
     }
 
     .bs-boton:hover {
@@ -220,7 +229,7 @@
       cursor: pointer;
       color: var(--suave);
       text-decoration: none;
-      transition: background-color .15s, color .15s;
+      transition: background-color var(--t) var(--ease), color var(--t) var(--ease);
     }
 
     #redes a:hover,
@@ -472,7 +481,7 @@
       opacity: 0;
       transform: translateY(-6px);
       pointer-events: none;
-      transition: opacity .18s ease, transform .18s ease;
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
     }
 
     #compartir-aviso.visible {
@@ -524,7 +533,7 @@
       font-weight: 600;
       white-space: nowrap;
       cursor: pointer;
-      transition: background-color .15s, color .15s;
+      transition: background-color var(--t) var(--ease), color var(--t) var(--ease);
     }
 
     .fb-drop:hover,
@@ -561,7 +570,7 @@
 
     .fb-drop .chev {
       color: var(--suave);
-      transition: transform .2s ease;
+      transition: transform var(--t) var(--ease);
     }
 
     .fb-drop[aria-expanded="true"] {
@@ -607,7 +616,7 @@
     .fb-reset {
       color: var(--verde);
       font-weight: 500;
-      animation: fb-aparece .2s ease;
+      animation: fb-aparece var(--t) var(--ease);
     }
 
     .fb-reset[hidden] {
@@ -709,7 +718,7 @@
       opacity: 0;
       pointer-events: none;
       transform: translateY(6px);
-      transition: opacity .16s ease, transform .16s ease;
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
     }
 
     #filtros.pop {
@@ -768,7 +777,7 @@
       color: var(--suave);
       font-size: 13px;
       white-space: nowrap;
-      transition: color .15s, background-color .15s, border-color .15s
+      transition: color var(--t) var(--ease), background-color var(--t) var(--ease), border-color var(--t) var(--ease)
     }
 
     .chip:hover {
@@ -783,13 +792,28 @@
       font-weight: 600;
     }
 
+    /* Presión: mismo paso de fondo para chips, botones de barra y filas del
+       riel. Va después de [aria-pressed="true"] para ganarle por orden. */
+    .chip:active,
+    .fb-drop:active,
+    .fb-reset:active,
+    #renders-trigger:active,
+    #avance-trigger:active,
+    #sol-trigger:active,
+    .bs-boton:active,
+    #redes a:active,
+    #redes button:active,
+    #cota:active {
+      background-color: var(--presion)
+    }
+
     .chip:focus-visible {
       outline: 2px solid var(--verde);
       outline-offset: 2px
     }
 
     .chip .punto {
-      transition: opacity .15s
+      transition: opacity var(--t) var(--ease)
     }
 
     .chip[aria-pressed="false"] .punto {
@@ -891,7 +915,7 @@
       background: none;
       color: var(--suave);
       cursor: pointer;
-      transition: background-color .15s, color .15s, opacity .15s;
+      transition: background-color var(--t) var(--ease), color var(--t) var(--ease), opacity var(--t) var(--ease);
     }
 
     .pisos-flecha:hover:not(:disabled) {
@@ -953,7 +977,7 @@
       font-size: 13px;
       font-weight: 500;
       font-variant-numeric: tabular-nums;
-      transition: background-color .15s, color .15s
+      transition: background-color var(--t) var(--ease), color var(--t) var(--ease)
     }
 
     .pisos-fila:hover:not([disabled]) {
@@ -965,6 +989,11 @@
       background: var(--verde-suave);
       color: #1E4A3F;
       font-weight: 700;
+    }
+
+    .pisos-fila:active:not([disabled]),
+    .pisos-flecha:active:not(:disabled) {
+      background-color: var(--presion)
     }
 
     .pisos-fila:focus-visible {
@@ -1070,7 +1099,7 @@
       color: var(--suave);
       opacity: 0;
       pointer-events: none;
-      transition: opacity .18s, transform .18s
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease)
     }
 
     #piso-info.visible {
@@ -1116,7 +1145,7 @@
       flex-direction: column;
       overflow-y: auto;
       transform: translateX(100%);
-      transition: transform .3s cubic-bezier(.22, .61, .36, 1)
+      transition: transform var(--t-hoja) var(--ease)
     }
 
     #panel.abierto {
@@ -1528,7 +1557,7 @@
       font-weight: 550;
       border: 1px solid transparent;
       text-decoration: none;
-      transition: background .15s, border-color .15s, color .15s;
+      transition: background var(--t) var(--ease), border-color var(--t) var(--ease), color var(--t) var(--ease);
     }
 
     .bton-p {
@@ -1540,6 +1569,10 @@
       background: #38907B
     }
 
+    .bton-p:active {
+      background: #24574A
+    }
+
     .bton-s {
       border-color: var(--linea);
       background: none;
@@ -1549,6 +1582,10 @@
     .bton-s:hover {
       color: var(--tinta);
       border-color: rgba(26, 33, 36, .34)
+    }
+
+    .bton-s:active {
+      background: var(--presion)
     }
 
     .bton:focus-visible {
@@ -1707,7 +1744,7 @@
       color: #fff;
       font-size: 12.5px;
       white-space: nowrap;
-      transition: opacity .15s ease, transform .15s ease;
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
     }
 
     #tooltip.visible {
@@ -1807,7 +1844,7 @@
       opacity: 0;
       pointer-events: none;
       transform: translateY(12px);
-      transition: opacity .2s ease, transform .2s ease;
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
     }
 
     #tarjeta-unidad.visible {
@@ -1853,7 +1890,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      transition: opacity .2s ease;
+      transition: opacity var(--t) var(--ease);
     }
 
     .hr-grupo {
@@ -1889,7 +1926,7 @@
       background: none;
       color: var(--suave);
       cursor: pointer;
-      transition: background-color .15s, color .15s, transform .1s;
+      transition: background-color var(--t) var(--ease), color var(--t) var(--ease), transform var(--t) var(--ease);
     }
 
     .hr-grupo svg {
@@ -1903,6 +1940,7 @@
     }
 
     .hr-grupo button:active {
+      background: var(--presion);
       transform: scale(.92)
     }
 
@@ -1935,7 +1973,7 @@
       color: var(--tinta);
       box-shadow: var(--sombra);
       cursor: pointer;
-      transition: background-color .15s, transform .1s;
+      transition: background-color var(--t) var(--ease), transform var(--t) var(--ease);
     }
 
     #brujula svg {
@@ -2132,7 +2170,6 @@
       height: 100%;
       background: var(--tinta);
       border-radius: 4px;
-      transition: width .3s;
     }
 
     #avance-actualizado {
@@ -2285,7 +2322,7 @@
       opacity: 0;
       pointer-events: none;
       transform: translateY(8px);
-      transition: opacity .18s ease, transform .18s ease;
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
     }
 
     #sol.abierto {
@@ -2417,7 +2454,7 @@
     }
 
     .sol-fecha-trigger .chev {
-      transition: transform .2s ease;
+      transition: transform var(--t) var(--ease);
       flex: none
     }
 
@@ -2556,7 +2593,7 @@
       #ficha-toggle .chev {
         flex: none;
         color: var(--suave);
-        transition: transform .2s ease;
+        transition: transform var(--t) var(--ease);
       }
 
       #ficha.abierta #ficha-toggle .chev {
@@ -2587,14 +2624,14 @@
         opacity: 0;
         visibility: hidden;
         transform: translateY(-4px) scale(.98);
-        transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
+        transition: opacity var(--t) var(--ease), transform var(--t) var(--ease), visibility 0s linear var(--t);
       }
 
       #ficha.abierta #ficha-cuerpo {
         opacity: 1;
         visibility: visible;
         transform: none;
-        transition: opacity .18s ease, transform .18s ease;
+        transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
       }
 
       #ficha-cuerpo #aviso {
@@ -2684,7 +2721,7 @@
       }
 
       #filtros-trigger .chev {
-        transition: transform .2s ease;
+        transition: transform var(--t) var(--ease);
         color: var(--suave);
         flex: none
       }
@@ -2784,7 +2821,7 @@
         opacity: 1;
         pointer-events: none;
         transform: translate(0, 100%);
-        transition: transform .28s cubic-bezier(.22, .61, .36, 1);
+        transition: transform var(--t-hoja) var(--ease);
       }
 
       #sol.abierto {
@@ -2842,14 +2879,14 @@
         visibility: hidden;
         pointer-events: auto;
         transform: translateY(10px);
-        transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
+        transition: opacity var(--t) var(--ease), transform var(--t) var(--ease), visibility 0s linear var(--t);
       }
 
       #filtros.abierto {
         opacity: 1;
         visibility: visible;
         transform: none;
-        transition: opacity .2s ease, transform .2s ease;
+        transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
       }
 
       /* Por si quedó un left inline del popover de desktop (ventana que se
@@ -2927,13 +2964,29 @@
         font-size: 10.5px;
         font-weight: 500;
         line-height: 1.15;
-        transition: color .15s, background-color .15s, box-shadow .15s;
+        transition: color var(--t) var(--ease), background-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
       }
 
       #filtros .chip[aria-pressed="true"] {
         background: rgba(255, 255, 255, .92);
         color: var(--suave);
         box-shadow: 0 1px 3px rgba(20, 40, 35, .1);
+      }
+
+      /* Presión en mobile: el vidrio de la hoja no admite el gris de
+         desktop; un blanco a medias se lee como "hundido" en los dos estados. */
+      #filtros .chip:active {
+        background: rgba(255, 255, 255, .6)
+      }
+
+      #filtros-trigger,
+      #pisos-trigger {
+        transition: background-color var(--t) var(--ease)
+      }
+
+      #filtros-trigger:active,
+      #pisos-trigger:active {
+        background-color: var(--presion)
       }
 
       /* El color va en la línea de composición, no en un punto. */
@@ -2950,7 +3003,7 @@
         height: 3px;
         border-radius: 2px;
         background: var(--c, var(--verde));
-        transition: opacity .15s, background-color .15s;
+        transition: opacity var(--t) var(--ease), background-color var(--t) var(--ease);
       }
 
       #filtros .chip[aria-pressed="false"]::after {
@@ -3044,7 +3097,7 @@
       }
 
       #pisos-trigger .chev {
-        transition: transform .2s ease;
+        transition: transform var(--t) var(--ease);
         color: var(--suave);
         flex: none
       }
@@ -3088,14 +3141,14 @@
         opacity: 0;
         visibility: hidden;
         transform: translateX(8px);
-        transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
+        transition: opacity var(--t) var(--ease), transform var(--t) var(--ease), visibility 0s linear var(--t);
       }
 
       #pisos.abierto {
         opacity: 1;
         visibility: visible;
         transform: none;
-        transition: opacity .18s ease, transform .18s ease;
+        transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
       }
 
       #pisos .pisos-marca {
@@ -3416,9 +3469,17 @@
       border-color: var(--tinta);
     }
 
+    /* Movimiento reducido: todo casi instantáneo (los fundidos del 3D y la
+       cámara también, ver REDUCIR_MOVIMIENTO en el script). */
     @media (prefers-reduced-motion:reduce) {
-      * {
-        transition-duration: .01ms !important
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important
       }
 
       #carga-icono {
@@ -6652,12 +6713,12 @@
         pisosGrupo.forEach((g, i) => g.userData.objetivo = separado ? i * 2.5 : 0);
         // Al explotar la torre gana altura: sin esto la cámara general queda
         // encuadrada para la torre compacta y los pisos de arriba se cortan.
+        // Acompaña a los pisos mientras se abren (ver pisosGrupo en el BUCLE).
         if (pisoAislado === null) {
-          registrarActividad();
           const extra = separado ? (pisosGrupo.length - 1) * 2.5 : 0;
-          objetivo.y = objetivoGeneral.y + extra / 2;
-          radio = radioGeneral + extra * 0.85;
-          ubicarCamara();
+          const obj = objetivo.clone();
+          obj.y = objetivoGeneral.y + extra / 2;
+          moverCamara({ objetivo: obj, radio: radioGeneral + extra * 0.85 }, MS_CAMARA_PISO);
         }
       });
 
@@ -6665,12 +6726,16 @@
       const infoPiso = document.getElementById('piso-info');
       const objetivoGeneral = objetivo.clone(), radioGeneral = radio, phiGeneral = phi;
 
-      // Ubica la cámara a la altura del piso elegido (o vuelve a la vista general del edificio).
+      // Lleva la cámara a la altura del piso elegido (o de vuelta a la vista
+      // general del edificio). Interpolada y más lenta que la toolbar: con
+      // un salto corto cambiar de piso se siente como un corte.
+      const MS_CAMARA_PISO = 750;
       function enfocarPiso(p) {
-        registrarActividad();
-        if (p === null) { objetivo.copy(objetivoGeneral); radio = radioGeneral; phi = phiGeneral; }
-        else { objetivo.set(CENTRO_X, p * PASO + ALTO / 2, CENTRO_Z); radio = CONJUNTO ? Math.max(72, radioGeneral * 0.75) : 72; phi = 1.28; }
-        ubicarCamara();
+        if (p === null) moverCamara({ objetivo: objetivoGeneral.clone(), radio: radioGeneral, phi: phiGeneral }, MS_CAMARA_PISO);
+        else moverCamara({
+          objetivo: new THREE.Vector3(CENTRO_X, p * PASO + ALTO / 2, CENTRO_Z),
+          radio: CONJUNTO ? Math.max(72, radioGeneral * 0.75) : 72, phi: 1.28,
+        }, MS_CAMARA_PISO);
       }
 
       function actualizarInfoPiso() {
@@ -7333,14 +7398,11 @@
       const tarjeta = document.getElementById('tarjeta-unidad');
       let cajaTarjeta = null;
       function mostrarTarjeta(caja) {
-        if (cajaTarjeta && cajaTarjeta !== caja) cajaTarjeta.userData.emObj = 0;
         cajaTarjeta = caja;
-        caja.userData.emObj = 0.22;
         pintarResumenUnidad(document.getElementById('tarjeta-resumen'), caja.userData.unidad, false);
         tarjeta.classList.add('visible');
       }
       function ocultarTarjeta() {
-        if (cajaTarjeta) cajaTarjeta.userData.emObj = 0;
         cajaTarjeta = null;
         tarjeta.classList.remove('visible');
       }
@@ -7592,15 +7654,26 @@
           ubicarCamara();
         } else rampaGiro = 0; // corte seco, sin salida
 
+        // Fundidos exponenciales por tiempo real, no por cuadro: un celular a
+        // 30 fps tardaba el doble y una pantalla de 120 Hz la mitad. k = la
+        // fracción del camino que se recorre en este cuadro; con constante τ,
+        // a 3τ queda hecho el 95%: filtros ~240 ms, resaltado ~200 ms,
+        // separar pisos ~430 ms (lo mismo que antes a 60 fps).
+        const k = tau => REDUCIR_MOVIMIENTO ? 1 : 1 - Math.exp(-dt / tau);
+        const kF = k(0.08), kH = k(0.065), kP = k(0.143);
         pisosGrupo.forEach((g, i) => {
           const d = g.userData;
-          d.offset += (d.objetivo - d.offset) * 0.11;
+          d.offset += (d.objetivo - d.offset) * kP;
           g.position.y = i * PASO + d.offset;
         });
 
-        // Fundido de color/opacidad al filtrar y de resaltado al pasar el
-        // mouse: aplicar() y el hover fijan objetivos, acá se interpolan.
-        const kF = REDUCIR_MOVIMIENTO ? 1 : 0.16, kH = REDUCIR_MOVIMIENTO ? 1 : 0.25;
+        // Fundido de color/opacidad al filtrar o aislar un piso (aplicar()
+        // fija los objetivos) y del resaltado, que se deduce acá mismo: la
+        // unidad bajo el mouse, la de la tarjeta táctil y la abierta en el
+        // panel (más marcada). Así abrir/cerrar también entra y sale con
+        // fundido. (Antes un forEach al final del bucle fijaba la elegida en
+        // 0.34 y ponía en 0 el resto en cada cuadro: pisaba esta
+        // interpolación y la tarjeta táctil nunca llegaba a resaltar.)
         for (const c of cajas) {
           const d = c.userData, m = c.material;
           if (d.opObj != null) m.opacity = Math.abs(d.opObj - m.opacity) < 0.003 ? d.opObj : m.opacity + (d.opObj - m.opacity) * kF;
@@ -7609,7 +7682,8 @@
             const bm = d.borde.material;
             bm.opacity = Math.abs(d.bordeObj - bm.opacity) < 0.003 ? d.bordeObj : bm.opacity + (d.bordeObj - bm.opacity) * kF;
           }
-          const em = d.emObj || 0, cur = m.emissive.r;
+          const em = elegida && d.unidad.id === elegida.id ? 0.34 : (c === sobre || c === cajaTarjeta) ? 0.22 : 0;
+          const cur = m.emissive.r;
           if (cur !== em) m.emissive.setScalar(Math.abs(em - cur) < 0.004 ? em : cur + (em - cur) * kH);
         }
         actualizarBrujula();
@@ -7623,11 +7697,9 @@
         const golpes = esTactil ? [] : rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
         const nuevo = golpes.length ? golpes[0].object : null;
         if (nuevo !== sobre) {
-          if (sobre && sobre !== cajaTarjeta) sobre.userData.emObj = 0;
           sobre = nuevo;
           lienzo.style.cursor = sobre ? 'pointer' : 'grab';
           if (sobre) {
-            sobre.userData.emObj = 0.22;
             tooltip.classList.add('tt-unidad');
             pintarResumenUnidad(tooltip, sobre.userData.unidad, true);
             tooltip.classList.add('visible');
@@ -7659,14 +7731,8 @@
         // offset de pisosGrupo más arriba.
         if (cartelCalle) {
           const escalaCartelObjetivo = sobreCalle ? 1.1 : 1;
-          cartelCalle.scale.setScalar(cartelCalle.scale.x + (escalaCartelObjetivo - cartelCalle.scale.x) * 0.2);
+          cartelCalle.scale.setScalar(cartelCalle.scale.x + (escalaCartelObjetivo - cartelCalle.scale.x) * kH);
         }
-
-        cajas.forEach(c => {
-          const sel = elegida && c.userData.unidad.id === elegida.id;
-          if (sel && c !== sobre) c.material.emissive.setScalar(0.34);
-          else if (!sel && c !== sobre) c.material.emissive.setHex(0x000000);
-        });
 
         render.render(escena, camara);
       }
