@@ -2331,6 +2331,20 @@
       transform: none
     }
 
+    /* Desktop con la ficha de una unidad abierta (#panel, 330px): el sol se
+       corre a su izquierda en vez de quedar tapado. #sol va antes que #panel
+       en el DOM, así que no alcanza con ~; :has() desde body. En mobile no
+       aplica: ahí #sol es una hoja inferior (ver la media de abajo). */
+    @media (min-width: 861px) {
+      #sol {
+        transition: opacity var(--t) var(--ease), transform var(--t) var(--ease), right var(--t-hoja) var(--ease);
+      }
+
+      body:has(#panel.abierto) #sol {
+        right: calc(330px + 16px)
+      }
+    }
+
     .sol-cabeza {
       display: flex;
       align-items: flex-start;
@@ -6378,6 +6392,11 @@
           el.hidden = false;
           return;
         }
+        // Interior de manzana en un proyecto con fachadas: el bloque de
+        // asoleamiento ya dice que esas horas no las estimamos; un "recibe sol"
+        // al lado se leía como contradicción. Sin aviso.
+        const fsElegida = !elegida.orient && FACHADAS && FACHADAS.get(elegida.id);
+        if (fsElegida && !fsElegida.length) { el.hidden = true; return; }
         const alSol = fachadasAlSol(elegida);
         if (alSol && !alSol.length) {
           el.textContent = 'No recibe sol directo a esta hora.';
