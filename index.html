@@ -4926,8 +4926,10 @@
       // Mobile: arranca desplegada para que quien entra por primera vez vea de
       // qué se trata; se pliega sola al primer toque fuera (el mismo cierre de
       // siempre), como el giro automático. Con ?u= no: ahí manda la unidad.
+      // Con ?sol= tampoco: la hoja del sol ya ocupa el borde inferior.
+      const paramsFicha = new URLSearchParams(location.search);
       if (matchMedia('(max-width: 860px)').matches && !fichaToggle.disabled &&
-        !new URLSearchParams(location.search).has('u')) {
+        !paramsFicha.has('u') && !paramsFicha.has('sol')) {
         ficha.classList.add('abierta');
         fichaToggle.setAttribute('aria-expanded', 'true');
       }
@@ -7609,10 +7611,21 @@
       aplicar();
 
       // ?u=703 abre el edificio con esa unidad seleccionada y la cámara frente a ella.
+      // ?sol= se lee antes: abrir() reescribe la URL a ?p=&u= y lo perdería.
+      const pedidoSol = new URLSearchParams(location.search).get('sol');
       const pedida = new URLSearchParams(location.search).get('u');
       if (pedida) {
         const u = UNIDADES.find(x => String(x.id) === pedida);
         if (u) abrir(u, true);
+      }
+
+      // ?sol=1 abre con el simulador solar prendido; ?sol=invierno además lo
+      // fija en el 21 de junio (el peor día del año en el hemisferio sur, el
+      // primer chip de FECHAS_FIJAS_SOL). Es el link de la landing. Sin los
+      // tres datos del sol (tieneNorte()) se ignora: nunca un sol inventado.
+      if (pedidoSol && tieneNorte()) {
+        if (pedidoSol === 'invierno') contFechaChipsSol.querySelector('.chip')?.click();
+        activarSol(true);
       }
 
       /* ============================================================
