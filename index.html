@@ -6314,7 +6314,7 @@
 
       function aplicarSol(fecha, minutosLocales) {
         const { altitud, azimut } = posicionSolar(proyecto.lat, proyecto.lon, tzOffsetHoras, fecha, minutosLocales);
-        ultimoSol = { altitud, azimut };
+        ultimoSol = { altitud, azimut, fecha, minutos: minutosLocales };
         document.getElementById('sol-lectura').textContent =
           'Azimut ' + Math.round(azimut) + '° · Altura ' + Math.round(altitud) + '°';
         const avisoNoche = document.getElementById('sol-aviso-noche');
@@ -6347,6 +6347,28 @@
       // Solo detecta autosombra del propio edificio: no sabe nada de
       // construcciones vecinas, así que es un "sí hay sol" confiable y un
       // "no hay sol" que puede ser optimista.
+      // Con fachadas calculadas (FACHADAS, hoy BRUSCO) el rayo solo no
+      // alcanza: desde el centro de una unidad al sur, en un piso alto, el
+      // rayo hacia el norte sale por el pasillo sin chocar nada y decía
+      // "recibe sol" mientras el bloque de asoleamiento decía "sin sol
+      // directo". Ahora primero tiene que haber una fachada del lado del sol,
+      // con las mismas franjas que actualizarAsoleamiento(), y recién después
+      // se mira si algo del edificio la tapa. Los dos textos no pueden
+      // contradecirse. En ese caso el rayo sale de afuera de esa fachada, no
+      // del centro de la caja: con sol bajo y de costado, desde el centro
+      // chocaba con la unidad vecina del mismo piso y decía "no" en plena
+      // franja de sol.
+      // Devuelve null si no hay fachadas calculadas (ROSSO, interior de
+      // manzana: decide el rayo desde el centro, como antes), o la lista de
+      // fachadas que tienen el sol de su lado en este minuto ([] = ninguna).
+      function fachadasAlSol(u) {
+        const fs = !u.orient && FACHADAS && FACHADAS.get(u.id);
+        if (!fs || !fs.length) return null;
+        const m = ultimoSol.minutos;
+        return fs.filter(f => franjasSolFachada(proyecto.lat, proyecto.lon, tzOffsetHoras, ultimoSol.fecha, f.rumbo)
+          .franjas.some(([a, b]) => m >= a && m <= b));
+      }
+
       function actualizarSolUnidad() {
         const el = document.getElementById('p-sol');
         if (!solActivo || !elegida) { el.hidden = true; return; }
@@ -6356,8 +6378,34 @@
           el.hidden = false;
           return;
         }
+        const alSol = fachadasAlSol(elegida);
+        if (alSol && !alSol.length) {
+          el.textContent = 'No recibe sol directo a esta hora.';
+          el.className = 'p-sol p-sol-sombra';
+          el.hidden = false;
+          return;
+        }
         const caja = cajas.find(c => c.userData.unidad.id === elegida.id);
         if (!caja) { el.hidden = true; return; }
+        if (alSol) {
+          const dirSol = direccionSolModelo(ultimoSol.altitud, ultimoSol.azimut, geo.norte_grados)
+            .applyQuaternion(grupoEdificio.quaternion);
+          const limites = new THREE.Box3().setFromObject(caja);
+          const centro = limites.getCenter(new THREE.Vector3());
+          const tam = limites.getSize(new THREE.Vector3());
+          const otros = ocludoresSol.filter(o => o !== caja);
+          const libre = alSol.some(f => {
+            // Normal de la fachada en el mundo: un "sol" horizontal en su rumbo.
+            const n = direccionSolModelo(0, f.rumbo, geo.norte_grados).applyQuaternion(grupoEdificio.quaternion);
+            const medio = 0.5 * (Math.abs(n.x) * tam.x + Math.abs(n.z) * tam.z);
+            rayoSol.set(centro.clone().addScaledVector(n, medio + 0.3), dirSol);
+            return rayoSol.intersectObjects(otros, false).length === 0;
+          });
+          el.textContent = libre ? 'Recibe sol directo ahora.' : 'A esta hora la tapa el propio edificio.';
+          el.className = 'p-sol ' + (libre ? 'p-sol-sol' : 'p-sol-sombra');
+          el.hidden = false;
+          return;
+        }
         // direccionSolModelo da la dirección relativa al edificio (mismo
         // sistema que usa sol.position, adentro de grupoEdificio) — pero
         // este rayo se tira en espacio del MUNDO (origen sale de
