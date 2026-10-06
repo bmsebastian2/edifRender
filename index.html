@@ -1597,6 +1597,10 @@
       flex: none
     }
 
+    .bton[hidden] {
+      display: none
+    }
+
     /* Lista de espera — reemplaza .acciones-panel entera cuando la unidad
      está vendida/reservada (ver actualizarEsperaPanel()), mismo margin-top
      que ese bloque para que el panel no cambie de alto al abrir otra unidad. */
@@ -4073,6 +4077,12 @@
     </div>
 
     <div class="acciones-panel" id="acciones-panel">
+      <!-- Solo con settings.consulta_url (ver actualizarConsulta()): lleva al
+         formulario de contacto del cliente. Cuando está, WhatsApp pasa a
+         secundario para no tener dos botones verdes. -->
+      <a class="bton bton-p" id="p-consultar" href="#" hidden>
+        <span class="bton-txt">Consultar</span>
+      </a>
       <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -7319,6 +7329,35 @@
       }
 
       /* ------------------------------------------------------------
+         Consultar — solo con settings.consulta_url: URL plantilla del
+         formulario de contacto del cliente, con {unidad}, {torre}, {piso},
+         {tipologia} y {proyecto}. Embebido en un iframe abre en _top para
+         que el visitante siga en el sitio del cliente.
+         ------------------------------------------------------------ */
+      const btnConsultar = document.getElementById('p-consultar');
+      const consultaUrl = settingsRow.consulta_url || '';
+      const enIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
+      btnConsultar.target = enIframe ? '_top' : '_self';
+      // Con Consultar, WhatsApp pasa a secundario: un solo botón verde.
+      if (consultaUrl) document.getElementById('p-wa').classList.replace('bton-p', 'bton-s');
+
+      function actualizarConsulta(u) {
+        btnConsultar.hidden = !consultaUrl || u.estado === 'vendido';
+        if (btnConsultar.hidden) return;
+        const valores = {
+          unidad: numeroDe(u),
+          torre: torreDe(u) || '',
+          piso: u.piso,
+          tipologia: tipologiaDe(u) || etiquetaDorms(u.dorms),
+          proyecto: partesNombre ? partesNombre[1] : proyecto.nombre,
+        };
+        // split/join y no replace(): un "$" en un valor no se interpreta.
+        btnConsultar.href = Object.entries(valores).reduce(
+          (url, [clave, valor]) => url.split('{' + clave + '}').join(encodeURIComponent(String(valor))),
+          consultaUrl);
+      }
+
+      /* ------------------------------------------------------------
          Lista de espera — solo sobre unidades vendidas/reservadas (nunca
          'disponible'/'sin_dato', ver CLAUDE.md). Reemplaza .acciones-panel
          entera para que el panel no cambie de alto (ver CSS de .p-espera).
@@ -7631,6 +7670,7 @@
           : 'Precio y superficie publicados en el aviso.';
         actualizarFinanciacionPanel(u);
         actualizarLinkWA(u);
+        actualizarConsulta(u);
         actualizarEsperaPanel(u);
 
         marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
