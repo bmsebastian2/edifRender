@@ -22,7 +22,7 @@ select s.project_id, s.instagram, s.youtube, s.sitio_web, s.whatsapp, s.textos, 
 from settings s join projects p on p.id = s.project_id
 where p.publicado;
 
--- BRUSCO: valor provisorio hasta tener la URL real del formulario.
+-- BRUSCO: página de contacto, sin marcadores por ahora.
 update settings
-set consulta_url = 'https://www.brusco.com.uy/contacto?mensaje=Me%20interesa%20la%20unidad%20{unidad}%20-%20Torre%20{torre}%2C%20piso%20{piso}'
+set consulta_url = 'https://brusco.com.uy/contacto/'
 where project_id = (select id from projects where slug = 'brusco');
