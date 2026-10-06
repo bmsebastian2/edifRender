@@ -882,14 +882,17 @@ document.getElementById('form-redes').addEventListener('submit', async (ev) => {
   const aviso = document.getElementById('redes-guardado');
   aviso.style.display = 'none';
   btn.disabled = true;
-  const { error } = await sb.from('settings').update({
+  const { data, error } = await sb.from('settings').update({
     instagram: document.getElementById('redes-instagram').value.trim(),
     youtube: document.getElementById('redes-youtube').value.trim(),
     sitio_web: document.getElementById('redes-web').value.trim(),
     whatsapp: document.getElementById('redes-whatsapp').value.trim(),
-  }).eq('project_id', PROYECTO_ACTUAL.id);
+  }).eq('project_id', PROYECTO_ACTUAL.id).select('project_id');
   btn.disabled = false;
   if (error){ alert('No se pudo guardar: ' + error.message); return; }
+  // Sin fila en settings (o sin permiso por RLS) el update no falla: afecta
+  // 0 filas en silencio. Avisar en vez de mostrar "Guardado".
+  if (!data || !data.length){ alert('No se guardó nada: este proyecto no tiene fila en settings o no tenés permiso para editarla.'); return; }
   aviso.style.display = 'block';
   setTimeout(() => aviso.style.display = 'none', 2500);
 });
