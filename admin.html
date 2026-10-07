@@ -5,197 +5,475 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title id="titulo-doc">Panel interno</title>
 <style>
+  /* Mismos tokens que el visor (index.html): el admin es el mismo producto
+     visto desde adentro, no una herramienta aparte. --radio-sup es el radio
+     de las superficies densas (tablas, tarjetas): el --radio de 18px del
+     visor es para capas flotantes sobre la escena y acá queda blando. */
   :root{
-    --fondo:#DEE2E4; --tinta:#1A2124; --suave:#5D686C; --linea:rgba(26,33,36,.14);
-    --papel:#fff; --verde:#2F7A68; --gris:#9AA2A5; --ambar:#C08429;
+    --fondo:#F7F8F7; --tinta:#17201E; --suave:#6B7471; --linea:rgba(20,40,35,.10);
+    --papel:#fff; --verde:#2B6656; --verde-suave:#E7EFEC; --gris:#7A8380; --ambar:#C9993F;
+    --presion:#ECEFED; --rojo:#B3413A;
+    --radio-sup:12px; --radio-ctl:10px;
+    --ease:cubic-bezier(.4,0,.2,1); --t:200ms;
+    --alto-barra:64px;
+    /* Ancho del contenido: el encabezado, las pestañas y los paneles
+       comparten el mismo borde izquierdo en cualquier pantalla. */
+    --ancho:1400px; --gutter:24px;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--fondo);color:var(--tinta);
-    font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5}
-  header{padding:22px 24px 0}
-  h1{font-size:20px;font-weight:650;letter-spacing:-.02em;margin:0 0 4px}
+    font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;
+    -webkit-font-smoothing:antialiased}
+  button{font-family:inherit}
   .sub{color:var(--suave);font-size:13px;margin:0}
-  #banner{
-    margin:16px 24px 0;padding:12px 15px;border-radius:5px;background:var(--papel);
-    border:1px solid var(--linea);border-left:3px solid var(--ambar);font-size:13px;max-width:760px;
-  }
-  main{padding:20px 24px 40px;max-width:960px}
-  .tabs{display:flex;gap:6px;margin:20px 0 16px}
-  .tab{padding:8px 14px;border-radius:4px;border:1px solid var(--linea);background:var(--papel);
-    color:var(--suave);cursor:pointer;font-size:13px}
-  .tab[aria-selected="true"]{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+
+  /* Encabezado: la misma barra de 64px blanca translúcida del visor.
+     Izquierda = Cota + proyecto activo (que ES el selector cuando hay más de
+     uno); derecha = quién sos y la salida. */
+  #barra-sup{position:sticky;top:0;z-index:20;height:var(--alto-barra);
+    background:rgba(255,255,255,.78);backdrop-filter:blur(14px) saturate(1.15);
+    -webkit-backdrop-filter:blur(14px) saturate(1.15);border-bottom:1px solid rgba(20,40,35,.06)}
+  .bs-interior{height:100%;max-width:calc(var(--ancho) + 2 * var(--gutter));margin:0 auto;
+    padding:0 var(--gutter);display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .bs-marca{display:flex;align-items:center;gap:14px;min-width:0}
+  .bs-cota{display:flex;align-items:center;gap:7px;flex:none;color:var(--tinta);text-decoration:none;
+    font-size:13px;font-weight:600;letter-spacing:.01em}
+  .bs-cota svg{color:var(--verde)}
+  .bs-sep{width:1px;height:28px;background:var(--linea);flex:none}
+  .bs-proyecto{min-width:0;line-height:1.2}
+  /* El select es invisible y cubre el título entero: se ve un título con un
+     chevron, se comporta como el selector nativo (teclado, lista del sistema
+     en el celular). Con un solo proyecto #selector-envoltorio queda hidden y
+     el título es estático. */
+  .bs-titulo-fila{position:relative;display:flex;align-items:center;gap:6px;min-width:0;
+    margin:0 -8px;padding:2px 8px;border-radius:8px;transition:background-color var(--t) var(--ease)}
+  .bs-titulo-fila:has(#selector-envoltorio:not([hidden])):hover{background:var(--fondo)}
+  .bs-titulo-fila:has(#select-proyecto:focus-visible){outline:2px solid var(--verde);outline-offset:1px}
+  #h1-app{display:flex;align-items:baseline;gap:7px;min-width:0;margin:0;font-size:18px;font-weight:700;
+    letter-spacing:-.01em;white-space:nowrap}
+  #h1-app .bs-nombre{overflow:hidden;text-overflow:ellipsis}
+  #h1-app .bs-dev{font-size:13px;font-weight:500;color:var(--suave);letter-spacing:0}
+  #selector-envoltorio{display:flex;color:var(--suave);flex:none}
+  #selector-envoltorio[hidden]{display:none}
+  #select-proyecto{position:absolute;inset:0;width:100%;opacity:0;cursor:pointer;font:inherit;border:0}
+  .bs-rol{display:block;margin-top:1px;font-size:12px;color:var(--suave)}
+  .bs-usuario{display:flex;align-items:center;gap:6px;flex:none;min-width:0}
+  #usuario-email{font-size:13px;color:var(--suave);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+  #salir{font-size:13px;font-weight:500;color:var(--tinta);background:none;border:0;border-radius:999px;
+    padding:6px 12px;cursor:pointer;transition:background-color var(--t) var(--ease)}
+  #salir:hover{background:var(--fondo)}
+  #salir:active{background:var(--presion)}
+  #salir:focus-visible{outline:2px solid var(--verde);outline-offset:2px}
+
+  main{max-width:calc(var(--ancho) + 2 * var(--gutter));margin:0 auto;padding:0 var(--gutter) 48px}
+
+  /* Pestañas = navegación: texto con subrayado verde en la activa, como el
+     criterio de los chips del visor (color + peso, nunca negro). El ::after
+     reserva el ancho en negrita para que el peso no mueva a las vecinas. */
+  .tabs{display:flex;gap:28px;margin:0 0 24px;border-bottom:1px solid var(--linea);
+    overflow-x:auto;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{position:relative;display:inline-grid;flex:none;padding:16px 0 13px;margin-bottom:-1px;
+    border:0;border-bottom:2px solid transparent;background:none;cursor:pointer;
+    font-size:14px;font-weight:500;color:var(--suave);white-space:nowrap;
+    transition:color var(--t) var(--ease),border-color var(--t) var(--ease)}
+  .tab::after{content:attr(data-texto);font-weight:600;height:0;visibility:hidden;overflow:hidden}
+  .tab:hover{color:var(--tinta)}
+  .tab[aria-selected="true"]{color:var(--tinta);font-weight:600;border-bottom-color:var(--verde)}
+  .tab:focus-visible{outline:2px solid var(--verde);outline-offset:-2px;border-radius:4px}
+  .tab[hidden]{display:none}
   section[hidden]{display:none}
-  .tabla-envoltorio{overflow-x:auto;background:var(--papel);border-radius:6px;border:1px solid var(--linea)}
+  .tabla-envoltorio{overflow-x:auto;background:var(--papel);border-radius:var(--radio-sup);border:1px solid var(--linea)}
+  /* Tablas: filas de 44px (densas pero sin cansar), separadores a la mitad
+     de --linea para que la grilla no compita con los datos. */
   table{width:100%;border-collapse:collapse;min-width:640px}
-  th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--linea);font-size:13px;white-space:nowrap}
+  th,td{height:44px;padding:6px 12px;text-align:left;border-bottom:1px solid rgba(20,40,35,.06);
+    font-size:13px;white-space:nowrap}
   tbody tr:last-child td{border-bottom:none}
-  th{color:var(--suave);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
+  th{height:40px;color:var(--suave);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+    border-bottom-color:var(--linea)}
+  tbody tr{transition:background-color var(--t) var(--ease)}
+  tbody tr:hover{background:#FAFBFA}
+  input[type="checkbox"]{accent-color:var(--verde);cursor:pointer}
   /* La tabla de unidades tiene 78 filas: con overflow-x solo, la barra de
      scroll horizontal quedaba al final de todas las filas. Altura acotada +
      scroll propio + header pegajoso para que la barra y los títulos de
-     columna estén siempre a mano, sin bajar toda la tabla. */
-  #panel-unidades .tabla-envoltorio{max-height:70vh;overflow-y:auto}
-  #panel-unidades thead th{position:sticky;top:0;background:var(--papel);z-index:1}
-  /* Las 12 columnas de Unidades no entran en los 960px del resto del admin:
-     con esta pestaña abierta, main se libera del tope y el panel queda
-     centrado con un máximo de 1400px (lo justo para que entre a 1440 sin
-     llegar de borde a borde en pantallas grandes). El selector de proyecto
-     vive fuera de main y no se entera. En desktop todas
+     columna estén siempre a mano, sin bajar toda la tabla. La altura es la
+     de la ventana menos encabezado, pestañas y barra de lote: en una
+     pantalla grande entran más unidades en vez de quedar aire abajo. */
+  #panel-unidades .tabla-envoltorio{max-height:max(360px, calc(100vh - 220px));
+    max-height:max(360px, calc(100dvh - 220px));overflow-y:auto}
+  #panel-unidades thead th{position:sticky;top:0;background:var(--papel);z-index:1;
+    border-bottom:0;box-shadow:inset 0 -1px 0 var(--linea)}
+  /* Jerarquía: número de unidad y estado son lo que se busca; piso, dorms,
+     m² y orientación son apoyo y van en --suave. El precio queda en tinta:
+     es el otro dato que se lee en vertical. */
+  #tabla-unidades .col-id{font-size:14px;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  #tabla-unidades .apoyo,#tabla-unidades .vacio{color:var(--suave)}
+  #tabla-unidades tbody tr:has(.check-unidad:checked){background:var(--verde-suave)}
+  /* La celda con input recorta su padding derecho por el padding interno
+     del input: así la cifra termina en el mismo borde que el encabezado. */
+  #tabla-unidades td:has(> .input-campo){padding-right:3px}
+  /* Las 12 columnas de Unidades usan todo el ancho de main (--ancho, 1400px:
+     lo justo para que entre a 1440 sin llegar de borde a borde en pantallas
+     grandes). En desktop todas
      las columnas se ajustan a su contenido (width:1%) salvo Orientación (7) y
      Tipología (10), que se llevan el ancho que sobra; Orientación puede ir en
      dos líneas. Estado (11: punto + selector) sigue en nowrap: nunca se
      corta. Si igual no entra, queda el scroll horizontal del envoltorio. En
      mobile no cambia nada. */
   @media (min-width:701px){
-    main:has(> #panel-unidades:not([hidden])){max-width:none}
-    #panel-unidades{max-width:1400px;margin-inline:auto}
     #tabla-unidades :is(th,td):not(:nth-child(7)):not(:nth-child(10)){width:1%}
     #tabla-unidades td:nth-child(7){white-space:normal;min-width:160px}
     #tabla-unidades td:nth-child(10){min-width:120px}
   }
-  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  /* Números a la derecha con cifras de ancho fijo (th y td), para que m²,
+     precio y cochera se lean en columna. */
+  .num{text-align:right;font-variant-numeric:tabular-nums}
   .estado{display:inline-flex;align-items:center;gap:6px}
-  .punto{width:8px;height:8px;border-radius:2px;flex:none}
-  select.select-estado{padding:6px 8px;border-radius:4px;border:1px solid var(--linea);background:#fff;
-    cursor:pointer;font-size:12.5px;color:var(--tinta)}
+  /* Mismo punto redondo de 8px que los chips del visor. */
+  .punto{width:8px;height:8px;border-radius:50%;flex:none}
+
+  /* Controles editables dentro de tablas: en reposo se leen como texto (sin
+     caja); el borde y el chevron aparecen al pasar por la fila, se afirman
+     sobre el control y el foco es verde. En pantallas táctiles no hay hover:
+     ahí el borde queda siempre visible (ver @media (hover:none) abajo). */
+  select.select-estado{appearance:none;-webkit-appearance:none;height:30px;padding:0 26px 0 8px;
+    border-radius:8px;border:1px solid transparent;background:transparent no-repeat right 8px center / 12px;
+    cursor:pointer;font:inherit;font-size:13px;font-weight:500;color:var(--tinta);
+    transition:border-color var(--t) var(--ease),background-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+  tr:hover select.select-estado,select.select-estado:focus{border-color:var(--linea);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7471' stroke-width='2.4'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
+  select.select-estado:hover{border-color:rgba(20,40,35,.22);background-color:#fff}
+  select.select-estado:focus-visible{outline:none;border-color:var(--verde);background-color:#fff;box-shadow:0 0 0 3px var(--verde-suave)}
   select.select-estado:disabled{opacity:.5;cursor:default}
-  input.input-campo{width:78px;padding:6px 8px;border-radius:4px;border:1px solid var(--linea);
-    background:#fff;font:inherit;font-size:12.5px;color:var(--tinta)}
+  /* Estado de unidad: el punto va DENTRO del control (posicionado sobre el
+     padding del select), así punto + nombre son una sola pieza. Vendida baja
+     a --suave, como en el visor donde casi desaparece. */
+  .estado-editable{position:relative;gap:0}
+  .estado-editable .punto{position:absolute;left:10px;pointer-events:none}
+  .estado-editable select.select-estado{padding-left:24px}
+  .estado-editable[data-estado="vendido"] select.select-estado{color:var(--suave)}
+
+  input.input-campo{width:84px;height:30px;padding:0 8px;border-radius:8px;border:1px solid transparent;
+    background:transparent;font:inherit;font-size:13px;color:var(--tinta);text-align:right;
+    font-variant-numeric:tabular-nums;-moz-appearance:textfield;
+    transition:background-color .8s var(--ease),border-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+  input.input-campo::-webkit-inner-spin-button,input.input-campo::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  input.input-campo::placeholder{color:var(--suave);opacity:.55}
+  tr:hover input.input-campo{border-color:var(--linea)}
+  input.input-campo:hover{border-color:rgba(20,40,35,.22);background:#fff}
+  input.input-campo:focus{outline:none;border-color:var(--verde);background:#fff;box-shadow:0 0 0 3px var(--verde-suave)}
   input.input-campo:disabled{opacity:.5;cursor:default}
   /* Confirmación al guardar Terraza/Cochera: verde que se desvanece si salió
      bien (la clase se saca enseguida y la transición hace el fundido); rojo
      fijo + mensaje si falló, hasta el próximo guardado bueno. */
-  input.input-campo{transition:background-color .8s,border-color .8s}
   input.input-campo.campo-ok{border-color:var(--verde);background:rgba(43,102,86,.14);transition:none}
-  input.input-campo.campo-error{border-color:#B3413A;background:rgba(179,65,58,.08)}
-  .campo-error-msg{display:block;margin-top:3px;font-size:11px;color:#B3413A;text-align:left}
-  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
-  .tarjeta-stat{background:var(--papel);border:1px solid var(--linea);border-radius:6px;padding:16px}
-  .tarjeta-stat h3{margin:0 0 12px;font-size:12.5px;color:var(--suave);font-weight:600;
-    text-transform:uppercase;letter-spacing:.03em}
-  .barra-fila{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px}
-  .barra-fila .etq{width:120px;flex:none;color:var(--suave);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .barra-fondo{flex:1;height:8px;background:var(--linea);border-radius:4px;overflow:hidden}
-  .barra{height:100%;background:var(--verde)}
-  .barra-fila .val{width:24px;text-align:right;font-variant-numeric:tabular-nums}
-  #cargando-unidades,#cargando-demanda{padding:30px 0;color:var(--suave)}
-  @media (max-width:700px){ main{padding:16px} #banner{margin-left:16px;margin-right:16px} }
+  input.input-campo.campo-error{border-color:var(--rojo);background:rgba(179,65,58,.08)}
+  .campo-error-msg{display:block;margin-top:3px;font-size:11px;color:var(--rojo);text-align:right}
 
-  #login-envoltorio{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-  #login-caja{background:var(--papel);border:1px solid var(--linea);border-radius:8px;padding:28px;width:100%;max-width:320px}
-  #login-caja h1{font-size:17px;margin:0 0 4px}
-  #login-caja p{margin:0 0 18px;color:var(--suave);font-size:13px}
-  #login-caja label{display:block;font-size:12.5px;color:var(--suave);margin:0 0 5px}
-  #login-caja input{width:100%;padding:9px 10px;border:1px solid var(--linea);border-radius:4px;
-    font:inherit;margin-bottom:14px;background:#fff;color:var(--tinta)}
-  #login-caja button{width:100%;padding:10px;border:none;border-radius:4px;background:var(--tinta);
-    color:#fff;font:inherit;cursor:pointer}
+  @media (hover:none){
+    select.select-estado,input.input-campo{border-color:var(--linea)}
+    select.select-estado{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7471' stroke-width='2.4'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
+  }
+
+  /* Mobile: el vendedor necesita encontrar la unidad y cambiarle el estado
+     sin scroll horizontal. Cada fila pasa a ser una ficha de dos líneas:
+     [check] número ........ [estado]
+             Piso 3 · 2 dorm. · 64 m² · US$ 145.000
+     Terraza, cochera, orientación, tipología y "modificado" se ocultan (se
+     editan desde la computadora; la asignación en lote sigue disponible). Las celdas son las mismas: solo cambia el CSS. */
+  @media (max-width:700px){
+    #panel-unidades .tabla-envoltorio{max-height:none;overflow:visible}
+    #tabla-unidades{min-width:0;display:block}
+    #tabla-unidades thead{display:none}
+    #tabla-unidades tbody{display:block}
+    #tabla-unidades tr{display:flex;flex-wrap:wrap;align-items:center;padding:8px 12px 11px;
+      border-bottom:1px solid rgba(20,40,35,.06)}
+    #tabla-unidades tr:last-child{border-bottom:0}
+    #tabla-unidades td{display:block;height:auto;padding:0;border:0}
+    #tabla-unidades td:nth-child(1){order:0;width:30px}
+    #tabla-unidades td:nth-child(2){order:1;font-size:16px}
+    #tabla-unidades td:nth-child(11){order:2;margin-left:auto}
+    #tabla-unidades tr::before{content:"";order:3;flex-basis:100%}
+    #tabla-unidades td:is(:nth-child(3),:nth-child(4),:nth-child(5),:nth-child(8)){
+      order:4;font-size:12.5px;color:var(--suave);text-align:left}
+    #tabla-unidades td:nth-child(3){padding-left:30px}
+    #tabla-unidades td:nth-child(3)::before{content:"Piso "}
+    #tabla-unidades td:nth-child(4)::after{content:" dorm."}
+    #tabla-unidades td:nth-child(5)::after{content:" m²"}
+    #tabla-unidades td:is(:nth-child(4),:nth-child(5),:nth-child(8))::before{content:"·";margin:0 6px}
+    #tabla-unidades td:nth-child(8){color:var(--tinta)}
+    #tabla-unidades td:is(:nth-child(6),:nth-child(7),:nth-child(9),:nth-child(10),:nth-child(12)),
+    #tabla-unidades td.vacio:nth-child(8){display:none}
+    .barra-lote-acciones{width:100%}
+    .barra-lote select{flex:1;min-width:0}
+    .barra-lote button:not(.link-tipologias){flex:none;white-space:nowrap}
+    #tabla-unidades select.select-estado{height:36px}
+  }
+  /* Mobile (lo usa el vendedor parado al lado de un cliente): la barra baja
+     a 56px como en el visor, "Cota" queda solo como ícono y el email se
+     esconde — "Salir" alcanza para saber que hay sesión. */
+  @media (max-width:700px){
+    :root{--gutter:16px;--alto-barra:56px}
+    .bs-cota span,.bs-sep{display:none}
+    .bs-marca{gap:10px}
+    #h1-app{font-size:16px}
+    #usuario-email{display:none}
+    .tabs{gap:22px;margin-bottom:16px;
+      -webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+    .tab{padding:13px 0 11px}
+  }
+
+  #login-envoltorio{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:20px;padding:24px}
+  .login-cota{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--tinta)}
+  .login-cota svg{color:var(--verde)}
+  #login-caja{background:var(--papel);border:1px solid var(--linea);border-radius:var(--radio-sup);
+    padding:28px;width:100%;max-width:340px}
+  #login-caja h1{font-size:18px;font-weight:700;letter-spacing:-.01em;margin:0 0 4px}
+  #login-caja p{margin:0 0 20px;color:var(--suave);font-size:13px}
+  #login-caja label{display:block;font-size:12.5px;font-weight:500;color:var(--suave);margin:0 0 6px}
+  #login-caja input{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:var(--radio-ctl);
+    font:inherit;margin-bottom:14px;background:#fff;color:var(--tinta);transition:border-color var(--t) var(--ease)}
+  #login-caja input:hover{border-color:rgba(20,40,35,.22)}
+  #login-caja input:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px var(--verde-suave)}
+  #login-caja button{width:100%;margin-top:4px;padding:11px;border:none;border-radius:var(--radio-ctl);
+    background:var(--verde);color:#fff;font:inherit;font-weight:600;cursor:pointer;
+    transition:background-color var(--t) var(--ease)}
+  #login-caja button:hover{background:#245747}
+  #login-caja button:focus-visible{outline:2px solid var(--verde);outline-offset:2px}
   #login-caja button:disabled{opacity:.6;cursor:default}
-  #login-error{color:#B3413A;font-size:12.5px;margin:-6px 0 14px;display:none}
+  #login-error{color:var(--rojo);font-size:12.5px;margin:-6px 0 14px;display:none}
+  .login-nota{max-width:340px;margin:0;text-align:center;font-size:12px;color:var(--suave)}
   #app-envoltorio{display:none}
-  #salir{position:fixed;top:18px;right:22px;font-size:12.5px;color:var(--suave);background:none;
-    border:1px solid var(--linea);border-radius:4px;padding:6px 11px;cursor:pointer}
-  #salir:hover{color:var(--tinta)}
 
-  #form-redes{background:var(--papel);border:1px solid var(--linea);border-radius:6px;padding:20px;max-width:420px}
-  #form-redes label{display:block;font-size:12.5px;color:var(--suave);margin:0 0 5px}
-  #form-redes input{width:100%;padding:9px 10px;border:1px solid var(--linea);border-radius:4px;
-    font:inherit;margin-bottom:14px;background:#fff;color:var(--tinta)}
-  #form-redes button{padding:9px 16px;border:none;border-radius:4px;background:var(--tinta);
-    color:#fff;font:inherit;cursor:pointer}
-  #form-redes button:disabled{opacity:.6;cursor:default}
-  #redes-guardado{font-size:12.5px;color:var(--verde);margin:0 0 14px;display:none}
+  #sin-acceso{max-width:calc(480px + 2 * var(--gutter));margin:48px auto 0;padding:0 var(--gutter);
+    font-size:14px;color:var(--suave)}
+  #sin-acceso b{display:block;margin-bottom:4px;color:var(--tinta);font-size:16px;font-weight:600}
+  /* Quién + cuándo en dos líneas apretadas: entran en los 44px de la fila. */
+  .modificado{font-size:11.5px;line-height:1.3;color:var(--suave);font-variant-numeric:tabular-nums}
+  #tabla-unidades .modificado{display:block}
+  .modificado-quien{display:block;max-width:130px;overflow:hidden;text-overflow:ellipsis;
+    font-size:11.5px;line-height:1.3;color:var(--suave)}
 
-  #selector-envoltorio{margin:16px 24px 0}
-  #selector-envoltorio label{display:block;font-size:12.5px;color:var(--suave);margin:0 0 5px}
-  #select-proyecto{padding:8px 10px;border:1px solid var(--linea);border-radius:4px;font:inherit;
-    background:#fff;color:var(--tinta);min-width:220px}
-  #sin-acceso{margin:16px 24px 0;padding:14px 16px;background:var(--papel);border:1px solid var(--linea);
-    border-radius:6px;max-width:480px;font-size:13px}
-  .amenity-flechas{display:flex;gap:4px}
-  .amenity-flechas button{border:1px solid var(--linea);background:#fff;border-radius:4px;cursor:pointer;
-    width:24px;height:24px;color:var(--suave)}
-  .amenity-flechas button:disabled{opacity:.35;cursor:default}
-  .input-texto{width:100%;padding:7px 9px;border:1px solid var(--linea);border-radius:4px;
-    font:inherit;font-size:12.5px;background:#fff;color:var(--tinta)}
-  #form-amenity-nuevo{display:flex;gap:8px;margin-top:14px;max-width:520px}
-  #form-amenity-nuevo input{flex:1;padding:9px 10px;border:1px solid var(--linea);border-radius:4px;font:inherit}
-  #form-amenity-nuevo button{padding:9px 16px;border:none;border-radius:4px;background:var(--tinta);
-    color:#fff;font:inherit;cursor:pointer}
-  .btn-borrar{border:1px solid var(--linea);background:#fff;border-radius:4px;cursor:pointer;
-    padding:5px 9px;font-size:12px;color:var(--suave)}
-  .btn-borrar:hover{color:#B3413A;border-color:#B3413A}
-  .modificado{font-size:11.5px;color:var(--suave)}
-  .modificado-quien{display:block;max-width:110px;overflow:hidden;text-overflow:ellipsis;
-    font-size:11.5px;color:var(--suave)}
-  .btn-ver-contactos{border:1px solid var(--linea);background:#fff;border-radius:4px;cursor:pointer;
-    padding:5px 9px;font-size:12px;color:var(--suave)}
-  .btn-ver-contactos:hover{color:var(--tinta);border-color:var(--tinta)}
-  .fila-detalle td{background:var(--fondo);padding:10px 14px;font-size:12.5px}
+  /* Barra de lote: sin tarjeta, es la línea de herramientas de la tabla.
+     El botón es verde solo cuando hay algo seleccionado. */
+  .barra-lote{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .barra-lote-acciones{display:flex;align-items:center;gap:8px}
+  .barra-lote select{height:34px;padding:0 30px 0 12px;appearance:none;-webkit-appearance:none;
+    border:1px solid var(--linea);border-radius:var(--radio-ctl);font:inherit;font-size:13px;color:var(--tinta);cursor:pointer;
+    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7471' stroke-width='2.4'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center / 12px;
+    transition:border-color var(--t) var(--ease)}
+  .barra-lote select:hover{border-color:rgba(20,40,35,.22)}
+  .barra-lote select:focus-visible{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px var(--verde-suave)}
+  .barra-lote button:not(.link-tipologias){height:34px;padding:0 14px;border:none;border-radius:var(--radio-ctl);
+    background:var(--verde);color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+    font-variant-numeric:tabular-nums;transition:background-color var(--t) var(--ease),color var(--t) var(--ease)}
+  .barra-lote button:not(.link-tipologias):hover{background:#245747}
+  .barra-lote button:not(.link-tipologias):disabled{background:var(--presion);color:var(--suave);cursor:default}
+  .barra-lote button:focus-visible{outline:2px solid var(--verde);outline-offset:2px}
+  .barra-lote button.link-tipologias{padding:0;border:0;background:none;color:var(--suave);font:inherit;font-size:13px;
+    cursor:pointer;text-decoration:underline;text-decoration-color:rgba(20,40,35,.25);text-underline-offset:3px;
+    transition:color var(--t) var(--ease)}
+  .barra-lote button.link-tipologias:hover{color:var(--tinta);text-decoration-color:currentColor}
+  .col-check{width:28px}
+
+  /* ─── El resto de las pestañas: mismo sistema que Unidades ───
+     Una sola regla para los campos: en TABLAS se leen como texto y se
+     revelan al pasar (igual que Terraza/Cochera); en FORMULARIOS y TARJETAS
+     son cajas visibles, porque ahí la tarea es completarlos. */
+
+  /* Anchos de lectura: las tablas cortas y los formularios no se estiran a
+     los 1400px de Unidades. */
+  #panel-amenities,#panel-accesos{max-width:760px}
+  #panel-demanda,#panel-tipologias,#panel-avance{max-width:1040px}
+  main section > p.sub{max-width:640px}
+  [id^="cargando-"]{padding:32px 0;color:var(--suave);font-size:13px}
+  .titulo-seccion{margin:0 0 12px;font-size:15px;font-weight:650;letter-spacing:-.01em}
+
+  /* Tarjetas: misma superficie que la tabla. Los títulos internos van como
+     los encabezados de columna (chicos, en versalitas, --suave). */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:16px}
+  .tarjeta-stat{background:var(--papel);border:1px solid var(--linea);border-radius:var(--radio-sup);padding:20px}
+  :not(.stats-grid) > .tarjeta-stat + .tarjeta-stat{margin-top:16px}
+  .tarjeta-stat h3,.tipologia-media h4{margin:0 0 14px;font-size:11px;color:var(--suave);font-weight:600;
+    text-transform:uppercase;letter-spacing:.05em}
+  /* Tabla dentro de tarjeta: sin segundo borde, llega a los bordes. */
+  .tarjeta-stat .tabla-envoltorio{border:0;border-radius:0;margin:0 -20px -20px}
+  .tarjeta-stat .tabla-envoltorio :is(th,td):first-child{padding-left:20px}
+  .tarjeta-stat .tabla-envoltorio :is(th,td):last-child{padding-right:20px}
+  .cifra{margin:2px 0 0;font-size:32px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--tinta)}
+
+  /* Demanda: barras finas en verde sobre el gris de presión. .barra es un
+     span: sin display:block no tomaba ancho ni alto. */
+  .barra-fila{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px}
+  .barra-fila:last-child{margin-bottom:0}
+  .barra-fila .etq{width:128px;flex:none;color:var(--suave);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .barra-fondo{flex:1;height:6px;background:var(--presion);border-radius:999px;overflow:hidden}
+  .barra{display:block;height:100%;background:var(--verde);border-radius:inherit}
+  .barra-fila .val{min-width:28px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+  #filas-top td:first-child,#filas-espera > tr:not(.fila-detalle) > td:first-child,#filas-accesos td:first-child{
+    font-size:14px;font-weight:650;font-variant-numeric:tabular-nums}
+  #filas-accesos td:first-child{font-size:13px;font-weight:600}
+  .fila-detalle td{height:auto;background:var(--fondo);padding:10px 20px;font-size:13px;white-space:normal}
   .fila-detalle div+div{margin-top:4px}
 
-  .grid-imagenes{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px}
-  .tarjeta-imagen{background:var(--papel);border:1px solid var(--linea);border-radius:6px;overflow:hidden}
-  .tarjeta-imagen img{width:100%;height:110px;object-fit:cover;display:block;background:var(--fondo)}
-  .tarjeta-imagen-acciones{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;gap:4px}
-  .btn-subir{display:inline-block;padding:9px 16px;border-radius:4px;background:var(--tinta);
-    color:#fff;cursor:pointer;font-size:13px}
-  .btn-subir:hover{opacity:.9}
-  .btn-subir[aria-disabled="true"]{opacity:.6;pointer-events:none}
-  .subiendo{margin-left:10px;font-size:12.5px;color:var(--suave)}
-  .sin-imagenes{color:var(--suave);margin:0 0 16px;font-size:12.5px}
+  /* Botón principal: verde de marca, uno por formulario. */
+  :is(#form-redes,#form-amenity-nuevo,.form-tipologia-nueva) button[type="submit"],.btn-subir{
+    display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 16px;border:none;
+    border-radius:var(--radio-ctl);background:var(--verde);color:#fff;font:inherit;font-size:13px;font-weight:600;
+    cursor:pointer;white-space:nowrap;transition:background-color var(--t) var(--ease)}
+  :is(#form-redes,#form-amenity-nuevo,.form-tipologia-nueva) button[type="submit"]:hover,.btn-subir:hover{background:#245747}
+  :is(#form-redes,#form-amenity-nuevo,.form-tipologia-nueva) button[type="submit"]:focus-visible{outline:2px solid var(--verde);outline-offset:2px}
+  :is(#form-redes,#form-amenity-nuevo,.form-tipologia-nueva) button[type="submit"]:disabled,
+  .btn-subir[aria-disabled="true"]{background:var(--presion);color:var(--suave);cursor:default;pointer-events:none}
 
-  /* Tipologías: cada tarjeta agrupa datos + dos galerías (planta/renders). */
-  .tarjeta-tipologia{background:var(--papel);border:1px solid var(--linea);border-radius:6px;
-    padding:16px;margin-bottom:14px}
-  .tipologia-cabeza{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px}
-  .tipologia-cabeza input{padding:7px 9px;border:1px solid var(--linea);border-radius:4px;
-    font:inherit;font-size:12.5px;background:#fff;color:var(--tinta)}
-  .tipologia-cabeza input.tipologia-nombre{flex:1;min-width:160px;font-weight:600}
-  .tipologia-cabeza input.tipologia-num{width:70px}
-  .tipologia-cabeza input.tipologia-orient{width:110px}
-  .tipologia-unidades{margin:0 0 14px;font-size:12px;color:var(--suave)}
-  .tipologia-media{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  @media (max-width:640px){ .tipologia-media{grid-template-columns:1fr} }
-  .tipologia-media h4{margin:0 0 8px;font-size:11.5px;color:var(--suave);font-weight:600;
-    text-transform:uppercase;letter-spacing:.03em}
-  .avance-toggle-fila{display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer}
-  .tarjeta-obra-acciones{display:flex;flex-direction:column;gap:6px;padding:6px 8px}
-  .tarjeta-obra-acciones input.tarjeta-fecha{width:100%;padding:6px 8px;border:1px solid var(--linea);
-    border-radius:4px;font:inherit;font-size:12.5px}
-  .dropzone{border:1.5px dashed var(--linea);border-radius:6px;padding:10px;text-align:center;
-    color:var(--suave);font-size:12px;margin-bottom:10px}
-  .dropzone.dropzone-activa{border-color:var(--verde);background:rgba(47,122,104,.06);color:var(--verde)}
-  .form-tipologia-nueva{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
-  .form-tipologia-nueva input{padding:9px 10px;border:1px solid var(--linea);border-radius:4px;font:inherit}
+  /* Acciones secundarias: texto sin caja. Eliminar/Quitar se tiñen de rojo
+     recién al pasar — destructivo, pero sin gritar en cada fila. */
+  .btn-borrar,.btn-ver-contactos{height:30px;padding:0 10px;border:0;border-radius:8px;background:none;
+    color:var(--suave);font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;
+    transition:color var(--t) var(--ease),background-color var(--t) var(--ease)}
+  .btn-ver-contactos:hover{color:var(--tinta);background:var(--fondo)}
+  .btn-borrar:hover{color:var(--rojo);background:rgba(179,65,58,.07)}
+  :is(.btn-borrar,.btn-ver-contactos):active{background:var(--presion)}
+  :is(.btn-borrar,.btn-ver-contactos):focus-visible{outline:2px solid var(--verde);outline-offset:1px}
+  .btn-borrar:disabled{opacity:.4;cursor:default;background:none;color:var(--suave)}
+  /* Flechas de orden: íconos sin caja, como los de la barra del visor. */
+  .amenity-flechas{display:flex;gap:2px}
+  td.amenity-flechas{display:table-cell;width:1%}
+  .amenity-flechas button{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:0;
+    border-radius:8px;background:none;color:var(--suave);font:inherit;font-size:14px;cursor:pointer;
+    transition:color var(--t) var(--ease),background-color var(--t) var(--ease)}
+  .amenity-flechas button:hover{color:var(--tinta);background:var(--fondo)}
+  .amenity-flechas button:active{background:var(--presion)}
+  .amenity-flechas button:focus-visible{outline:2px solid var(--verde);outline-offset:1px}
+  .amenity-flechas button:disabled{opacity:.3;cursor:default;background:none}
+
+  /* Campos de formulario y de tarjeta: cajas visibles. */
+  :is(#form-redes,#form-amenity-nuevo,.form-tipologia-nueva,.tipologia-cabeza) :is(input:not([type="checkbox"]),select),
+  input.tarjeta-fecha{height:36px;padding:0 12px;border:1px solid var(--linea);border-radius:var(--radio-ctl);
+    background:#fff;font:inherit;font-size:13.5px;color:var(--tinta);
+    transition:border-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+  :is(#form-redes,#form-amenity-nuevo,.form-tipologia-nueva,.tipologia-cabeza) :is(input:not([type="checkbox"]),select):hover,
+  input.tarjeta-fecha:hover{border-color:rgba(20,40,35,.22)}
+  :is(#form-redes,#form-amenity-nuevo,.form-tipologia-nueva,.tipologia-cabeza) :is(input:not([type="checkbox"]),select):focus,
+  input.tarjeta-fecha:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px var(--verde-suave)}
+  /* Misma especificidad que la regla base (lleva un id en el :is) y va
+     después: así el chevron no se pisa con el background de la base. */
+  :is(#form-redes,#form-amenity-nuevo,.form-tipologia-nueva,.tipologia-cabeza) select:not([multiple]){
+    appearance:none;-webkit-appearance:none;padding-right:32px;cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7471' stroke-width='2.4'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 11px center;background-size:12px}
+  :is(.form-tipologia-nueva,.tipologia-cabeza) input[type="number"]{text-align:right;font-variant-numeric:tabular-nums}
+
+  /* Campos dentro de tablas (Amenities, Hitos): texto en reposo, como en
+     Unidades. */
+  .tabla-envoltorio td :is(input.input-texto,input.tipologia-num,input[type="date"],select:not(.select-estado)){
+    height:30px;padding:0 8px;border:1px solid transparent;border-radius:8px;background:transparent;
+    font:inherit;font-size:13px;color:var(--tinta);
+    transition:border-color var(--t) var(--ease),background-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+  .tabla-envoltorio tr:hover td :is(input.input-texto,input.tipologia-num,input[type="date"],select:not(.select-estado)){border-color:var(--linea)}
+  .tabla-envoltorio td :is(input.input-texto,input.tipologia-num,input[type="date"],select:not(.select-estado)):hover{
+    border-color:rgba(20,40,35,.22);background-color:#fff}
+  .tabla-envoltorio td :is(input.input-texto,input.tipologia-num,input[type="date"],select:not(.select-estado)):focus{
+    outline:none;border-color:var(--verde);background-color:#fff;box-shadow:0 0 0 3px var(--verde-suave)}
+  .tabla-envoltorio td input.input-texto{width:100%;min-width:200px}
+  .tabla-envoltorio td input.tipologia-num{width:72px;text-align:right;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+  .tabla-envoltorio td input.tipologia-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .tabla-envoltorio td:has(> input.tipologia-num){padding-right:3px}
+  /* Igual del lado izquierdo: el texto del campo arranca donde su encabezado. */
+  .tabla-envoltorio td:has(> :is(input.input-texto,input[type="date"],select)){padding-left:3px}
+  .tabla-envoltorio td select:not(.select-estado){appearance:none;-webkit-appearance:none;padding-right:26px;cursor:pointer;
+    background:transparent no-repeat right 8px center / 12px}
+  .tabla-envoltorio tr:hover td select:not(.select-estado),.tabla-envoltorio td select:not(.select-estado):focus{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7471' stroke-width='2.4'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
+  @media (hover:none){
+    .tabla-envoltorio td :is(input.input-texto,input.tipologia-num,input[type="date"],select:not(.select-estado)){border-color:var(--linea)}
+  }
+
+  /* Amenities y Accesos: formularios de una línea bajo la tabla. */
+  #panel-amenities table{min-width:0}
+  #panel-amenities td:nth-child(2){width:100%}
+  /* Inactiva = atenuada, como la vendida en Unidades. */
+  #filas-amenities tr:has(td:nth-child(3) input:not(:checked)) .input-texto{color:var(--suave)}
+  #form-amenity-nuevo{display:flex;gap:8px;margin-top:16px}
+  #form-amenity-nuevo input{flex:1;min-width:0}
+  .form-tipologia-nueva{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
   .form-tipologia-nueva input.campo-nombre{flex:1;min-width:180px}
-  .form-tipologia-nueva input.campo-num{width:90px}
-  .form-tipologia-nueva button{padding:9px 16px;border:none;border-radius:4px;background:var(--tinta);
-    color:#fff;font:inherit;cursor:pointer}
+  .form-tipologia-nueva input.campo-num{width:96px}
+  #acceso-error{color:var(--rojo);font-size:12.5px;margin:8px 0 0}
+  #acceso-ok{color:var(--verde);font-size:12.5px;font-weight:500;margin:8px 0 0}
 
-  .barra-lote{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;
-    background:var(--papel);border:1px solid var(--linea);border-radius:6px;padding:10px 12px;margin-bottom:12px}
-  .barra-lote-acciones{display:flex;align-items:center;gap:8px}
-  .barra-lote select{padding:7px 9px;border:1px solid var(--linea);border-radius:4px;font:inherit;
-    font-size:12.5px;background:#fff;color:var(--tinta)}
-  .barra-lote button{padding:7px 12px;border:none;border-radius:4px;background:var(--tinta);
-    color:#fff;font:inherit;font-size:12.5px;cursor:pointer}
-  .barra-lote button:disabled{opacity:.5;cursor:default}
-  .barra-lote button.link-tipologias{padding:0;background:none;color:inherit;font-size:inherit;
-    text-decoration:underline;text-underline-offset:2px}
-  .barra-lote button.link-tipologias:hover{color:var(--tinta)}
-  .col-check{width:28px}
-  .form-tipologia-nueva select{padding:9px 10px;border:1px solid var(--linea);border-radius:4px;
-    font:inherit;background:#fff;color:var(--tinta)}
-  .form-tipologia-nueva button:disabled{opacity:.6;cursor:default}
-  #acceso-error{color:#B3413A;font-size:12.5px;margin:8px 0 0}
-  #acceso-ok{color:var(--verde);font-size:12.5px;margin:8px 0 0}
-  .btn-borrar:disabled{opacity:.35;cursor:default;color:var(--suave);border-color:var(--linea)}
+  /* Redes: un formulario corto en una tarjeta. */
+  #form-redes{background:var(--papel);border:1px solid var(--linea);border-radius:var(--radio-sup);padding:24px;max-width:480px}
+  #form-redes label{display:block;font-size:12.5px;font-weight:500;color:var(--suave);margin:0 0 6px}
+  #form-redes input{width:100%;margin-bottom:16px}
+  #form-redes button{margin-top:4px}
+  #redes-guardado{font-size:12.5px;font-weight:500;color:var(--verde);margin:0 0 14px;display:none}
+
+  /* Tipologías: el nombre es el título de la tarjeta y se edita en el
+     lugar; dorms / m² / orientación son campos chicos al lado. */
+  .tarjeta-tipologia{background:var(--papel);border:1px solid var(--linea);border-radius:var(--radio-sup);
+    padding:20px;margin-bottom:16px}
+  .tipologia-cabeza{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
+  /* #panel-tipologias: para ganarle a la regla base de campos, que lleva un id. */
+  #panel-tipologias .tipologia-cabeza input.tipologia-nombre{flex:1;min-width:180px;height:38px;margin-left:-9px;padding:0 8px;
+    border-color:transparent;background:transparent;font-size:16px;font-weight:650;letter-spacing:-.01em}
+  #panel-tipologias .tipologia-cabeza input.tipologia-nombre:hover{border-color:var(--linea);background:#fff}
+  #panel-tipologias .tipologia-cabeza input.tipologia-nombre:focus{border-color:var(--verde);background:#fff}
+  .tipologia-cabeza input.tipologia-num{width:64px}
+  .tipologia-cabeza input.tipologia-orient{width:130px}
+  /* "2 dorm." / "74 m²": el sufijo dice qué es cada número. */
+  .campo-sufijo{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--suave)}
+  .tipologia-unidades{margin:0 0 18px;font-size:12.5px;color:var(--suave)}
+  .tipologia-media{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding-top:16px;border-top:1px solid rgba(20,40,35,.06)}
+  @media (max-width:640px){ .tipologia-media{grid-template-columns:1fr} }
+
+  /* Galerías (Imágenes, fotos de obra, planta/renders): miniaturas 4:3 con
+     las acciones en una línea fina abajo. */
+  .grid-imagenes{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+  .tarjeta-imagen{background:var(--papel);border:1px solid var(--linea);border-radius:var(--radio-sup);overflow:hidden}
+  .tarjeta-imagen img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;background:var(--fondo)}
+  .tarjeta-imagen-acciones,.tarjeta-obra-acciones{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:6px}
+  .tarjeta-obra-acciones input.tarjeta-fecha{flex:1;min-width:0;height:30px;padding:0 8px;border-radius:8px;font-size:12.5px}
+  .subiendo{margin-left:10px;font-size:12.5px;color:var(--suave)}
+  .sin-imagenes{color:var(--suave);margin:0 0 16px;font-size:13px}
+  .dropzone{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;min-height:88px;
+    padding:16px;margin-bottom:16px;border:1.5px dashed rgba(20,40,35,.18);border-radius:var(--radio-sup);
+    color:var(--suave);font-size:13px;text-align:center;
+    transition:border-color var(--t) var(--ease),background-color var(--t) var(--ease),color var(--t) var(--ease)}
+  .dropzone.dropzone-activa{border-color:var(--verde);background:var(--verde-suave);color:var(--verde)}
+  .tipologia-media .dropzone{min-height:64px;margin-bottom:12px}
+  /* Dentro de la zona de arrastre, "elegí un archivo…" es un link, no un
+     segundo botón verde. */
+  .dropzone .btn-subir{height:auto;padding:0;background:none;color:var(--verde);font-weight:600;
+    text-decoration:underline;text-decoration-color:rgba(43,102,86,.35);text-underline-offset:3px}
+  .dropzone .btn-subir:hover{background:none;text-decoration-color:currentColor}
+
+  /* Avance de obra. */
+  .avance-toggle-fila{display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:600;cursor:pointer}
+  .avance-toggle-fila input{width:16px;height:16px;margin:0}
+  @media (max-width:700px){
+    .tarjeta-stat{padding:16px}
+    .tarjeta-stat .tabla-envoltorio{margin:0 -16px -16px}
+    .barra-fila .etq{width:96px}
+    #form-redes{padding:20px}
+    .grid-imagenes{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    #panel-tipologias .tipologia-cabeza input.tipologia-nombre{flex-basis:100%}
+  }
 </style>
 </head>
 <body>
 
 <div id="login-envoltorio">
+  <div class="login-cota" aria-label="Cota">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M4 13h12" stroke="currentColor" stroke-width="1.7" />
+      <path d="M10 5l3.4 5.6H6.6L10 5z" fill="currentColor" />
+    </svg>
+    Cota
+  </div>
   <form id="login-caja">
     <h1>Panel interno</h1>
     <p>Ingresá con tu cuenta para editar el estado de las unidades.</p>
@@ -206,39 +484,54 @@
     <p id="login-error"></p>
     <button type="submit">Entrar</button>
   </form>
+  <p class="login-nota">Solo para el equipo del proyecto. La página pública del edificio no se edita desde acá.</p>
 </div>
 
 <div id="app-envoltorio">
-<button id="salir" type="button">Salir</button>
-<header>
-  <h1 id="h1-app">Panel interno</h1>
-  <p class="sub">Así vería el vendedor el estado de sus unidades.</p>
+<header id="barra-sup">
+  <div class="bs-interior">
+    <div class="bs-marca">
+      <a class="bs-cota" href="https://armadoporcotauy.vercel.app/" target="_blank" rel="noopener" title="Armado por Cota">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M4 13h12" stroke="currentColor" stroke-width="1.7" />
+          <path d="M10 5l3.4 5.6H6.6L10 5z" fill="currentColor" />
+        </svg>
+        <span>Cota</span>
+      </a>
+      <span class="bs-sep" aria-hidden="true"></span>
+      <div class="bs-proyecto">
+        <div class="bs-titulo-fila">
+          <h1 id="h1-app"><span class="bs-nombre">Panel interno</span></h1>
+          <div id="selector-envoltorio" hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            <select id="select-proyecto" aria-label="Cambiar de proyecto"></select>
+          </div>
+        </div>
+        <span class="bs-rol" id="bs-rol">Panel interno</span>
+      </div>
+    </div>
+    <div class="bs-usuario">
+      <span id="usuario-email"></span>
+      <button id="salir" type="button">Salir</button>
+    </div>
+  </div>
 </header>
 
-<div id="banner">
-  <b>Acceso restringido.</b> Solo cuentas creadas para el equipo pueden editar el estado
-  de las unidades; el resto de la app sigue siendo de solo lectura para el público.
-</div>
-
-<div id="selector-envoltorio" hidden>
-  <label for="select-proyecto">Proyecto</label>
-  <select id="select-proyecto"></select>
-</div>
-
 <div id="sin-acceso" hidden>
-  Tu usuario no tiene acceso a ningún proyecto todavía. Contactá a la plataforma para que te asigne uno.
+  <b>Todavía no tenés un proyecto asignado.</b>
+  Pedile a quien administra la plataforma que te dé acceso a tu edificio.
 </div>
 
 <main id="main-app" hidden>
   <div class="tabs" role="tablist">
-    <button class="tab" role="tab" aria-selected="true" data-tab="unidades" type="button">Unidades</button>
-    <button class="tab" role="tab" aria-selected="false" data-tab="demanda" type="button">Demanda</button>
-    <button class="tab" role="tab" aria-selected="false" data-tab="amenities" type="button">Amenities</button>
-    <button class="tab" role="tab" aria-selected="false" data-tab="tipologias" type="button">Tipologías</button>
-    <button class="tab" role="tab" aria-selected="false" data-tab="imagenes" type="button">Imágenes</button>
-    <button class="tab" role="tab" aria-selected="false" data-tab="avance" type="button">Avance de obra</button>
-    <button class="tab" role="tab" aria-selected="false" data-tab="redes" type="button">Redes</button>
-    <button class="tab" role="tab" aria-selected="false" data-tab="accesos" type="button" hidden>Accesos</button>
+    <button class="tab" role="tab" aria-selected="true" data-tab="unidades" data-texto="Unidades" type="button">Unidades</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="demanda" data-texto="Demanda" type="button">Demanda</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="amenities" data-texto="Amenities" type="button">Amenities</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="tipologias" data-texto="Tipologías" type="button">Tipologías</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="imagenes" data-texto="Imágenes" type="button">Imágenes</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="avance" data-texto="Avance de obra" type="button">Avance de obra</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="redes" data-texto="Redes" type="button">Redes</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="accesos" data-texto="Accesos" type="button" hidden>Accesos</button>
   </div>
 
   <section id="panel-unidades">
@@ -255,7 +548,7 @@
         <thead>
           <tr>
             <th class="col-check"><input type="checkbox" id="check-todas" aria-label="Seleccionar todas"></th>
-            <th>Unidad</th><th>Piso</th><th>Dorms</th><th class="num">m²</th>
+            <th>Unidad</th><th class="num">Piso</th><th class="num">Dorms</th><th class="num">m²</th>
             <th class="num">Terraza</th><th>Orientación</th><th class="num">Precio</th>
             <th class="num">Cochera</th><th>Tipología</th><th>Estado</th><th>Modificado</th>
           </tr>
@@ -353,13 +646,13 @@
 
     <div class="tarjeta-stat" style="margin-bottom:24px">
       <h3>Avance general</h3>
-      <p id="avance-pct-preview" style="font-size:26px;color:var(--tinta);font-weight:650;margin:4px 0 0">—%</p>
+      <p id="avance-pct-preview" class="cifra">—%</p>
       <p class="sub" style="margin:4px 0 0">
         Se calcula solo a partir de los hitos con fecha real cargada abajo — no se edita a mano.
       </p>
     </div>
 
-    <h3 style="margin:0 0 10px">Hitos</h3>
+    <h3 class="titulo-seccion">Hitos</h3>
     <div id="cargando-hitos">Cargando hitos…</div>
     <div class="tabla-envoltorio">
       <table id="tabla-hitos" hidden>
@@ -384,7 +677,7 @@
       <button type="submit">Agregar hito</button>
     </form>
 
-    <h3 style="margin:34px 0 10px">Fotos</h3>
+    <h3 class="titulo-seccion" style="margin-top:40px">Fotos</h3>
     <p class="sub" style="margin:0 0 16px">
       Se agrupan por mes en la página pública, usando la fecha de la foto — se toma de los metadatos
       de la imagen cuando están disponibles; si no, queda la fecha de hoy, editable acá al lado de cada foto.
@@ -449,11 +742,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="supabase-config.js"></script>
 <script>
+// Mismos colores que ESTADOS en index.html: el cliente tiene que leer el
+// mismo lenguaje en el visor y acá. Vendida en gris, nunca rojo.
 const ESTADOS = {
-  disponible: { nombre:'Disponible', color:'#2F7A68' },
-  reservado:  { nombre:'Reservada', color:'#C08429' },
-  vendido:    { nombre:'Vendida', color:'#B3413A' },
-  sin_dato:   { nombre:'Sin estado público', color:'#9AA2A5' },
+  disponible: { nombre:'Disponible', color:'#2B6656' },
+  reservado:  { nombre:'Reservada', color:'#D2A24C' },
+  vendido:    { nombre:'Vendida', color:'#B9BEBC' },
+  sin_dato:   { nombre:'Sin estado público', color:'#9AA19E' },
 };
 
 let PROYECTO_ACTUAL = null;
@@ -470,10 +765,38 @@ function formatearPrecio(valor, moneda, locale){
   return new Intl.NumberFormat(locale, { style:'currency', currency:moneda, maximumFractionDigits:0 }).format(valor);
 }
 
+// m² con la coma decimal del proyecto ("53,5", no "53.5"), igual que precio.
+function formatearNumero(valor){
+  if (valor == null || valor === '') return '—';
+  return new Intl.NumberFormat(PROYECTO_ACTUAL.locale, { maximumFractionDigits:2 }).format(valor);
+}
+
 async function mostrarApp(){
   document.getElementById('login-envoltorio').style.display = 'none';
   document.getElementById('app-envoltorio').style.display = 'block';
+  // Solo presentación: quién está adentro, a la derecha del encabezado.
+  sb.auth.getUser().then(({ data }) => {
+    document.getElementById('usuario-email').textContent = data.user ? data.user.email : '';
+  });
   await elegirProyecto();
+}
+
+// Encabezado: "ROSSO" + "by Block", partido igual que la barra del visor
+// (index.html). Sin "by" en el nombre usa desarrolla, si existe.
+function pintarTituloProyecto(p){
+  const partes = /^(.+?)\s+by\s+(.+)$/i.exec(p.nombre || '');
+  const firma = partes ? partes[2] : p.desarrolla;
+  const h1 = document.getElementById('h1-app');
+  const nombre = document.createElement('span');
+  nombre.className = 'bs-nombre';
+  nombre.textContent = partes ? partes[1] : p.nombre;
+  h1.replaceChildren(nombre);
+  if (firma){
+    const dev = document.createElement('span');
+    dev.className = 'bs-dev';
+    dev.textContent = 'by ' + firma;
+    h1.append(dev);
+  }
 }
 
 // Plataforma ve todos los proyectos con selector siempre visible; un
@@ -523,7 +846,7 @@ async function elegirProyecto(){
 
 async function cargarProyectoActual(p){
   PROYECTO_ACTUAL = p;
-  document.getElementById('h1-app').textContent = p.nombre + ' · panel interno';
+  pintarTituloProyecto(p);
   document.getElementById('titulo-doc').textContent = p.nombre + ' · panel interno';
   document.getElementById('main-app').hidden = false;
 
@@ -546,6 +869,8 @@ async function cargarProyectoActual(p){
   // suyos, vendedor nunca. Si estaba en esa pestaña y cambió a un proyecto
   // donde es vendedor, vuelve a Unidades.
   PUEDE_ADMINISTRAR_ACCESOS = ES_PLATAFORMA || !!esAdminProyecto;
+  document.getElementById('bs-rol').textContent = 'Panel interno · ' +
+    (ES_PLATAFORMA ? 'Plataforma' : esAdminProyecto ? 'Administrador' : 'Vendedor');
   const tabAccesos = document.querySelector('.tab[data-tab="accesos"]');
   tabAccesos.hidden = !PUEDE_ADMINISTRAR_ACCESOS;
 
@@ -605,6 +930,8 @@ sb.auth.getSession().then(({ data }) => {
 
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+  // En mobile la fila de pestañas se desplaza: que la activa no quede bajo el fundido del borde.
+  t.scrollIntoView({ inline: 'center', block: 'nearest' });
   document.getElementById('panel-unidades').hidden = t.dataset.tab !== 'unidades';
   document.getElementById('panel-demanda').hidden = t.dataset.tab !== 'demanda';
   document.getElementById('panel-amenities').hidden = t.dataset.tab !== 'amenities';
@@ -661,16 +988,18 @@ function pintarUnidades(unidades){
     const tr = document.createElement('tr');
     tr.innerHTML =
       '<td class="col-check"></td>' +
-      '<td>' + u.id + '</td>' +
-      '<td>' + u.piso + '</td>' +
-      '<td>' + u.dorms + '</td>' +
-      '<td class="num">' + u.m2 + '</td>' +
+      '<td class="col-id">' + u.id + '</td>' +
+      '<td class="num apoyo">' + u.piso + '</td>' +
+      '<td class="num apoyo">' + u.dorms + '</td>' +
+      '<td class="num apoyo">' + formatearNumero(u.m2) + '</td>' +
       '<td class="num"></td>' +
-      '<td>' + u.orientacion + '</td>' +
-      '<td class="num">' + (u.precio != null ? formatearPrecio(u.precio, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale) : '—') + '</td>' +
+      '<td class="apoyo">' + u.orientacion + '</td>' +
+      (u.precio != null
+        ? '<td class="num">' + formatearPrecio(u.precio, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale) + '</td>'
+        : '<td class="num vacio">—</td>') +
       '<td class="num"></td>' +
       '<td></td>' +
-      '<td><span class="estado"><span class="punto" style="background:' + e.color + '"></span></span></td>' +
+      '<td><span class="estado estado-editable" data-estado="' + u.estado + '"><span class="punto" style="background:' + e.color + '"></span></span></td>' +
       '<td></td>';
 
     const checkTd = tr.children[0];
@@ -702,7 +1031,7 @@ function pintarUnidades(unidades){
     const tipologiaTd = tr.children[9];
     const tipologia = tipologiasPorId[u.typology_id];
     tipologiaTd.textContent = tipologia ? tipologia.nombre : '—';
-    if (!tipologia) tipologiaTd.style.color = 'var(--suave)';
+    if (!tipologia) tipologiaTd.classList.add('vacio');
 
     const modTd = tr.children[11];
     if (u.updated_by){
@@ -734,6 +1063,7 @@ function pintarUnidades(unidades){
     });
     select.addEventListener('change', () => {
       punto.style.background = (ESTADOS[select.value] || ESTADOS.sin_dato).color;
+      estadoSpan.dataset.estado = select.value;
       cambiarEstado(u.id, u.estado, select.value, select);
     });
     estadoSpan.appendChild(select);
@@ -1884,7 +2214,14 @@ function crearTarjetaTipologia(t, media, unidadesAsignadas){
   btnBorrar.type = 'button'; btnBorrar.className = 'btn-borrar'; btnBorrar.textContent = 'Eliminar tipología';
   btnBorrar.addEventListener('click', () => borrarTipologia(t, media));
 
-  cabeza.append(nombre, dorms, m2, orient, btnBorrar);
+  // Sufijo visible al lado de cada número (antes solo estaba en el title).
+  const conSufijo = (input, texto) => {
+    const l = document.createElement('label');
+    l.className = 'campo-sufijo';
+    l.append(input, texto);
+    return l;
+  };
+  cabeza.append(nombre, conSufijo(dorms, 'dorm.'), conSufijo(m2, 'm²'), orient, btnBorrar);
   tarjeta.appendChild(cabeza);
 
   const unidadesEl = document.createElement('p');
@@ -1914,8 +2251,7 @@ function seccionMediaTipologia(t, tipo, titulo, lista, maxCount){
   dropzone.className = 'dropzone';
   dropzone.textContent = 'Arrastrá una imagen acá, o';
   const btnSubir = document.createElement('label');
-  btnSubir.className = 'btn-subir'; btnSubir.style.marginLeft = '6px'; btnSubir.style.fontSize = '12px';
-  btnSubir.style.padding = '5px 10px'; btnSubir.textContent = 'elegí un archivo…';
+  btnSubir.className = 'btn-subir'; btnSubir.textContent = 'elegí un archivo…';
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*'; input.multiple = true; input.hidden = true;
   btnSubir.appendChild(input);
