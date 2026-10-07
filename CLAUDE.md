@@ -107,7 +107,7 @@ Cada archivo es idempotente o tiene guardas. Orden histórico: `schema` → `aut
 `estados` → `settings` → `cochera-terraza` → `precios-ingar` → `multitenant` (tiene su
 `-rollback`) → `media-storage` → `typology-media` → `altamira-piso5-numeracion` → `solar`
 → `financiacion` → **`avance-obra` (tiene que correr después de `financiacion`)** →
-`lista-espera` → `pisos` → `precio-opcional` → `accesos`. Migraciones nuevas: archivo nuevo
+`lista-espera` → `pisos` → `precio-opcional` → `accesos` → `autores-unidades`. Migraciones nuevas: archivo nuevo
 `supabase-migration-<tema>.sql`, comentario de cabecera en español explicando el porqué,
 idempotente (`if not exists`, `drop policy if exists`, `on conflict`), puramente aditiva
 cuando se pueda (un proyecto sin el dato nuevo tiene que verse exactamente igual que

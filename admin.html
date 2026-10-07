@@ -36,15 +36,15 @@
      columna estén siempre a mano, sin bajar toda la tabla. */
   #panel-unidades .tabla-envoltorio{max-height:70vh;overflow-y:auto}
   #panel-unidades thead th{position:sticky;top:0;background:var(--papel);z-index:1}
-  /* Las 13 columnas de Unidades no entran en los 960px del resto del admin:
+  /* Las 12 columnas de Unidades no entran en los 960px del resto del admin:
      con esta pestaña abierta, main se libera del tope y el panel queda
      centrado con un máximo de 1400px (lo justo para que entre a 1440 sin
      llegar de borde a borde en pantallas grandes). El selector de proyecto
      vive fuera de main y no se entera. En desktop todas
      las columnas se ajustan a su contenido (width:1%) salvo Orientación (7) y
      Tipología (10), que se llevan el ancho que sobra; Orientación puede ir en
-     dos líneas. Estado (11) y su selector (13) siguen en nowrap: nunca se
-     cortan. Si igual no entra, queda el scroll horizontal del envoltorio. En
+     dos líneas. Estado (11: punto + selector) sigue en nowrap: nunca se
+     corta. Si igual no entra, queda el scroll horizontal del envoltorio. En
      mobile no cambia nada. */
   @media (min-width:701px){
     main:has(> #panel-unidades:not([hidden])){max-width:none}
@@ -62,6 +62,13 @@
   input.input-campo{width:78px;padding:6px 8px;border-radius:4px;border:1px solid var(--linea);
     background:#fff;font:inherit;font-size:12.5px;color:var(--tinta)}
   input.input-campo:disabled{opacity:.5;cursor:default}
+  /* Confirmación al guardar Terraza/Cochera: verde que se desvanece si salió
+     bien (la clase se saca enseguida y la transición hace el fundido); rojo
+     fijo + mensaje si falló, hasta el próximo guardado bueno. */
+  input.input-campo{transition:background-color .8s,border-color .8s}
+  input.input-campo.campo-ok{border-color:var(--verde);background:rgba(43,102,86,.14);transition:none}
+  input.input-campo.campo-error{border-color:#B3413A;background:rgba(179,65,58,.08)}
+  .campo-error-msg{display:block;margin-top:3px;font-size:11px;color:#B3413A;text-align:left}
   .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
   .tarjeta-stat{background:var(--papel);border:1px solid var(--linea);border-radius:6px;padding:16px}
   .tarjeta-stat h3{margin:0 0 12px;font-size:12.5px;color:var(--suave);font-weight:600;
@@ -174,6 +181,9 @@
   .barra-lote button{padding:7px 12px;border:none;border-radius:4px;background:var(--tinta);
     color:#fff;font:inherit;font-size:12.5px;cursor:pointer}
   .barra-lote button:disabled{opacity:.5;cursor:default}
+  .barra-lote button.link-tipologias{padding:0;background:none;color:inherit;font-size:inherit;
+    text-decoration:underline;text-underline-offset:2px}
+  .barra-lote button.link-tipologias:hover{color:var(--tinta)}
   .col-check{width:28px}
   .form-tipologia-nueva select{padding:9px 10px;border:1px solid var(--linea);border-radius:4px;
     font:inherit;background:#fff;color:var(--tinta)}
@@ -247,7 +257,7 @@
             <th class="col-check"><input type="checkbox" id="check-todas" aria-label="Seleccionar todas"></th>
             <th>Unidad</th><th>Piso</th><th>Dorms</th><th class="num">m²</th>
             <th class="num">Terraza</th><th>Orientación</th><th class="num">Precio</th>
-            <th class="num">Cochera</th><th>Tipología</th><th>Estado</th><th>Modificado</th><th></th>
+            <th class="num">Cochera</th><th>Tipología</th><th>Estado</th><th>Modificado</th>
           </tr>
         </thead>
         <tbody id="filas-unidades"></tbody>
@@ -447,7 +457,8 @@ const ESTADOS = {
 };
 
 let PROYECTO_ACTUAL = null;
-let MIEMBROS_ACTUALES = {};
+// user_id → email, para la columna Modificado de Unidades.
+let EMAILS_AUTORES = {};
 // Solo decide si se MUESTRA la pestaña Accesos. La seguridad real está en
 // supabase-migration-accesos.sql (RPC + policies), no acá.
 let ES_PLATAFORMA = false;
@@ -516,11 +527,20 @@ async function cargarProyectoActual(p){
   document.getElementById('titulo-doc').textContent = p.nombre + ' · panel interno';
   document.getElementById('main-app').hidden = false;
 
-  const [{ data: miembros }, { data: esAdminProyecto }] = await Promise.all([
+  const [{ data: miembros }, { data: esAdminProyecto }, { data: autores }, { data: { user } }] = await Promise.all([
     sb.rpc('miembros_proyecto', { p_project_id: p.id }),
     ES_PLATAFORMA ? Promise.resolve({ data: true }) : sb.rpc('es_admin_proyecto', { p_project_id: p.id }),
+    // Cubre a quien editó sin tener membership (admins de plataforma). Si
+    // supabase-migration-autores-unidades.sql no está corrida, devuelve error
+    // y data null: la columna Modificado muestra solo la fecha.
+    sb.rpc('autores_unidades', { p_project_id: p.id }),
+    sb.auth.getUser(),
   ]);
-  MIEMBROS_ACTUALES = Object.fromEntries((miembros || []).map(m => [m.user_id, m]));
+  EMAILS_AUTORES = Object.fromEntries([
+    ...(autores || []).map(a => [a.user_id, a.email]),
+    ...(miembros || []).map(m => [m.user_id, m.email]),
+    ...(user ? [[user.id, user.email]] : []),
+  ]);
 
   // Accesos: plataforma en todos los proyectos, admin de proyecto en los
   // suyos, vendedor nunca. Si estaba en esa pestaña y cambió a un proyecto
@@ -650,8 +670,7 @@ function pintarUnidades(unidades){
       '<td class="num">' + (u.precio != null ? formatearPrecio(u.precio, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale) : '—') + '</td>' +
       '<td class="num"></td>' +
       '<td></td>' +
-      '<td><span class="estado"><span class="punto" style="background:' + e.color + '"></span>' + e.nombre + '</span></td>' +
-      '<td></td>' +
+      '<td><span class="estado"><span class="punto" style="background:' + e.color + '"></span></span></td>' +
       '<td></td>';
 
     const checkTd = tr.children[0];
@@ -686,19 +705,24 @@ function pintarUnidades(unidades){
     if (!tipologia) tipologiaTd.style.color = 'var(--suave)';
 
     const modTd = tr.children[11];
-    const miembro = MIEMBROS_ACTUALES[u.updated_by];
     if (u.updated_by){
-      const quien = miembro ? miembro.email : u.updated_by;
+      // Sin email resuelto (migración autores-unidades sin correr) queda solo
+      // la fecha: un uuid crudo no le sirve a nadie.
+      const quien = EMAILS_AUTORES[u.updated_by];
       const cuando = u.updated_at
         ? new Date(u.updated_at).toLocaleString('es-UY', { dateStyle:'short', timeStyle:'short' })
         : '';
       // Columna secundaria: el "quién" va chico y recortado; completo en el title.
-      modTd.innerHTML = '<span class="modificado-quien" title="' + quien + '">' + quien + '</span>' +
+      modTd.innerHTML = (quien ? '<span class="modificado-quien" title="' + quien + '">' + quien + '</span>' : '') +
         '<span class="modificado">' + cuando + '</span>';
     } else {
       modTd.textContent = '—';
     }
 
+    // Estado: solo el selector (ya muestra el valor), con el punto de color
+    // al lado para leer la tabla de un vistazo.
+    const estadoSpan = tr.children[10].firstElementChild;
+    const punto = estadoSpan.firstElementChild;
     const select = document.createElement('select');
     select.className = 'select-estado';
     Object.entries(ESTADOS).forEach(([k, e]) => {
@@ -708,8 +732,11 @@ function pintarUnidades(unidades){
       opt.selected = k === u.estado;
       select.appendChild(opt);
     });
-    select.addEventListener('change', () => cambiarEstado(u.id, u.estado, select.value, select));
-    tr.lastElementChild.appendChild(select);
+    select.addEventListener('change', () => {
+      punto.style.background = (ESTADOS[select.value] || ESTADOS.sin_dato).color;
+      cambiarEstado(u.id, u.estado, select.value, select);
+    });
+    estadoSpan.appendChild(select);
     tbody.appendChild(tr);
   });
   document.getElementById('cargando-unidades').hidden = true;
@@ -723,9 +750,32 @@ function pintarUnidades(unidades){
 // cometer con 40-70 unidades y 9 tipologías, por eso va siempre visible.
 function actualizarBarraLote(){
   const sinTipologia = UNIDADES_ACTUALES.filter(u => !u.typology_id).length;
-  document.getElementById('tipologias-sin-asignar').textContent =
-    sinTipologia === 0 ? 'Todas las unidades tienen tipología asignada.'
-      : sinTipologia + ' de ' + UNIDADES_ACTUALES.length + ' unidades sin tipología asignada.';
+  const aviso = document.getElementById('tipologias-sin-asignar');
+  if (sinTipologia === 0){
+    aviso.textContent = 'Todas las unidades tienen tipología asignada.';
+  } else {
+    // Accionable. Sin tipologías creadas no hay nada que asignar: lleva a la
+    // pestaña Tipologías. Si ya existen, la asignación se hace acá mismo con
+    // la barra de lote: marca las unidades sin tipología y deja el foco en el
+    // selector.
+    const hayTipologias = TIPOLOGIAS_ACTUALES.length > 0;
+    aviso.innerHTML = '<button type="button" class="link-tipologias">' + sinTipologia + ' de ' +
+      UNIDADES_ACTUALES.length + ' unidades sin tipología asignada · ' +
+      (hayTipologias ? 'seleccionarlas' : 'crear tipologías') + '</button>';
+    aviso.firstElementChild.addEventListener('click', () => {
+      if (!hayTipologias){
+        document.querySelector('.tab[data-tab="tipologias"]').click();
+        return;
+      }
+      const sinAsignar = new Set(UNIDADES_ACTUALES.filter(u => !u.typology_id).map(u => u.id));
+      document.querySelectorAll('.check-unidad').forEach(c => {
+        c.checked = sinAsignar.has(Number(c.dataset.unidadId));
+      });
+      document.getElementById('check-todas').checked = sinAsignar.size === UNIDADES_ACTUALES.length;
+      actualizarBarraLote();
+      document.getElementById('select-tipologia-lote').focus();
+    });
+  }
 
   const seleccionadas = document.querySelectorAll('.check-unidad:checked').length;
   document.getElementById('conteo-seleccion').textContent = seleccionadas;
@@ -784,7 +834,29 @@ async function guardarCampo(id, campo, valorCrudo, input){
   const { error } = await sb.from('units').update({ [campo]: valor })
     .eq('id', id).eq('project_id', PROYECTO_ACTUAL.id);
   input.disabled = false;
-  if (error){ alert('No se pudo actualizar: ' + error.message); return; }
+  marcarGuardado(input, error);
+}
+
+// Señal visual del guardado de un campo de la tabla: destello verde que se
+// desvanece, o rojo fijo con el motivo debajo hasta el próximo guardado bueno.
+function marcarGuardado(input, error){
+  const td = input.parentElement;
+  const msgPrevio = td.querySelector('.campo-error-msg');
+  if (msgPrevio) msgPrevio.remove();
+  input.classList.remove('campo-ok', 'campo-error');
+  if (error){
+    input.classList.add('campo-error');
+    const msg = document.createElement('span');
+    msg.className = 'campo-error-msg';
+    msg.textContent = 'No se guardó';
+    msg.title = error.message;
+    input.title = 'No se guardó: ' + error.message;
+    td.appendChild(msg);
+    return;
+  }
+  input.title = '';
+  input.classList.add('campo-ok');
+  setTimeout(() => input.classList.remove('campo-ok'), 250);
 }
 
 function barra(cont, filas){
