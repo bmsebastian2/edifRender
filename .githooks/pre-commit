@@ -1,0 +1,27 @@
+#!/bin/sh
+# Antes de cada commit que toque index.html: el flujo de selección de unidad
+# del visor sigue armado (ver "Selección de unidad: comportamiento protegido"
+# en CLAUDE.md y scripts/control-seleccion.mjs). Controla la versión en stage,
+# no la del disco: es la que va a quedar en el commit.
+#
+# Se activa una vez por clon:  git config core.hooksPath .githooks
+
+git diff --cached --name-only | grep -qx 'index.html' || exit 0
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: no encontré node; no se controló el flujo de selección de unidad." >&2
+  exit 0
+fi
+
+tmp=$(mktemp)
+git show :index.html > "$tmp"
+node scripts/control-seleccion.mjs "$tmp"
+estado=$?
+rm -f "$tmp"
+
+if [ $estado -ne 0 ]; then
+  echo "" >&2
+  echo "Commit frenado: el cambio rompe el flujo de selección de unidad (ver arriba)." >&2
+  echo "Si es a propósito, actualizá scripts/control-seleccion.mjs y CLAUDE.md en el mismo commit." >&2
+  exit 1
+fi

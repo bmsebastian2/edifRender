@@ -33,7 +33,8 @@ administrar accesos); este archivo es la arquitectura.
 
 Un sitio estático sin build: una visualización 3D navegable de la disponibilidad de
 unidades de un edificio residencial (Three.js **r128** desde cdnjs), con Supabase como
-backend. No hay bundler, package.json, tests ni linter. Se despliega en Vercel en
+backend. No hay bundler, package.json, tests ni linter (solo el control del flujo de
+selección de unidad, ver "Correr / probar"). Se despliega en Vercel en
 `https://armadoporcota.vercel.app/`, sirviendo la raíz del repo tal cual.
 
 Empezó como un solo edificio (ROSSO) y ahora es una **plataforma multi-tenant**: un
@@ -61,6 +62,13 @@ Archivos:
 No hay dev server ni build. Abrir `index.html` directo o servir la carpeta
 (`npx serve .`). Elegir edificio con `?p=<slug>` (por defecto `rosso`). Deploy = push a
 `main` (Vercel).
+
+`node scripts/control-seleccion.mjs` revisa que `index.html` siga teniendo armado el
+flujo de selección de unidad (ver "Selección de unidad: comportamiento protegido"). Lo
+corre el hook `.githooks/pre-commit` en cada commit que toque `index.html`, y frena el
+commit si falta algo. Se activa una vez por clon con `git config core.hooksPath .githooks`
+(ya activo en la máquina de Sebastian). Controla el código, no cómo se ve: igual hay que
+probar en el navegador.
 
 ## Modelo de datos en Supabase (multi-tenant)
 
@@ -250,6 +258,34 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   (`enfocar(u)`).
 - Cada `abrir(u)` registra un click en `events` (`registrarEvento`), que alimenta la
   pestaña Demanda del admin.
+
+### Selección de unidad: comportamiento protegido
+
+Pedido explícito de Sebastian: que no se vuelva a perder. Todo cambio que toque el click
+del lienzo, `seleccionar()`, la tarjeta, `abrir()`, `enfocar()`, `moverCamara()`,
+`actualizarGuia()` o el bucle de render tiene que dejar esto funcionando igual, y se
+verifica en el navegador (desktop y ~390px, en ROSSO y en BRUSCO) antes de darlo por
+terminado. Si algo de la lista tiene que cambiar, se acuerda con Sebastian antes, no se
+saca de paso. Versión de referencia: commit `8d5c300`. `scripts/control-seleccion.mjs`
+controla esta lista en cada commit (ver "Correr / probar"); si un cambio acordado la
+modifica, se actualizan el script y esta sección en el mismo commit.
+
+1. Click o tap en una unidad → la cámara va hasta quedar frente a ella con recorrido
+   suavizado (`moverCamara()`, `MS_CAMARA_UNIDAD` = 750 ms, ease-out cúbico), nunca un
+   salto. Con `prefers-reduced-motion`, inmediato.
+2. La unidad queda resaltada como elegida (emissive en su propio color, opacidad ≥ 0,92,
+   borde marcado), distinta del hover, y vuelve a la normalidad al cerrar.
+3. Aparece la tarjeta chica, no el panel: en desktop anclada a la unidad con "Click para
+   ver la unidad →"; en táctil, abajo, con "Ver unidad". Una línea guía la une con un
+   punto sobre la fachada de la unidad.
+4. Recién el botón de la tarjeta abre el panel (`abrir(u, true)`) y registra el evento.
+   Con el panel abierto, un click en otra unidad cambia el panel directo.
+5. `?u=<id>` abre el panel directo, con la cámara frente a la unidad.
+6. El giro automático no corre con tarjeta o panel abiertos y no pelea con la cámara; un
+   arrastre que termina sobre una unidad no la selecciona.
+7. Encuadre: la unidad queda en lo que dejan libre la tarjeta o el panel; funciona en las
+   dos torres de BRUSCO (no asume una torre centrada en el origen); en celular entran al
+   menos 40 m de ancho (sin primer plano).
 
 ## `admin.html`
 

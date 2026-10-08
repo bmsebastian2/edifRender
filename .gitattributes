@@ -1,0 +1,2 @@
+# Los hooks los corre sh: con CRLF (core.autocrlf en Windows) dejan de andar.
+.githooks/* text eol=lf
