@@ -5296,9 +5296,15 @@
         fichaToggle.setAttribute('aria-expanded', abierta);
       });
       // En fase de captura: ningún stopPropagation del lienzo o de las hojas
-      // puede impedir que se cierre.
+      // puede impedir que se cierre. Excepciones: el lienzo y la tarjeta de
+      // unidad. Tocar una unidad no la pliega (se sigue viendo el edificio
+      // mientras se mira la unidad); en el lienzo se decide al moverse o al
+      // soltar: arrastrar o tocar el vacío la siguen plegando (ver el click
+      // del lienzo). Abrir el panel también la pliega (ver abrir()).
       document.addEventListener('pointerdown', e => {
-        if (ficha.classList.contains('abierta') && !ficha.contains(e.target)) cerrarFicha();
+        if (!ficha.classList.contains('abierta') || ficha.contains(e.target)) return;
+        if (e.target === lienzo || e.target.closest('#tarjeta-unidad')) return;
+        cerrarFicha();
       }, true);
       document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarFicha(); });
 
@@ -7649,9 +7655,12 @@
         // caiga en el centro de lo visible.
         const W = innerWidth, H = innerHeight;
         const hoja = matchMedia('(max-width: 860px)').matches; // mismo corte que el @media del panel
-        // En mobile arriba quedan la barra y la píldora de la ficha (#ficha
-        // plegada); en desktop, la barra superior.
-        const techo = hoja ? Math.max(56, document.getElementById('ficha').getBoundingClientRect().bottom + 6) : 64;
+        // En mobile arriba quedan la barra y la ficha: la píldora, o la
+        // tarjeta desplegada debajo (#ficha-cuerpo, que flota fuera de la caja
+        // de #ficha) si sigue abierta; en desktop, la barra superior.
+        const bordeFicha = (ficha.classList.contains('abierta') ? document.getElementById('ficha-cuerpo') : ficha)
+          .getBoundingClientRect().bottom;
+        const techo = hoja ? Math.max(56, bordeFicha + 6) : 64;
         let libre;
         if (panel.classList.contains('abierto')) {
           libre = hoja
@@ -8159,7 +8168,9 @@
       function esElegidaCaja(c) {
         return c === cajaTarjeta || (!!elegida && c.userData.unidad.id === elegida.id);
       }
-      [pisosTrigger, filtrosTrigger, fichaToggle].forEach(t => t.addEventListener('click', ocultarTarjeta));
+      // La ficha no: el edificio y la unidad se pueden ver a la vez (ver el
+      // cierre de la ficha en captura).
+      [pisosTrigger, filtrosTrigger].forEach(t => t.addEventListener('click', ocultarTarjeta));
 
       /* ============================================================
          Toolbar de vista: vista inicial, zoom, giro automático. Los
@@ -8315,6 +8326,10 @@
         marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
         panel.classList.add('abierto');
         actualizarSolUnidad();
+        // Mobile: el panel es una hoja de hasta 74vh; con la ficha desplegada
+        // arriba no quedaba lugar para el edificio. (Tocar la unidad no la
+        // pliega; abrir el panel sí.)
+        if (matchMedia('(max-width: 860px)').matches) cerrarFicha();
         // Al final: enfocar() encuadra en lo que el panel deja libre y en
         // mobile necesita la altura real de la hoja ya con su contenido.
         if (mover) enfocar(u);
@@ -8346,12 +8361,21 @@
       // y terminarlo en el vacío cerraba el panel.
       let inicioClic = null;
       lienzo.addEventListener('pointerdown', e => { inicioClic = { x: e.clientX, y: e.clientY }; });
+      // Ficha mobile desplegada: tocar una unidad no la pliega (ver el
+      // pointerdown en captura junto a cerrarFicha()); arrastrar el edificio
+      // o tocar el vacío sí, como antes.
+      lienzo.addEventListener('pointermove', e => {
+        if (arrastrando && inicioClic && ficha.classList.contains('abierta') &&
+          Math.hypot(e.clientX - inicioClic.x, e.clientY - inicioClic.y) > 8) cerrarFicha();
+      });
       lienzo.addEventListener('click', e => {
         if (inicioClic && Math.hypot(e.clientX - inicioClic.x, e.clientY - inicioClic.y) > 8) return;
         // Táctil: el rayo sale del punto tocado (no hay hover que lo haya
-        // calculado antes).
+        // calculado antes). Lo mismo con el hover en pausa (otro clic sin
+        // mover el mouse después de elegir una unidad): si no, ese clic
+        // contaba como tocar el vacío y cerraba todo.
         let caja = sobre;
-        if (esTactil) {
+        if (esTactil || hoverPausado) {
           raton.x = (e.clientX / innerWidth) * 2 - 1;
           raton.y = -(e.clientY / innerHeight) * 2 + 1;
           rayo.setFromCamera(raton, camara);
@@ -8367,6 +8391,7 @@
           return;
         }
         ocultarTarjeta();
+        cerrarFicha();
         if (sobreCalle) window.open(cartelCalle.userData.mapsUrl, '_blank', 'noopener');
         else cerrar();
       });

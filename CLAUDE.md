@@ -184,7 +184,10 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
 - **Ficha** (`#ficha`): dirección, pisos (por torre si hay `geom.torre`, calculado en
   vivo), unidades, entrega y disponibilidad contada en vivo por `aspectoDe(u)`, solo
   estados con unidades y solo si `muestra_totales`. En mobile se pliega a una píldora
-  con puntos + cifras y se despliega a pedido.
+  con puntos + cifras y se despliega a pedido (arranca desplegada, salvo con `?u=` o
+  `?sol=`). Desplegada, tocar una unidad o su tarjeta no la pliega (pedido de Sebastian:
+  ver el edificio y la unidad a la vez, y `enfocar()` encuadra debajo de ella); arrastrar
+  el edificio, tocar el vacío u otra capa, Escape o abrir el panel sí la pliegan.
 - **Barra inferior única** (`#barra-inferior`): en desktop, desplegables Tipología /
   Estado / Torre / Vista que abren `#filtros` como popover con un solo grupo
   (`data-grupo`, `abrirGrupoFiltros()`), Restablecer (`restablecerFiltros()`, reusa los
