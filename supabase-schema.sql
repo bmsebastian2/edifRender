@@ -23,9 +23,11 @@ create table units (
   precio       numeric,          -- null: sin precio de venta (p.ej. solo alquiler)
   estimado     boolean not null default false,
   estado       text not null default 'sin_dato'
-               check (estado in ('disponible', 'reservado', 'vendido', 'sin_dato')),
+               check (estado in ('disponible', 'reservado', 'vendido', 'sin_dato', 'alquiler')),
   m2_terraza      numeric,           -- desglose opcional; m2 sigue siendo la superficie total
-  cochera_precio  numeric            -- USD de la cochera opcional, cuando se conoce
+  cochera_precio  numeric,           -- USD de la cochera opcional, cuando se conoce
+  precio_alquiler numeric            -- UYU por mes, siempre UYU; null = no se alquila
+                  check (precio_alquiler is null or precio_alquiler > 0)
 );
 
 -- Un evento por cada vez que alguien abre el panel de una unidad.

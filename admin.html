@@ -114,18 +114,23 @@
   /* La celda con input recorta su padding derecho por el padding interno
      del input: así la cifra termina en el mismo borde que el encabezado. */
   #tabla-unidades td:has(> .input-campo){padding-right:3px}
-  /* Las 12 columnas de Unidades usan todo el ancho de main (--ancho, 1400px:
+  /* Las 13 columnas de Unidades usan todo el ancho de main (--ancho, 1400px:
      lo justo para que entre a 1440 sin llegar de borde a borde en pantallas
      grandes). En desktop todas
      las columnas se ajustan a su contenido (width:1%) salvo Orientación (7) y
-     Tipología (10), que se llevan el ancho que sobra; Orientación puede ir en
-     dos líneas. Estado (11: punto + selector) sigue en nowrap: nunca se
-     corta. Si igual no entra, queda el scroll horizontal del envoltorio. En
-     mobile no cambia nada. */
+     Tipología (11), que se llevan el ancho que sobra; Orientación puede ir en
+     dos líneas. Estado (12: punto + selector) sigue en nowrap: nunca se
+     corta. Si igual no entra, queda el scroll horizontal del envoltorio.
+     Alquiler (9) solo existe en proyectos que alquilan (.sin-alquiler la
+     oculta en el resto, desktop y mobile). */
+  #tabla-unidades.sin-alquiler :is(th,td):nth-child(9){display:none}
+  /* Precio / Alquiler: con input (admin) en desktop se ve solo el input. */
+  #tabla-unidades td.con-input .precio-txt{display:none}
+  #tabla-unidades td.con-input.vacio{color:inherit}
   @media (min-width:701px){
-    #tabla-unidades :is(th,td):not(:nth-child(7)):not(:nth-child(10)){width:1%}
+    #tabla-unidades :is(th,td):not(:nth-child(7)):not(:nth-child(11)){width:1%}
     #tabla-unidades td:nth-child(7){white-space:normal;min-width:160px}
-    #tabla-unidades td:nth-child(10){min-width:120px}
+    #tabla-unidades td:nth-child(11){min-width:120px}
   }
   /* Números a la derecha con cifras de ancho fijo (th y td), para que m²,
      precio y cochera se lean en columna. */
@@ -180,7 +185,7 @@
   /* Mobile: el vendedor necesita encontrar la unidad y cambiarle el estado
      sin scroll horizontal. Cada fila pasa a ser una ficha de dos líneas:
      [check] número ........ [estado]
-             Piso 3 · 2 dorm. · 64 m² · US$ 145.000
+             Piso 3 · 2 dorm. · 64 m² · US$ 145.000   (o · UYU 55.000/mes)
      Terraza, cochera, orientación, tipología y "modificado" se ocultan (se
      editan desde la computadora; la asignación en lote sigue disponible). Las celdas son las mismas: solo cambia el CSS. */
   @media (max-width:700px){
@@ -194,18 +199,22 @@
     #tabla-unidades td{display:block;height:auto;padding:0;border:0}
     #tabla-unidades td:nth-child(1){order:0;width:30px}
     #tabla-unidades td:nth-child(2){order:1;font-size:16px}
-    #tabla-unidades td:nth-child(11){order:2;margin-left:auto}
+    #tabla-unidades td:nth-child(12){order:2;margin-left:auto}
     #tabla-unidades tr::before{content:"";order:3;flex-basis:100%}
-    #tabla-unidades td:is(:nth-child(3),:nth-child(4),:nth-child(5),:nth-child(8)){
+    #tabla-unidades td:is(:nth-child(3),:nth-child(4),:nth-child(5),:nth-child(8),:nth-child(9)){
       order:4;font-size:12.5px;color:var(--suave);text-align:left}
     #tabla-unidades td:nth-child(3){padding-left:30px}
     #tabla-unidades td:nth-child(3)::before{content:"Piso "}
     #tabla-unidades td:nth-child(4)::after{content:" dorm."}
     #tabla-unidades td:nth-child(5)::after{content:" m²"}
-    #tabla-unidades td:is(:nth-child(4),:nth-child(5),:nth-child(8))::before{content:"·";margin:0 6px}
-    #tabla-unidades td:nth-child(8){color:var(--tinta)}
-    #tabla-unidades td:is(:nth-child(6),:nth-child(7),:nth-child(9),:nth-child(10),:nth-child(12)),
-    #tabla-unidades td.vacio:nth-child(8){display:none}
+    #tabla-unidades td:is(:nth-child(4),:nth-child(5),:nth-child(8),:nth-child(9))::before{content:"·";margin:0 6px}
+    #tabla-unidades td:is(:nth-child(8),:nth-child(9)){color:var(--tinta)}
+    /* Precio y alquiler en mobile: siempre texto, también para el admin
+       (se editan desde la computadora, como terraza y cochera). */
+    #tabla-unidades td.con-input .input-campo{display:none}
+    #tabla-unidades td.con-input .precio-txt{display:inline}
+    #tabla-unidades td:is(:nth-child(6),:nth-child(7),:nth-child(10),:nth-child(11),:nth-child(13)),
+    #tabla-unidades td.vacio:is(:nth-child(8),:nth-child(9)){display:none}
     .barra-lote-acciones{width:100%}
     .barra-lote select{flex:1;min-width:0}
     .barra-lote button:not(.link-tipologias){flex:none;white-space:nowrap}
@@ -549,8 +558,8 @@
           <tr>
             <th class="col-check"><input type="checkbox" id="check-todas" aria-label="Seleccionar todas"></th>
             <th>Unidad</th><th class="num">Piso</th><th class="num">Dorms</th><th class="num">m²</th>
-            <th class="num">Terraza</th><th>Orientación</th><th class="num">Precio</th>
-            <th class="num">Cochera</th><th>Tipología</th><th>Estado</th><th>Modificado</th>
+            <th class="num">Terraza</th><th>Orientación</th><th class="num" id="th-precio">Precio</th>
+            <th class="num">Alquiler UYU/mes</th><th class="num">Cochera</th><th>Tipología</th><th>Estado</th><th>Modificado</th>
           </tr>
         </thead>
         <tbody id="filas-unidades"></tbody>
@@ -746,6 +755,7 @@
 // mismo lenguaje en el visor y acá. Vendida en gris, nunca rojo.
 const ESTADOS = {
   disponible: { nombre:'Disponible', color:'#2B6656' },
+  alquiler:   { nombre:'En alquiler', color:'#86AC9F' },
   reservado:  { nombre:'Reservada', color:'#D2A24C' },
   vendido:    { nombre:'Vendida', color:'#B9BEBC' },
   sin_dato:   { nombre:'Sin estado público', color:'#9AA19E' },
@@ -979,10 +989,41 @@ function llenarSelectorTipologiaLote(tipologias){
   select.value = valorPrevio;
 }
 
+// Precio de venta (moneda del proyecto) o de alquiler (UYU por mes). El texto
+// es lo que se ve en mobile y lo que ve el vendedor; admin de proyecto y
+// plataforma lo editan en desktop con un input (el vendedor tampoco podría
+// guardarlo: enforce_unit_write_scope() se lo rechaza).
+function celdaPrecio(td, u, campo, formato){
+  const valor = u[campo];
+  const txt = document.createElement('span');
+  txt.className = 'precio-txt';
+  txt.textContent = valor != null ? formato(valor) : '—';
+  td.appendChild(txt);
+  if (valor == null) td.classList.add('vacio');
+  if (!PUEDE_ADMINISTRAR_ACCESOS) return;
+  const input = document.createElement('input');
+  input.type = 'number'; input.step = '1'; input.min = '0';
+  input.className = 'input-campo';
+  input.placeholder = '—';
+  input.value = valor != null ? valor : '';
+  input.addEventListener('change', () => guardarCampo(u.id, campo, input.value, input));
+  td.classList.add('con-input');
+  td.appendChild(input);
+}
+
+const fmtAlquiler = new Intl.NumberFormat('es-UY',
+  { style:'currency', currency:'UYU', currencyDisplay:'code', maximumFractionDigits:0 });
+
 function pintarUnidades(unidades){
   const tbody = document.getElementById('filas-unidades');
   tbody.innerHTML = '';
   const tipologiasPorId = Object.fromEntries(TIPOLOGIAS_ACTUALES.map(t => [t.id, t]));
+  document.getElementById('th-precio').textContent = 'Precio ' + PROYECTO_ACTUAL.moneda;
+  // La columna Alquiler solo aparece si el proyecto alquila algo (hoy BRUSCO).
+  // Para empezar a alquilar en otro proyecto: pasar una unidad a "En alquiler"
+  // y la columna aparece al recargar la tabla (cambiarEstado ya la recarga).
+  document.getElementById('tabla-unidades').classList.toggle('sin-alquiler',
+    !unidades.some(u => u.estado === 'alquiler' || u.precio_alquiler != null));
   unidades.forEach(u => {
     const e = ESTADOS[u.estado] || ESTADOS.sin_dato;
     const tr = document.createElement('tr');
@@ -994,13 +1035,16 @@ function pintarUnidades(unidades){
       '<td class="num apoyo">' + formatearNumero(u.m2) + '</td>' +
       '<td class="num"></td>' +
       '<td class="apoyo">' + u.orientacion + '</td>' +
-      (u.precio != null
-        ? '<td class="num">' + formatearPrecio(u.precio, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale) + '</td>'
-        : '<td class="num vacio">—</td>') +
+      '<td class="num"></td>' +
+      '<td class="num"></td>' +
       '<td class="num"></td>' +
       '<td></td>' +
       '<td><span class="estado estado-editable" data-estado="' + u.estado + '"><span class="punto" style="background:' + e.color + '"></span></span></td>' +
       '<td></td>';
+
+    celdaPrecio(tr.children[7], u, 'precio',
+      v => formatearPrecio(v, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale));
+    celdaPrecio(tr.children[8], u, 'precio_alquiler', v => fmtAlquiler.format(v) + '/mes');
 
     const checkTd = tr.children[0];
     const check = document.createElement('input');
@@ -1018,7 +1062,7 @@ function pintarUnidades(unidades){
       guardarCampo(u.id, 'm2_terraza', terrazaInput.value, terrazaInput));
     terrazaTd.appendChild(terrazaInput);
 
-    const cocheraTd = tr.children[8];
+    const cocheraTd = tr.children[9];
     const cocheraInput = document.createElement('input');
     cocheraInput.type = 'number'; cocheraInput.step = '1'; cocheraInput.min = '0';
     cocheraInput.className = 'input-campo';
@@ -1028,12 +1072,12 @@ function pintarUnidades(unidades){
       guardarCampo(u.id, 'cochera_precio', cocheraInput.value, cocheraInput));
     cocheraTd.appendChild(cocheraInput);
 
-    const tipologiaTd = tr.children[9];
+    const tipologiaTd = tr.children[10];
     const tipologia = tipologiasPorId[u.typology_id];
     tipologiaTd.textContent = tipologia ? tipologia.nombre : '—';
     if (!tipologia) tipologiaTd.classList.add('vacio');
 
-    const modTd = tr.children[11];
+    const modTd = tr.children[12];
     if (u.updated_by){
       // Sin email resuelto (migración autores-unidades sin correr) queda solo
       // la fecha: un uuid crudo no le sirve a nadie.
@@ -1050,7 +1094,7 @@ function pintarUnidades(unidades){
 
     // Estado: solo el selector (ya muestra el valor), con el punto de color
     // al lado para leer la tabla de un vistazo.
-    const estadoSpan = tr.children[10].firstElementChild;
+    const estadoSpan = tr.children[11].firstElementChild;
     const punto = estadoSpan.firstElementChild;
     const select = document.createElement('select');
     select.className = 'select-estado';
@@ -1142,7 +1186,8 @@ async function cambiarEstado(id, estadoPrevio, nuevoEstado, select){
   // que ese dato vale algo (tres semanas después, no sirve de nada) — se
   // avisa acá mismo, con los contactos a mano, para que el vendedor escriba
   // él. Nunca se manda nada automático (ver CLAUDE.md de esta feature).
-  const reactivada = nuevoEstado === 'disponible' && (estadoPrevio === 'vendido' || estadoPrevio === 'reservado');
+  const reactivada = (nuevoEstado === 'disponible' || nuevoEstado === 'alquiler') &&
+    (estadoPrevio === 'vendido' || estadoPrevio === 'reservado');
   if (reactivada) await avisarListaEspera(id);
   cargarUnidades();
 }
@@ -1157,7 +1202,8 @@ async function avisarListaEspera(unitId){
     ' esperando que se libere:\n\n' + lista);
 }
 
-// Guarda m2_terraza o cochera_precio al salir del campo. Vacío = null (sin dato).
+// Guarda m2_terraza, cochera_precio, precio o precio_alquiler al salir del
+// campo. Vacío = null (sin dato).
 async function guardarCampo(id, campo, valorCrudo, input){
   const valor = valorCrudo.trim() === '' ? null : Number(valorCrudo);
   input.disabled = true;

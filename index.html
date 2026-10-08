@@ -4178,22 +4178,22 @@
       // plural / singular: la etiqueta corta de la píldora de mobile ("13
       // disponibles"); sin singular se usa el nombre en minúscula.
       disponible: { nombre: 'Disponible', plural: 'disponibles', color: '#2B6656', opacidad: 0.94 },
+      // En alquiler: oferta vigente igual que disponible, en un verde salvia
+      // más claro que el de venta (precio en u.precioAlquiler, UYU por mes).
+      alquiler: { nombre: 'En alquiler', plural: 'en alquiler', color: '#86AC9F', opacidad: 0.86 },
       reservado: { nombre: 'Reservada', plural: 'reservadas', color: '#D2A24C', opacidad: 0.86 },
       vendido: { nombre: 'Vendida', plural: 'vendidas', color: '#B9BEBC', opacidad: 0.34 },
       sin_dato: { nombre: 'Sin estado público', plural: 'a consultar', singular: 'a consultar', color: '#9AA19E', opacidad: 0.62 },
     };
-    // Estado de PRESENTACIÓN, no de datos: las unidades que el desarrollador
-    // ofrece solo en alquiler se cargan como estado = 'sin_dato' +
-    // geom.operacion = 'alquiler' (ver supabase-brusco-precios.sql). Se
-    // pintan como oferta vigente, en un verde más claro que el de venta. El
-    // filtro sigue trabajando sobre u.estado (pasa(u) no cambia). Sin
-    // geom.operacion (ROSSO, Altamira) esto nunca aplica.
-    const ALQUILER = { nombre: 'En alquiler', plural: 'en alquiler', color: '#86AC9F', opacidad: 0.86 };
     function esAlquiler(u) {
-      return u.estado === 'sin_dato' && !!u.geom && u.geom.operacion === 'alquiler';
+      return u.estado === 'alquiler';
+    }
+    // Lo que se puede tomar hoy, por venta o por alquiler (cifra del riel de pisos).
+    function esOfertable(u) {
+      return u.estado === 'disponible' || u.estado === 'alquiler';
     }
     function aspectoDe(u) {
-      return esAlquiler(u) ? ALQUILER : ESTADOS[u.estado];
+      return ESTADOS[u.estado] || ESTADOS.sin_dato;
     }
 
     // Qué edificio mostrar: primero un path bonito (/rosso, vía un rewrite de
@@ -4264,18 +4264,31 @@
         mediaTipologias: mediaTipologias || [],
         hitosObra: hitosObra || [],
         fotosObra: fotosObra || [],
-        unidades: unidades.map(r => ({
-          id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
-          // m2/precio null (unidad cargada sin dato todavía, p.ej. BRUSCO) quedan
-          // en null — Number(null) daría 0 y se mostraría "0 m²" / "$0".
-          dorms: r.dorms, m2: r.m2 != null ? Number(r.m2) : null, orient: r.orientacion,
-          precio: r.precio != null ? Number(r.precio) : null,
-          estimado: r.estimado, estado: r.estado,
-          m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
-          cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
-          geom: r.geom || null,
-          typologyId: r.typology_id || null,
-        })),
+        unidades: unidades.map(r => {
+          // Transición: antes de supabase-brusco-alquiler.sql las de alquiler
+          // venían como estado = 'sin_dato' + geom.operacion = 'alquiler' +
+          // geom.precio_alquiler_uyu. Se normalizan acá, en un solo lugar, para
+          // que el resto del visor solo conozca estado = 'alquiler'. Se puede
+          // sacar cuando ninguna unidad quede con geom.operacion = 'alquiler'
+          // y estado 'sin_dato'.
+          const alquilerViejo = r.estado === 'sin_dato' && !!r.geom && r.geom.operacion === 'alquiler';
+          const precioAlquiler = r.precio_alquiler != null ? r.precio_alquiler
+            : alquilerViejo ? r.geom.precio_alquiler_uyu : null;
+          return {
+            id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
+            // m2/precio null (unidad cargada sin dato todavía, p.ej. BRUSCO) quedan
+            // en null — Number(null) daría 0 y se mostraría "0 m²" / "$0".
+            dorms: r.dorms, m2: r.m2 != null ? Number(r.m2) : null, orient: r.orientacion,
+            precio: r.precio != null ? Number(r.precio) : null,
+            // UYU por mes, siempre UYU (no la moneda del proyecto).
+            precioAlquiler: precioAlquiler != null ? Number(precioAlquiler) : null,
+            estimado: r.estimado, estado: alquilerViejo ? 'alquiler' : r.estado,
+            m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
+            cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
+            geom: r.geom || null,
+            typologyId: r.typology_id || null,
+          };
+        }),
       };
     }
 
@@ -4970,7 +4983,7 @@
       // un punto solo: quien entra por primera vez entiende sin tocar nada.
       if (proyecto.muestra_totales) {
         const hayAlquiler = UNIDADES.some(esAlquiler);
-        const conteos = [ESTADOS.disponible, ALQUILER, ESTADOS.reservado, ESTADOS.vendido, ESTADOS.sin_dato]
+        const conteos = [ESTADOS.disponible, ESTADOS.alquiler, ESTADOS.reservado, ESTADOS.vendido, ESTADOS.sin_dato]
           .map(e => {
             const venta = e === ESTADOS.disponible && hayAlquiler;
             const cantidad = UNIDADES.filter(u => aspectoDe(u) === e).length;
@@ -6734,23 +6747,17 @@
       });
       // Un chip por estado, pero solo los que tienen unidades: "Vendida 0"
       // en un edificio sin vendidas es ruido. Los estados sin unidades
-      // siguen en fEstado (prendidos), así que pasa(u) no cambia. Si todas
-      // las sin_dato de un proyecto son de alquiler (BRUSCO), el chip se
-      // presenta como "En alquiler" — sigue filtrando por u.estado — y va
-      // segundo, y "Disponible" pasa a "En venta": mismo orden y nombres que
-      // la píldora de disponibilidad.
-      const sinDatoAlquiler = UNIDADES.some(u => u.estado === 'sin_dato') &&
-        UNIDADES.filter(u => u.estado === 'sin_dato').every(esAlquiler);
-      const ordenEstados = sinDatoAlquiler
-        ? ['disponible', 'sin_dato', 'reservado', 'vendido'] : Object.keys(ESTADOS);
-      ordenEstados.forEach(k => {
+      // siguen en fEstado (prendidos), así que pasa(u) no cambia. Si hay
+      // unidades en alquiler (BRUSCO), "Disponible" pasa a "En venta": mismo
+      // orden y nombres que la píldora de disponibilidad.
+      const hayAlquilerChips = UNIDADES.some(esAlquiler);
+      Object.keys(ESTADOS).forEach(k => {
         const e = ESTADOS[k];
         const deEstado = UNIDADES.filter(u => u.estado === k);
         if (!deEstado.length) return;
-        const vista = k === 'sin_dato' && sinDatoAlquiler ? ALQUILER : e;
-        const nombre = k === 'disponible' && UNIDADES.some(esAlquiler) ? 'En venta'
-          : k === 'sin_dato' && !sinDatoAlquiler ? 'A consultar' : vista.nombre;
-        chipsEstado[k] = chip(document.getElementById('f-estado'), nombre + cifra(deEstado.length), vista.color,
+        const nombre = k === 'disponible' && hayAlquilerChips ? 'En venta'
+          : k === 'sin_dato' ? 'A consultar' : e.nombre;
+        chipsEstado[k] = chip(document.getElementById('f-estado'), nombre + cifra(deEstado.length), e.color,
           on => on ? fEstado.add(k) : fEstado.delete(k), deEstado.length);
       });
       if (torresDisponibles.length) {
@@ -6826,7 +6833,7 @@
           return;
         }
         const enPiso = UNIDADES.filter(u => u.piso === pisoAislado);
-        const disponibles = enPiso.filter(u => u.estado === 'disponible').length;
+        const disponibles = enPiso.filter(esOfertable).length;
         const sinConstruir = pisosConstruidos.size > 0 && !pisosConstruidos.has(pisoAislado);
         // Mobile: todo en una línea ("Piso 10 · 9 de 16 disponibles · Torre A 10 · B 6").
         let hayTorrePrevia = false;
@@ -7045,7 +7052,8 @@
           const num = document.createElement('span');
           num.textContent = p;
           b.appendChild(num);
-          const disponibles = UNIDADES.filter(u => u.piso === p && u.estado === 'disponible').length;
+          // Disponibles = venta + alquiler: "hay algo que puedo tomar en este piso".
+          const disponibles = UNIDADES.filter(u => u.piso === p && esOfertable(u)).length;
           if (disponibles) {
             const cuenta = document.createElement('span');
             cuenta.className = 'pf-count';
@@ -7447,7 +7455,9 @@
          número y tipología vienen de la base.
          ============================================================ */
       const esTactil = matchMedia('(hover: none)').matches;
-      const fmtAlquiler = new Intl.NumberFormat(proyecto.locale,
+      // Siempre es-UY: el alquiler es siempre en UYU, sin importar el locale del
+      // proyecto ("UYU 55.000").
+      const fmtAlquiler = new Intl.NumberFormat('es-UY',
         { style: 'currency', currency: 'UYU', currencyDisplay: 'code', maximumFractionDigits: 0 });
 
       function nodo(tag, clase, texto) {
@@ -7480,9 +7490,8 @@
 
         // Precio: el de alquiler (UYU por mes) si es de alquiler; el de venta
         // si hay uno y no está vendida. Sin dato, no se inventa nada.
-        const alquiler = esAlquiler(u) && u.geom.precio_alquiler_uyu;
-        if (alquiler) {
-          const p = nodo('div', 'tt-precio', fmtAlquiler.format(u.geom.precio_alquiler_uyu));
+        if (esAlquiler(u) && u.precioAlquiler != null) {
+          const p = nodo('div', 'tt-precio', fmtAlquiler.format(u.precioAlquiler));
           p.appendChild(nodo('small', null, ' / mes'));
           cont.appendChild(p);
         } else if (u.precio != null && u.estado !== 'vendido') {
@@ -7645,9 +7654,9 @@
         document.getElementById('p-orient').textContent = textoOrientacion(u);
         unidadAsol = u;
         actualizarAsoleamiento();
-        // Alquiler: precio mensual en UYU (geom.precio_alquiler_uyu), igual
-        // que en el tooltip. Si no, el de venta, como siempre.
-        const alquilerUYU = esAlquiler(u) && u.geom.precio_alquiler_uyu;
+        // Alquiler: precio mensual en UYU (u.precioAlquiler), igual que en el
+        // tooltip. Si no, el de venta, como siempre.
+        const alquilerUYU = esAlquiler(u) ? u.precioAlquiler : null;
         document.getElementById('p-precio-wrap').hidden = u.precio == null && !alquilerUYU;
         document.getElementById('p-precio').textContent = alquilerUYU
           ? fmtAlquiler.format(alquilerUYU) + ' / mes'

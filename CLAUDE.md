@@ -109,7 +109,8 @@ Cada archivo es idempotente o tiene guardas. Orden histórico: `schema` → `aut
 → `financiacion` → **`avance-obra` (tiene que correr después de `financiacion`)** →
 `lista-espera` → `pisos` → `precio-opcional` → `accesos` → `autores-unidades` →
 `grants-explicitos` (grants de tabla para `authenticated`; no depender de los defaults
-de Supabase — una tabla nueva editable desde admin necesita su propio `grant`). Migraciones nuevas: archivo nuevo
+de Supabase — una tabla nueva editable desde admin necesita su propio `grant`) →
+`alquiler` (estado `'alquiler'` + `units.precio_alquiler`, UYU/mes). Migraciones nuevas: archivo nuevo
 `supabase-migration-<tema>.sql`, comentario de cabecera en español explicando el porqué,
 idempotente (`if not exists`, `drop policy if exists`, `on conflict`), puramente aditiva
 cuando se pueda (un proyecto sin el dato nuevo tiene que verse exactamente igual que
@@ -203,13 +204,18 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
 
 ### Estados de presentación: `aspectoDe(u)` / `ALQUILER`
 
-El color y la opacidad del volumen salen de `aspectoDe(u)`, no de `ESTADOS` directo.
+El color y la opacidad del volumen salen de `aspectoDe(u)` (= `ESTADOS[u.estado]`).
 Vendida va en gris casi transparente (no rojo); `sin_dato` en gris neutro legible (en
-ROSSO son la mayoría). Una unidad con `estado = 'sin_dato'` y `geom.operacion =
-'alquiler'` se presenta como **En alquiler** (verde salvia, precio de
-`geom.precio_alquiler_uyu`). Es solo presentación: `pasa(u)` sigue filtrando por
-`u.estado`; el chip de `sin_dato` se llama "En alquiler" únicamente si todas las
-`sin_dato` del proyecto son de alquiler (BRUSCO).
+ROSSO son la mayoría). `'alquiler'` es un estado real (`supabase-migration-alquiler.sql`):
+verde salvia, precio en `units.precio_alquiler` (siempre UYU/mes, formato es-UY,
+independiente de `moneda`); `precio` sigue siendo el de venta. Si un proyecto tiene
+alquiler, "Disponible" se presenta como "En venta" en leyenda y chips. El riel de
+pisos cuenta venta + alquiler (`esOfertable`). Transición: `cargarProyecto()` todavía
+convierte `sin_dato` + `geom.operacion = 'alquiler'` (+ `geom.precio_alquiler_uyu`) al
+estado nuevo; se puede sacar cuando BRUSCO esté migrado. En admin, la columna
+Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
+`precio_alquiler`; precio y alquiler los edita solo admin de proyecto/plataforma
+(el trigger se los bloquea al vendedor).
 
 ### Panel de detalle de la unidad (`abrir(u)`)
 
