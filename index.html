@@ -1131,19 +1131,23 @@
     }
 
     #panel {
+      --p-pad: 26px;
       position: fixed;
       top: 0;
       right: 0;
       height: 100%;
-      width: 330px;
+      width: 360px;
       z-index: 12;
       background: rgba(255, 255, 255, .94);
       backdrop-filter: blur(12px);
       border-left: 1px solid var(--linea);
-      padding: 26px 26px 22px;
+      /* Sin padding abajo: lo pone el pie fijo (.p-pie), que llega al borde. */
+      padding: 20px var(--p-pad) 0;
       display: flex;
       flex-direction: column;
       overflow-y: auto;
+      /* Que un foco o un scrollIntoView no deje nada tapado por el pie. */
+      scroll-padding-bottom: 110px;
       transform: translateX(100%);
       transition: transform var(--t-hoja) var(--ease)
     }
@@ -1152,30 +1156,18 @@
       transform: none
     }
 
-    #cerrar {
-      position: absolute;
-      top: 18px;
-      right: 18px;
-      width: 28px;
-      height: 28px;
-      border: 1px solid var(--linea);
-      background: none;
-      border-radius: 50%;
-      color: var(--suave);
-      cursor: pointer;
-      line-height: 1
-    }
-
-    /* Cabecera del panel: número de unidad + estado a la izquierda, y una
-     "tira de elevación" a la derecha — el mismo lenguaje del riel de pisos
-     (panel de ascensor) trasladado acá, para que el número no flote solo:
-     siempre se lee en relación a dónde está esa unidad en la torre. */
+    /* Cabecera: tira de elevación · piso y número + estado · copiar/cerrar.
+       Todo en una fila: el número es lo primero que se lee. */
     .p-cabeza {
       display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      margin-top: 26px
+      align-items: stretch;
+      gap: 12px;
+      flex: none
+    }
+
+    .p-id {
+      flex: 1;
+      min-width: 0
     }
 
     .p-eyebrow {
@@ -1187,22 +1179,31 @@
       color: var(--suave)
     }
 
+    .p-id-fila {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      margin-top: 2px
+    }
+
     #p-unidad {
-      font-size: 32px;
-      font-weight: 600;
-      letter-spacing: -.02em;
+      font-size: 40px;
+      font-weight: 650;
+      letter-spacing: -.03em;
+      line-height: 1.05;
       font-variant-numeric: tabular-nums;
-      margin: 2px 0 0
+      margin: 0
     }
 
     #p-estado {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      margin: 10px 0 0;
-      padding: 5px 12px 5px 9px;
+      margin: 0;
+      padding: 4px 11px 4px 9px;
       border-radius: 20px;
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 650;
       border: 1px solid var(--linea);
       width: fit-content
@@ -1212,94 +1213,195 @@
       border-radius: 50%
     }
 
-    .p-tira-wrap {
+    .p-cabeza-acc {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
+      gap: 6px;
       flex: none;
-      padding-top: 1px
+      align-self: flex-start
     }
 
-    .p-tira-tope,
-    .p-tira-base {
-      font-size: 8.5px;
-      font-weight: 650;
-      letter-spacing: .03em;
-      color: var(--suave)
+    .p-icono {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--linea);
+      background: none;
+      border-radius: 50%;
+      color: var(--suave);
+      cursor: pointer;
+      padding: 0;
+      transition: color var(--t) var(--ease), border-color var(--t) var(--ease)
     }
 
+    .p-icono:hover {
+      color: var(--tinta);
+      border-color: rgba(26, 33, 36, .34)
+    }
+
+    .p-icono:focus-visible {
+      outline: 2px solid var(--tinta);
+      outline-offset: 2px
+    }
+
+    /* Tira de elevación: una marca por nivel (PB abajo), la del piso de la
+       unidad más larga y en el color de su estado. Del alto de la cabecera. */
     .p-tira {
       display: flex;
       flex-direction: column-reverse;
-      align-items: flex-end;
-      gap: 3px
+      justify-content: space-between;
+      align-items: flex-start;
+      flex: none;
+      width: 14px;
+      padding: 3px 0
     }
 
     .p-tira-marca {
       display: block;
-      width: 13px;
-      height: 5px;
+      width: 9px;
+      height: 2px;
       border-radius: 1px;
-      background: var(--linea)
+      background: rgba(20, 40, 35, .16)
     }
 
     .p-tira-marca.activa {
-      width: 21px
+      width: 14px;
+      height: 3px
     }
 
-    dl {
-      margin: 0;
+    /* Tira de datos: tipología · superficie · terraza · orientación, en
+       columnas iguales con separador fino. Dato arriba, etiqueta abajo. */
+    .p-datos {
+      margin: 18px 0 0;
+      padding: 14px 0;
+      border-top: 1px solid var(--linea);
+      border-bottom: 1px solid var(--linea);
       display: grid;
-      grid-template-columns: auto 1fr;
-      column-gap: 18px;
-      row-gap: 0;
-      font-size: 13.5px
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(0, 1fr);
+      flex: none
     }
 
-    dt {
-      color: var(--suave);
-      margin: 0;
-      padding: 9px 0;
-      border-bottom: 1px solid var(--linea)
+    .p-dato {
+      display: flex;
+      flex-direction: column-reverse;
+      justify-content: flex-end;
+      gap: 4px;
+      padding: 0 12px;
+      min-width: 0
     }
 
-    dd {
+    .p-dato:first-child {
+      padding-left: 0
+    }
+
+    .p-dato+.p-dato {
+      border-left: 1px solid var(--linea)
+    }
+
+    .p-dato[hidden] {
+      display: none
+    }
+
+    .p-dato dt {
       margin: 0;
-      text-align: right;
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: .07em;
+      white-space: nowrap;
+      text-transform: uppercase;
+      color: var(--suave)
+    }
+
+    .p-dato dd {
+      margin: 0;
+      font-size: 15.5px;
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: -.01em;
       font-variant-numeric: tabular-nums;
-      font-weight: 560;
-      padding: 9px 0;
-      border-bottom: 1px solid var(--linea)
+      hyphens: auto
+    }
+
+    /* "+ 11 m² terraza" debajo de la superficie, en la misma celda. */
+    .p-dato-extra {
+      display: block;
+      margin-top: 1px;
+      font-size: 11.5px;
+      font-weight: 500;
+      letter-spacing: 0;
+      color: var(--suave)
+    }
+
+    .p-dato-extra[hidden] {
+      display: none
+    }
+
+    /* Pie fijo: precio + consulta. Sticky al fondo del panel (que es el
+       que scrollea), de borde a borde; margin-top: auto lo baja al fondo
+       cuando el contenido es corto. Si no entran precio y botones en una
+       fila (desktop, 330px), los botones bajan a la suya, a lo ancho. */
+    .p-pie {
+      position: sticky;
+      bottom: 0;
+      z-index: 1;
+      flex: none;
+      margin: auto calc(-1 * var(--p-pad)) 0;
+      padding: 14px var(--p-pad) calc(16px + env(safe-area-inset-bottom));
+      background: #fff;
+      border-top: 1px solid var(--linea);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 16px
+    }
+
+    /* Vendida sin precio con el formulario de espera a la vista: el pie
+       quedaría vacío. */
+    .p-pie:has(> #p-precio-wrap[hidden]):has(> #acciones-panel[hidden]):has(> #p-espera-ir[hidden]) {
+      display: none
     }
 
     .p-precio-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 9px;
-      margin: 18px 0 4px
+      flex: 1 1 auto;
+      min-width: 0
     }
 
-    /* Unidad sin precio cargado (ver abrir()): el display:flex de arriba le
-       ganaría al atributo hidden. */
+    /* Unidad sin precio cargado (ver abrir()): el botón ocupa todo el pie. */
     #p-precio-wrap[hidden] {
       display: none
     }
 
     #p-precio {
-      font-size: 22px;
+      font-size: 26px;
       font-weight: 650;
+      letter-spacing: -.02em;
+      line-height: 1.1;
       margin: 0;
-      font-variant-numeric: tabular-nums
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap
+    }
+
+    .p-precio-sub {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 10px;
+      margin: 6px 0 0;
+      font-size: 11.5px;
+      color: var(--suave)
+    }
+
+    .p-precio-sub [hidden] {
+      display: none
     }
 
     .p-tag {
       display: inline-flex;
       align-items: center;
-      padding: 4px 11px;
+      padding: 2px 8px;
       border-radius: 20px;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 650;
       letter-spacing: .01em;
       border: 1px solid var(--linea);
@@ -1324,11 +1426,48 @@
      max/default cargados (ver tieneFinanciacion() en el script): nunca con
      valores default inventados, ver CLAUDE.md. */
     .p-financiacion {
-      margin: 6px 0 20px;
-      padding: 16px 16px 14px;
-      border: 1px solid var(--linea);
-      border-radius: 10px;
-      background: rgba(255, 255, 255, .5)
+      margin: 18px 0 0;
+      border-top: 1px solid var(--linea);
+      border-bottom: 1px solid var(--linea);
+      flex: none
+    }
+
+    .p-financiacion>summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      list-style: none
+    }
+
+    .p-financiacion>summary::-webkit-details-marker {
+      display: none
+    }
+
+    .p-financiacion>summary::after {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-right: 1.6px solid var(--suave);
+      border-bottom: 1.6px solid var(--suave);
+      transform: translateY(-2px) rotate(45deg);
+      transition: transform var(--t) var(--ease)
+    }
+
+    .p-financiacion[open]>summary::after {
+      transform: translateY(2px) rotate(-135deg)
+    }
+
+    .p-financiacion>summary:focus-visible {
+      outline: 2px solid var(--tinta);
+      outline-offset: 2px
+    }
+
+    .p-financiacion[open] {
+      padding-bottom: 14px
     }
 
     .p-fin-fila {
@@ -1454,6 +1593,10 @@
       width: fit-content
     }
 
+    .p-sol[hidden] {
+      display: none
+    }
+
     .p-sol-sol {
       color: var(--verde);
       border-color: rgba(47, 122, 104, .35);
@@ -1506,43 +1649,116 @@
     }
 
     /* Planta/renders reales de la tipología (subidos desde admin.html) — ver
-     pintarPlantaUnidad(). Varias imágenes posibles (planta + renders): se
-     apilan con un margen fino entre cada una, y cada una abre el lightbox
-     (galeria.abrir) al hacer click. */
+     pintarPlantaUnidad(). La primera imagen (la planta, si hay) va grande;
+     el resto, en miniaturas debajo. Todas abren el lightbox (galeria.abrir).
+     Sin imágenes, la figura no aparece y el resto del panel sube. */
     .planta {
-      background-color: #fff;
+      margin: 18px 0 0;
+      flex-shrink: 0
+    }
+
+    .planta[hidden] {
+      display: none
+    }
+
+    .planta button {
+      display: block;
+      padding: 0;
       border: 1px solid var(--linea);
       border-radius: 6px;
+      background: #fff;
       overflow: hidden;
-      margin-bottom: 18px;
-      flex-shrink: 0;
+      cursor: zoom-in;
+      transition: border-color var(--t) var(--ease)
+    }
+
+    .planta button:hover {
+      border-color: rgba(26, 33, 36, .34)
+    }
+
+    .planta button:focus-visible {
+      outline: 2px solid var(--tinta);
+      outline-offset: 2px
     }
 
     .planta img {
-      width: 100%;
-      height: auto;
       display: block;
-      cursor: zoom-in
+      width: 100%;
+      height: 100%
     }
 
-    .planta img+img {
-      border-top: 1px solid var(--linea)
+    .planta-principal {
+      position: relative;
+      width: 100%
     }
 
-    .planta-vacia {
-      margin: 0;
-      padding: 34px 16px;
-      text-align: center;
-      color: var(--suave);
-      font-size: 12.5px;
-      line-height: 1.5
+    /* Alto acotado para que la planta no empuje el sol fuera de la hoja;
+       contain: una planta recortada no sirve. */
+    .planta-principal img {
+      max-height: 42vh;
+      object-fit: contain
+    }
+
+    /* Ícono de ampliar: sin tarjeta, solo sombra (ver CLAUDE.md). */
+    .planta-ampliar {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .9);
+      color: var(--tinta);
+      box-shadow: 0 1px 4px rgba(20, 40, 35, .18);
+      pointer-events: none
+    }
+
+    .planta-miniaturas {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px
+    }
+
+    .planta-miniaturas button {
+      flex: none;
+      width: 52px;
+      height: 40px
+    }
+
+    .planta-miniaturas img {
+      object-fit: cover
     }
 
     .acciones-panel {
       display: flex;
-      flex-direction: column;
       gap: 8px;
-      margin-top: 22px
+      flex: 1 0 auto
+    }
+
+    .acciones-panel[hidden] {
+      display: none
+    }
+
+    .acciones-panel .bton-p {
+      flex: 1;
+      padding-inline: 22px
+    }
+
+    /* WhatsApp secundario (con Consultar): solo ícono, cuadrado. */
+    .acciones-panel #p-wa.bton-s {
+      flex: none;
+      width: 46px;
+      padding: 0
+    }
+
+    .acciones-panel #p-wa.bton-s .bton-txt {
+      display: none
+    }
+
+    #p-espera-ir {
+      flex: 1 0 auto
     }
 
     .bton {
@@ -1605,7 +1821,12 @@
      está vendida/reservada (ver actualizarEsperaPanel()), mismo margin-top
      que ese bloque para que el panel no cambie de alto al abrir otra unidad. */
     .p-espera {
-      margin-top: 22px
+      margin-top: 22px;
+      flex: none
+    }
+
+    .p-espera[hidden] {
+      display: none
     }
 
     .p-espera-tit {
@@ -1695,7 +1916,8 @@
     }
 
     .nota {
-      margin-top: auto;
+      margin-top: 18px;
+      margin-bottom: 20px;
       padding-top: 16px;
       border-top: 1px solid var(--linea);
       color: var(--suave);
@@ -1832,8 +2054,8 @@
       color: var(--verde);
     }
 
-    /* Tarjeta de unidad en táctil: sube sobre la barra inferior. En
-       desktop nunca se muestra (el hover ya da el resumen). */
+    /* Tarjeta de unidad: el paso entre el clic y el panel. En táctil sube
+       sobre la barra inferior; en desktop va .anclada (ver más abajo). */
     #tarjeta-unidad {
       position: fixed;
       left: 14px;
@@ -1878,6 +2100,78 @@
       font-size: 20px;
       line-height: 1;
       cursor: pointer;
+    }
+
+    /* Desktop: la misma tarjeta con el aspecto del tooltip, anclada a la
+       unidad (la sigue si se gira el edificio; JS la ubica en cada cuadro,
+       ver ubicarTarjeta()). Toda la tarjeta abre el panel; la pista
+       "Click para ver la unidad" pasa a ser el botón (.tt-cta). */
+    #tarjeta-unidad.anclada {
+      top: 0;
+      right: auto;
+      bottom: auto;
+      left: 0;
+      min-width: 210px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transform: translate(-50%, calc(-100% - 10px));
+    }
+
+    #tarjeta-unidad.anclada.visible {
+      transform: translate(-50%, calc(-100% - 16px))
+    }
+
+    #tarjeta-unidad.anclada.abajo {
+      transform: translate(-50%, 18px)
+    }
+
+    #tarjeta-unidad.anclada.abajo.visible {
+      transform: translate(-50%, 24px)
+    }
+
+    /* La unidad salió de cuadro (zoom o giro): la tarjeta se esconde
+       hasta que vuelva, sin perder la selección. */
+    #tarjeta-unidad.anclada.fuera {
+      opacity: 0;
+      pointer-events: none
+    }
+
+    #tarjeta-unidad.anclada .tarjeta-acciones {
+      display: none
+    }
+
+    .tt-cta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 0 0;
+      border: 0;
+      border-top: 1px solid var(--linea);
+      background: none;
+      font: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--verde);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .tt-cta::after {
+      content: "→";
+      transition: transform var(--t) var(--ease);
+    }
+
+    #tarjeta-unidad.anclada:hover .tt-cta::after,
+    .tt-cta:focus-visible::after {
+      transform: translateX(3px)
+    }
+
+    .tt-cta:focus-visible {
+      outline: 2px solid var(--verde);
+      outline-offset: 3px;
+      border-radius: 2px;
     }
 
     /* Toolbar + brújula, abajo a la derecha. Misma altura (48px), mismo
@@ -2335,7 +2629,7 @@
       transform: none
     }
 
-    /* Desktop con la ficha de una unidad abierta (#panel, 330px): el sol se
+    /* Desktop con la ficha de una unidad abierta (#panel, 360px): el sol se
        corre a su izquierda en vez de quedar tapado. #sol va antes que #panel
        en el DOM, así que no alcanza con ~; :has() desde body. En mobile no
        aplica: ahí #sol es una hoja inferior (ver la media de abajo). */
@@ -2345,7 +2639,7 @@
       }
 
       body:has(#panel.abierto) #sol {
-        right: calc(330px + 16px)
+        right: calc(360px + 16px)
       }
     }
 
@@ -3294,7 +3588,8 @@
         border-left: none;
         border-top: 1px solid var(--linea);
         border-radius: 12px 12px 0 0;
-        padding: 22px 20px 26px;
+        --p-pad: 20px;
+        padding: 22px var(--p-pad) 0;
         transform: translateY(100%);
       }
 
@@ -4015,37 +4310,63 @@
   </div>
 
   <aside id="panel" aria-live="polite">
-    <button id="cerrar" aria-label="Cerrar">×</button>
+    <!-- Orden de lectura: identificación → lo que define la unidad (tira)
+       → planta → sol → [espera / financiación / edificio] → pie fijo con
+       precio y consulta (position: sticky, siempre a la vista). -->
     <div class="p-cabeza">
-      <div>
+      <!-- Tira de elevación: el piso de la unidad dentro de la torre, mismo
+         lenguaje que el riel de pisos (panel de ascensor). -->
+      <div class="p-tira" id="p-tira" aria-hidden="true"></div>
+      <div class="p-id">
         <p class="p-eyebrow" id="p-eyebrow">Piso —</p>
-        <p id="p-unidad">—</p>
-        <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
+        <div class="p-id-fila">
+          <p id="p-unidad">—</p>
+          <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
+        </div>
       </div>
-      <div class="p-tira-wrap" aria-hidden="true">
-        <span class="p-tira-tope" id="p-tira-tope">10</span>
-        <div class="p-tira" id="p-tira"></div>
-        <span class="p-tira-base">PB</span>
+      <div class="p-cabeza-acc">
+        <button class="p-icono" id="p-copiar" type="button" aria-label="Copiar link de esta unidad"
+          title="Copiar link de esta unidad">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+            <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+          </svg>
+        </button>
+        <button class="p-icono" id="cerrar" type="button" aria-label="Cerrar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
       </div>
     </div>
+
+    <!-- Lo que define la unidad, leído de un golpe: dato grande arriba,
+       etiqueta chica abajo (dt va primero en el DOM por semántica; el CSS
+       lo muestra debajo). Las celdas sin dato se ocultan enteras. -->
+    <dl class="p-datos">
+      <div class="p-dato">
+        <dt id="p-dorms-dt">Dormitorios</dt>
+        <dd id="p-dorms"></dd>
+      </div>
+      <div class="p-dato" id="p-m2-c">
+        <dt>Superficie</dt>
+        <dd><span id="p-m2"></span><span class="p-dato-extra" id="p-terraza" hidden></span></dd>
+      </div>
+      <div class="p-dato" id="p-orient-c">
+        <dt>Orientación</dt>
+        <dd id="p-orient"></dd>
+      </div>
+    </dl>
+
+    <figure class="planta" id="p-planta"></figure>
+
     <!-- Solo visible con el simulador solar prendido (ver
        actualizarSolUnidad()) — dice si ESTA unidad tiene sol directo en el
        instante elegido, cruzando la dirección del sol contra la masa del
        propio edificio (pisos/núcleo/otras unidades). -->
     <p class="p-sol" id="p-sol" hidden></p>
-    <figure class="planta" id="p-planta"></figure>
-    <dl>
-      <dt id="p-dorms-dt">Dormitorios</dt>
-      <dd id="p-dorms"></dd>
-      <dt id="p-m2-dt">Superficie total</dt>
-      <dd id="p-m2"></dd>
-      <dt id="p-terraza-dt" hidden>Terraza</dt>
-      <dd id="p-terraza-dd" hidden></dd>
-      <dt>Orientación</dt>
-      <dd id="p-orient"></dd>
-      <dt id="p-cochera-dt" hidden>Cochera</dt>
-      <dd id="p-cochera-dd" hidden></dd>
-    </dl>
     <!-- Asoleamiento por fachada — solo en proyectos con geometria.calles
        (ver calcularFachadas() / actualizarAsoleamiento()). -->
     <div class="p-asol" id="p-asol" hidden>
@@ -4053,56 +4374,9 @@
       <ul id="p-asol-lista"></ul>
       <p class="p-asol-nota" id="p-asol-nota"></p>
     </div>
-    <div class="p-precio-wrap" id="p-precio-wrap">
-      <p id="p-precio"></p>
-      <span id="p-fuente" class="p-tag"></span>
-    </div>
 
-    <!-- Simulador de financiación — hidden hasta que tieneFinanciacion()
-       confirme fecha_ocupacion + entrega_min/max/default (ver CLAUDE.md). -->
-    <div class="p-financiacion" id="p-financiacion" hidden>
-      <div class="p-fin-fila">
-        <label for="p-fin-entrega">Entrega</label>
-        <span class="p-fin-pct"><span id="p-fin-entrega-pct">—%</span> · <span id="p-fin-entrega-monto"></span></span>
-      </div>
-      <input type="range" id="p-fin-entrega" min="0" max="100" step="1" value="0" aria-label="Porcentaje de entrega">
-      <div class="p-fin-cuota">
-        <span class="p-fin-cuota-num" id="p-fin-cuota-monto"></span>
-        <span class="p-fin-cuota-txt" id="p-fin-cuota-detalle"></span>
-      </div>
-      <p class="p-fin-saldo" id="p-fin-saldo" hidden></p>
-      <p class="p-fin-ajuste" id="p-fin-ajuste" hidden></p>
-      <p class="p-fin-disclaimer">Simulación estimativa, sujeta a confirmación del desarrollador. No constituye
-        una oferta ni una reserva de la unidad.</p>
-    </div>
-
-    <div class="acciones-panel" id="acciones-panel">
-      <!-- Solo con settings.consulta_url (ver actualizarConsulta()): lleva al
-         formulario de contacto del cliente. Cuando está, WhatsApp pasa a
-         secundario para no tener dos botones verdes. -->
-      <a class="bton bton-p" id="p-consultar" href="#" hidden>
-        <span class="bton-txt">Consultar</span>
-      </a>
-      <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path
-            d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-        </svg>
-        <span class="bton-txt">Consultar por esta unidad</span>
-      </a>
-      <button class="bton bton-s" id="p-copiar">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="9" y="9" width="13" height="13" rx="2" />
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-        </svg>
-        <span class="bton-txt">Copiar link de esta unidad</span>
-      </button>
-    </div>
-
-    <!-- Lista de espera: ocupa exactamente el lugar de .acciones-panel
-       cuando la unidad está vendida/reservada (nunca crece el panel), ver
+    <!-- Lista de espera: solo en unidades vendidas/reservadas, en el lugar
+       de los botones de consulta (que se ocultan en el pie), ver
        actualizarEsperaPanel(). Nunca aparece sobre 'disponible'/'sin_dato'. -->
     <div class="p-espera" id="p-espera" hidden>
       <form id="p-espera-form">
@@ -4118,7 +4392,7 @@
           <input type="text" id="p-espera-contacto" autocomplete="email" maxlength="200" required>
         </label>
         <button type="submit" class="bton bton-p" id="p-espera-enviar">
-          <span class="bton-txt">Avisarme si se libera</span>
+          <span class="bton-txt">Anotarme</span>
         </button>
         <p class="p-espera-error" id="p-espera-error" hidden></p>
         <p class="p-espera-legal">Esto no reserva la unidad ni da prioridad de compra — es solo un
@@ -4132,6 +4406,27 @@
           similares</button>
       </div>
     </div>
+
+    <!-- Simulador de financiación — hidden hasta que tieneFinanciacion()
+       confirme fecha_ocupacion + entrega_min/max/default (ver CLAUDE.md).
+       Plegado: es un paso posterior a decidir por la unidad. -->
+    <details class="p-financiacion" id="p-financiacion" hidden>
+      <summary>Simular financiación</summary>
+      <div class="p-fin-fila">
+        <label for="p-fin-entrega">Entrega</label>
+        <span class="p-fin-pct"><span id="p-fin-entrega-pct">—%</span> · <span id="p-fin-entrega-monto"></span></span>
+      </div>
+      <input type="range" id="p-fin-entrega" min="0" max="100" step="1" value="0" aria-label="Porcentaje de entrega">
+      <div class="p-fin-cuota">
+        <span class="p-fin-cuota-num" id="p-fin-cuota-monto"></span>
+        <span class="p-fin-cuota-txt" id="p-fin-cuota-detalle"></span>
+      </div>
+      <p class="p-fin-saldo" id="p-fin-saldo" hidden></p>
+      <p class="p-fin-ajuste" id="p-fin-ajuste" hidden></p>
+      <p class="p-fin-disclaimer">Simulación estimativa, sujeta a confirmación del desarrollador. No constituye
+        una oferta ni una reserva de la unidad.</p>
+    </details>
+
     <div id="p-edificio">
       <p class="p-edificio-tit">Amenities del edificio</p>
       <ul id="p-amenities"></ul>
@@ -4142,6 +4437,39 @@
       Demostración armada con datos públicos de avisos (setiembre 2026). Cuando la tipología
       de la unidad tiene su planta real cargada, se muestra tal cual la subió el cliente.
     </p>
+
+    <!-- Pie fijo (sticky): precio + consulta, siempre a la vista sin
+       desplazarse — es la conversión. -->
+    <div class="p-pie">
+      <div class="p-precio-wrap" id="p-precio-wrap">
+        <p id="p-precio"></p>
+        <p class="p-precio-sub">
+          <span id="p-fuente" class="p-tag"></span>
+          <span id="p-cochera" hidden></span>
+        </p>
+      </div>
+      <div class="acciones-panel" id="acciones-panel">
+        <!-- Solo con settings.consulta_url (ver actualizarConsulta()): lleva al
+           formulario de contacto del cliente. Cuando está, WhatsApp pasa a
+           secundario (solo ícono) para no tener dos botones verdes. -->
+        <a class="bton bton-p" id="p-consultar" href="#" hidden>
+          <span class="bton-txt">Consultar</span>
+        </a>
+        <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path
+              d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+          </svg>
+          <span class="bton-txt">Consultar</span>
+        </a>
+      </div>
+      <!-- Vendida/reservada: en lugar de consultar, lleva al formulario de
+         lista de espera (en el cuerpo) — ver actualizarEsperaPanel(). -->
+      <button class="bton bton-p" id="p-espera-ir" type="button" hidden>
+        <span class="bton-txt">Avisarme si se libera</span>
+      </button>
+    </div>
   </aside>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -5012,7 +5340,6 @@
         document.getElementById('aviso').hidden = true;
         document.getElementById('ficha-resumen').textContent = 'Ver ficha';
       }
-      document.getElementById('p-tira-tope').textContent = proyecto.pisos;
 
       /* ============================================================
          2. ESCENA
@@ -6516,13 +6843,17 @@
         return lista.length > 1 ? lista.slice(0, -1).join(', ') + ' y ' + lista[lista.length - 1] : lista[0] || '';
       }
 
-      // Texto de la fila "Orientación": units.orientacion si está cargado
-      // (ROSSO), si no las fachadas calculadas, si no vacío como siempre.
+      // Texto de la celda "Orientación" de la tira de datos: units.orientacion
+      // si está cargado (ROSSO), si no los puntos cardinales de las fachadas
+      // calculadas (los nombres de calle van en el bloque de sol, que tiene
+      // lugar para ellos), si no vacío y la celda se oculta.
       function textoOrientacion(u) {
         if (u.orient) return u.orient;
         const fs = FACHADAS && FACHADAS.get(u.id);
         if (!fs) return '';
-        return fs.length ? unirConY(fs.map(nombreFachada)) : 'Interior de manzana';
+        if (!fs.length) return 'Interior';
+        const t = unirConY(fs.map(f => f.cardinal));
+        return t[0].toUpperCase() + t.slice(1);
       }
 
       function actualizarAsoleamiento() {
@@ -7161,7 +7492,8 @@
          ver MEDIA_POR_TIPOLOGIA más arriba). Antes acá se dibujaba un esquema de
          rectángulos a partir de m²/dorms — se sacó porque un esquema inventado
          que no coincide con muros reales (diagonales, plantas en L, etc.) es
-         peor que avisar que la planta no está disponible todavía.
+         peor que no mostrar nada. Sin imágenes la figura se oculta entera:
+         una ficha compacta se lee mejor que una con un hueco.
          ============================================================ */
 
       // Planta primero, después los renders de la tipología — mismo orden en el
@@ -7171,20 +7503,38 @@
         return media.planta.length ? [media.planta[0], ...media.render] : media.render;
       }
 
+      // Armado con nodos (no innerHTML): la URL viene de la base.
       function pintarPlantaUnidad(u) {
         const cont = document.getElementById('p-planta');
         const items = mediaDeUnidad(u);
-        if (!items.length) {
-          cont.innerHTML = '<p class="planta-vacia">Planta no disponible todavía para esta unidad.</p>';
-          return;
+        cont.hidden = !items.length;
+        cont.replaceChildren();
+        if (!items.length) return;
+        const boton = (m, i) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          const nombre = (m.tipo === 'planta' ? 'planta' : 'render') + ' de la unidad ' + numeroDe(u);
+          b.setAttribute('aria-label', 'Ampliar ' + nombre);
+          const img = document.createElement('img');
+          img.src = m.url;
+          img.alt = nombre[0].toUpperCase() + nombre.slice(1);
+          b.appendChild(img);
+          b.addEventListener('click', () => galeria.abrir(items, i));
+          return b;
+        };
+        const principal = boton(items[0], 0);
+        principal.className = 'planta-principal';
+        principal.insertAdjacentHTML('beforeend',
+          '<span class="planta-ampliar" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" ' +
+          'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+          '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></span>');
+        cont.appendChild(principal);
+        if (items.length > 1) {
+          const mini = document.createElement('div');
+          mini.className = 'planta-miniaturas';
+          items.slice(1).forEach((m, i) => mini.appendChild(boton(m, i + 1)));
+          cont.appendChild(mini);
         }
-        cont.innerHTML = items.map((m, i) =>
-          '<img src="' + m.url + '" data-idx="' + i + '"' +
-          ' alt="' + (m.tipo === 'planta' ? 'Planta' : 'Render') + ' de la unidad ' + numeroDe(u) + '">'
-        ).join('');
-        cont.querySelectorAll('img').forEach(img =>
-          img.addEventListener('click', () => galeria.abrir(items, Number(img.dataset.idx)))
-        );
       }
 
       // Tira de elevación junto al número de unidad: 11 marcas (PB + pisos 1–10),
@@ -7201,9 +7551,11 @@
         }
       }
 
-      // Lleva la cámara frente a la unidad, a la altura de su piso.
+      // Lleva la cámara frente a la unidad, a la altura de su piso, con el
+      // mismo recorrido suavizado que el resto de la cámara (moverCamara(),
+      // que ya respeta prefers-reduced-motion y corta el giro automático).
+      const MS_CAMARA_UNIDAD = 750;
       function enfocar(u) {
-        objetivo.set(CENTRO_X, u.piso * PASO + ALTO / 2, CENTRO_Z);
         // Unidades con contorno propio no tienen col/frente utilizables para
         // orientar la cámara — se deriva un ángulo equivalente del centroide
         // (mismo criterio: signo de Z = lado frente/contrafrente, X = desplazamiento lateral).
@@ -7213,15 +7565,65 @@
         // Con CONJUNTO la aproximación por SEP_X no sirve (unidades a ±20m del
         // centro): se usa el ángulo real del centroide visto desde el centro
         // del conjunto — mismo convenio (frente = π).
-        giro = theta - (CONJUNTO && u._centro
+        const g = theta - (CONJUNTO && u._centro
           ? Math.atan2(u._centro.x - CENTRO_X, u._centro.z - CENTRO_Z)
           : u._centro
           ? (u._centro.z < 0 ? Math.PI : 0) - (u._centro.x / SEP_X) * 0.16
           : (u.frente < 0 ? Math.PI : 0) - u.col * 0.16);
-        phi = 1.32;
-        radio = 62;
-        registrarActividad();
-        ubicarCamara();
+        const PHI_UNIDAD = 1.32;
+        // El objetivo es la unidad misma, no el centro del conjunto: en
+        // BRUSCO una unidad de Torre B quedaba descentrada (o detrás de la
+        // A). grupoEdificio gira alrededor del origen del mundo, así que el
+        // centroide se rota con el giro de destino. Y = su piso, más lo que
+        // lo levante "Separar pisos" (objetivo, no el offset en curso).
+        const cx = u._centro ? u._centro.x : u.col * SEP_X;
+        const cz = u._centro ? u._centro.z : u.frente * SEP_Z;
+        const alto = u.geom && u.geom.alto ? u.geom.alto : ALTO;
+        const sep = pisosGrupo[u.piso] ? pisosGrupo[u.piso].userData.objetivo || 0 : 0;
+        const dest = new THREE.Vector3(
+          cx * Math.cos(g) + cz * Math.sin(g),
+          u.piso * PASO + sep + alto / 2,
+          -cx * Math.sin(g) + cz * Math.cos(g));
+        // Encuadre en la parte del lienzo que queda libre según lo que esté
+        // abierto (se llama de nuevo al pasar de la tarjeta al panel):
+        // - panel: en desktop tapa 360px a la derecha; en mobile es una hoja
+        //   inferior de hasta 74vh, y una unidad en el centro de la pantalla
+        //   quedaba abajo de la hoja.
+        // - tarjeta anclada (desktop): va arriba de la unidad; se le deja
+        //   lugar, y abajo a la barra inferior, así el par queda centrado.
+        // - tarjeta táctil: sube sobre la barra inferior.
+        // Se corre el objetivo sobre los ejes de la cámara para que la unidad
+        // caiga en el centro de lo visible.
+        const W = innerWidth, H = innerHeight;
+        const hoja = matchMedia('(max-width: 860px)').matches; // mismo corte que el @media del panel
+        // En mobile arriba quedan la barra y la píldora de la ficha (#ficha
+        // plegada); en desktop, la barra superior.
+        const techo = hoja ? Math.max(56, document.getElementById('ficha').getBoundingClientRect().bottom + 6) : 64;
+        let libre;
+        if (panel.classList.contains('abierto')) {
+          libre = hoja
+            ? { x0: 0, x1: W, y0: techo, y1: H - Math.min(panel.offsetHeight || H * 0.74, H * 0.74) }
+            : { x0: 0, x1: W - 360, y0: techo, y1: H };
+        } else if (tarjeta.classList.contains('anclada')) {
+          libre = { x0: 0, x1: W, y0: techo + tarjeta.offsetHeight + 16, y1: H - 80 };
+        } else {
+          libre = { x0: 0, x1: W, y0: techo, y1: tarjeta.getBoundingClientRect().top - 8 };
+        }
+        if (libre.y1 - libre.y0 < 80) libre.y0 = Math.min(56, libre.y1 - 80);
+        const ndcX = (libre.x0 + libre.x1) / W - 1;
+        const ndcY = 1 - (libre.y0 + libre.y1) / H;
+        // Radio: 62 de siempre, salvo que la franja libre sea tan baja (hoja
+        // mobile) que no entren ~10m de alto alrededor de la unidad: ahí se
+        // aleja lo justo para que se lea con sus vecinas, no solo un vidrio.
+        const tanFov = Math.tan(THREE.MathUtils.degToRad(camara.fov / 2));
+        const RADIO_UNIDAD = Math.min(150, Math.max(62, 10 / (2 * tanFov * (libre.y1 - libre.y0) / H)));
+        const medioH = RADIO_UNIDAD * tanFov;
+        const medioW = medioH * (W / H);
+        const D = new THREE.Vector3(Math.sin(PHI_UNIDAD) * Math.sin(theta), Math.cos(PHI_UNIDAD), Math.sin(PHI_UNIDAD) * Math.cos(theta));
+        const derecha = new THREE.Vector3(Math.cos(theta), 0, -Math.sin(theta));
+        const arriba = new THREE.Vector3().crossVectors(D, derecha);
+        dest.addScaledVector(derecha, -ndcX * medioW).addScaledVector(arriba, -ndcY * medioH);
+        moverCamara({ giro: g, phi: PHI_UNIDAD, radio: RADIO_UNIDAD, objetivo: dest }, MS_CAMARA_UNIDAD);
       }
 
       function linkDe(u) {
@@ -7346,8 +7748,14 @@
       const consultaUrl = settingsRow.consulta_url || '';
       const enIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
       btnConsultar.target = enIframe ? '_top' : '_self';
-      // Con Consultar, WhatsApp pasa a secundario: un solo botón verde.
-      if (consultaUrl) document.getElementById('p-wa').classList.replace('bton-p', 'bton-s');
+      // Con Consultar, WhatsApp pasa a secundario: un solo botón verde. En el
+      // pie queda solo el ícono, así que el nombre va en aria-label/title.
+      if (consultaUrl) {
+        const wa = document.getElementById('p-wa');
+        wa.classList.replace('bton-p', 'bton-s');
+        wa.setAttribute('aria-label', 'Consultar por WhatsApp');
+        wa.title = 'Consultar por WhatsApp';
+      }
 
       function actualizarConsulta(u) {
         btnConsultar.hidden = !consultaUrl || u.estado === 'vendido';
@@ -7367,8 +7775,9 @@
 
       /* ------------------------------------------------------------
          Lista de espera — solo sobre unidades vendidas/reservadas (nunca
-         'disponible'/'sin_dato', ver CLAUDE.md). Reemplaza .acciones-panel
-         entera para que el panel no cambie de alto (ver CSS de .p-espera).
+         'disponible'/'sin_dato', ver CLAUDE.md). Oculta .acciones-panel del
+         pie y pone en su lugar un botón que lleva al formulario (#p-espera,
+         en el cuerpo del panel).
          ------------------------------------------------------------ */
       const accionesPanel = document.getElementById('acciones-panel');
       const espera = document.getElementById('p-espera');
@@ -7376,6 +7785,14 @@
       const esperaOk = document.getElementById('p-espera-ok');
       const esperaError = document.getElementById('p-espera-error');
       const esperaEnviar = document.getElementById('p-espera-enviar');
+      const esperaIr = document.getElementById('p-espera-ir');
+      // El botón del pie que lleva al formulario se esconde mientras el
+      // botón "Anotarme" ya está a la vista: dos botones verdes que hacen
+      // lo mismo confunden.
+      let esperaIrPuede = false, esperaEnVista = false;
+      function pintarEsperaIr() { esperaIr.hidden = !esperaIrPuede || esperaEnVista; }
+      new IntersectionObserver(([e]) => { esperaEnVista = e.isIntersecting; pintarEsperaIr(); },
+        { root: document.getElementById('panel') }).observe(esperaEnviar);
       const noDisponible = u => u.estado === 'vendido' || u.estado === 'reservado';
 
       // Unidades a las que este navegador ya se anotó — para no pedirle de
@@ -7397,8 +7814,12 @@
         const mostrar = noDisponible(u);
         accionesPanel.hidden = mostrar;
         espera.hidden = !mostrar;
+        esperaIrPuede = false;
+        pintarEsperaIr();
         if (!mostrar) return;
         const yaAnotado = esperaLocal().has(u.id);
+        esperaIrPuede = !yaAnotado;
+        pintarEsperaIr();
         esperaForm.hidden = yaAnotado;
         esperaOk.hidden = !yaAnotado;
         if (!yaAnotado) {
@@ -7433,6 +7854,13 @@
         marcarEsperaLocal(elegida.id);
         esperaForm.hidden = true;
         esperaOk.hidden = false;
+        esperaIrPuede = false;
+        pintarEsperaIr();
+      });
+
+      esperaIr.addEventListener('click', () => {
+        espera.scrollIntoView({ block: 'start', behavior: REDUCIR_MOVIMIENTO ? 'auto' : 'smooth' });
+        document.getElementById('p-espera-nombre').focus({ preventScroll: true });
       });
 
       document.getElementById('p-espera-similares').addEventListener('click', () => {
@@ -7497,7 +7925,13 @@
         } else if (u.precio != null && u.estado !== 'vendido') {
           cont.appendChild(nodo('div', 'tt-precio', formatearPrecio(u.precio, proyecto.moneda, proyecto.locale)));
         }
-        if (conPista) cont.appendChild(nodo('div', 'tt-hint', 'Click para ver la unidad'));
+        // conPista: la línea "Click para ver la unidad" del tooltip; 'boton'
+        // = la misma línea como botón (tarjeta anclada de desktop).
+        if (conPista === 'boton') {
+          const b = nodo('button', 'tt-hint tt-cta', 'Click para ver la unidad');
+          b.type = 'button';
+          cont.appendChild(b);
+        } else if (conPista) cont.appendChild(nodo('div', 'tt-hint', 'Click para ver la unidad'));
       }
 
       // Sobre el puntero, centrado; sin salirse de la pantalla por los
@@ -7510,25 +7944,102 @@
         tooltip.style.top = posRaton.y + 'px';
       }
 
-      // Tarjeta táctil: tocar una unidad la resalta y muestra el resumen;
-      // recién "Ver unidad" abre el panel (y registra el evento en abrir()).
+      /* Tarjeta de unidad: el clic (o el toque) en una unidad lleva la
+         cámara hasta ella, la resalta y muestra el resumen; recién "Click
+         para ver la unidad" (desktop) o "Ver unidad" (táctil) abre el panel
+         y registra el evento en abrir(). En táctil la tarjeta sube sobre la
+         barra inferior; en desktop va .anclada a la unidad, con el aspecto
+         del tooltip, y aparece cuando la cámara ya casi llegó (viajando
+         pegada a la unidad mientras gira el edificio se perdía entre los
+         volúmenes). */
       const tarjeta = document.getElementById('tarjeta-unidad');
-      let cajaTarjeta = null;
-      function mostrarTarjeta(caja) {
+      if (!esTactil) tarjeta.classList.add('anclada');
+      // cajaTarjeta = la unidad elegida; cajaAncla = donde está la tarjeta de
+      // desktop en pantalla (al cambiar de unidad, la vieja se desvanece en
+      // su lugar y con su contenido, y recién después pasa a la nueva).
+      let cajaTarjeta = null, cajaAncla = null, esperaTarjeta = 0;
+      function seleccionar(caja) {
         cajaTarjeta = caja;
-        pintarResumenUnidad(document.getElementById('tarjeta-resumen'), caja.userData.unidad, false);
-        tarjeta.classList.add('visible');
+        clearTimeout(esperaTarjeta);
+        tooltip.classList.remove('visible');
+        const pintar = () => pintarResumenUnidad(document.getElementById('tarjeta-resumen'),
+          caja.userData.unidad, esTactil ? false : 'boton');
+        if (esTactil) {
+          pintar();
+          tarjeta.classList.add('visible');
+        } else {
+          if (!tarjeta.classList.contains('visible')) pintar();
+          tarjeta.classList.remove('visible');
+          esperaTarjeta = setTimeout(() => {
+            if (cajaTarjeta !== caja) return;
+            pintar();
+            cajaAncla = caja;
+            ubicarTarjeta();
+            tarjeta.classList.add('visible');
+          }, REDUCIR_MOVIMIENTO ? 0 : MS_CAMARA_UNIDAD * 0.6);
+        }
+        // Después de pintarla: enfocar() encuadra según el alto de la tarjeta.
+        enfocar(caja.userData.unidad);
       }
       function ocultarTarjeta() {
+        clearTimeout(esperaTarjeta);
         cajaTarjeta = null;
         tarjeta.classList.remove('visible');
+        sobre = null; // el próximo cuadro recalcula el hover (y su tooltip, que con la tarjeta no iba)
       }
-      document.getElementById('tarjeta-ver').addEventListener('click', () => {
+      function verUnidadTarjeta() {
         const u = cajaTarjeta && cajaTarjeta.userData.unidad;
         ocultarTarjeta();
-        if (u) abrir(u);
-      });
+        if (u) abrir(u, true);
+      }
+      document.getElementById('tarjeta-ver').addEventListener('click', verUnidadTarjeta);
       document.getElementById('tarjeta-cerrar').addEventListener('click', ocultarTarjeta);
+      // Desktop: toda la tarjeta abre el panel; la pista es el botón visible.
+      tarjeta.addEventListener('click', e => {
+        if (esTactil) return;
+        pausarHover(e);
+        verUnidadTarjeta();
+      });
+
+      // Ancla de la tarjeta de desktop: el centro de la cara de arriba de la
+      // unidad (la de abajo si arriba no entra, bajo el header), proyectado
+      // a la pantalla. Se llama en cada cuadro, después del render.
+      const ancla = new THREE.Vector3();
+      function ubicarTarjeta() {
+        const c = cajaAncla, u = c.userData.unidad;
+        const medio = (u.geom && u.geom.alto ? u.geom.alto : ALTO) / 2;
+        const W = innerWidth, H = innerHeight;
+        const enPantalla = dy => {
+          c.getWorldPosition(ancla);
+          ancla.y += dy;
+          ancla.project(camara);
+          return { x: (ancla.x + 1) / 2 * W, y: (1 - ancla.y) / 2 * H, z: ancla.z };
+        };
+        const w = tarjeta.offsetWidth, h = tarjeta.offsetHeight;
+        let p = enPantalla(medio);
+        const abajo = p.y - h - 24 < 76;
+        if (abajo) p = enPantalla(-medio);
+        tarjeta.classList.toggle('abajo', abajo);
+        tarjeta.classList.toggle('fuera', p.z > 1 || p.x < 0 || p.x > W || p.y < 0 || p.y > H);
+        tarjeta.style.left = Math.min(W - w / 2 - 12, Math.max(w / 2 + 12, p.x)) + 'px';
+        tarjeta.style.top = p.y + 'px';
+      }
+
+      // Después de un clic que mueve la cámara el puntero queda quieto sobre
+      // otra unidad: sin esto aparecían su tooltip y su resaltado apenas
+      // terminaba el recorrido. El hover vuelve cuando el mouse se mueve.
+      let hoverPausado = null;
+      function pausarHover(e) {
+        if (!esTactil) hoverPausado = { x: e.clientX, y: e.clientY };
+      }
+      lienzo.addEventListener('pointermove', e => {
+        if (hoverPausado && Math.hypot(e.clientX - hoverPausado.x, e.clientY - hoverPausado.y) > 4) hoverPausado = null;
+      });
+      // La unidad elegida (en la tarjeta o en el panel) ya muestra su resumen:
+      // no lleva tooltip, y se resalta como elegida, no como hover.
+      function esElegidaCaja(c) {
+        return c === cajaTarjeta || (!!elegida && c.userData.unidad.id === elegida.id);
+      }
       [pisosTrigger, filtrosTrigger, fichaToggle].forEach(t => t.addEventListener('click', ocultarTarjeta));
 
       /* ============================================================
@@ -7627,7 +8138,6 @@
         registrarEvento(proyecto.id, u.id);
         elegida = u;
         tooltip.classList.remove('visible'); // en touch queda pegado en la última posición tocada
-        if (mover) enfocar(u);
         const e = aspectoDe(u);
         const torreU = torresDisponibles.length ? torreDe(u) : null;
         document.getElementById('p-eyebrow').textContent =
@@ -7644,14 +8154,16 @@
         actualizarTiraPiso(u);
         pintarPlantaUnidad(u);
         const tipologia = tipologiaDe(u);
-        document.getElementById('p-dorms-dt').textContent = tipologia ? 'Tipología' : 'Dormitorios';
-        document.getElementById('p-dorms').textContent = tipologia || etiquetaDorms(u.dorms);
+        const comoCifra = !tipologia && u.dorms > 0;
+        document.getElementById('p-dorms-dt').textContent = comoCifra ? 'Dormitorios' : 'Tipología';
+        document.getElementById('p-dorms').textContent = tipologia || (comoCifra ? u.dorms : etiquetaDorms(u.dorms));
         // Sin m² / precio cargados (null, no 0) se ocultan en vez de mostrar
         // "null m²" o un precio en cero — ver cargarProyecto().
-        const m2Dt = document.getElementById('p-m2-dt'), m2Dd = document.getElementById('p-m2');
-        m2Dt.hidden = m2Dd.hidden = u.m2 == null;
-        m2Dd.textContent = u.m2 != null ? u.m2 + ' m²' : '';
-        document.getElementById('p-orient').textContent = textoOrientacion(u);
+        document.getElementById('p-m2-c').hidden = u.m2 == null;
+        document.getElementById('p-m2').textContent = u.m2 != null ? u.m2 + ' m²' : '';
+        const orient = textoOrientacion(u);
+        document.getElementById('p-orient-c').hidden = !orient;
+        document.getElementById('p-orient').textContent = orient;
         unidadAsol = u;
         actualizarAsoleamiento();
         // Alquiler: precio mensual en UYU (u.precioAlquiler), igual que en el
@@ -7662,15 +8174,14 @@
           ? fmtAlquiler.format(alquilerUYU) + ' / mes'
           : u.precio != null ? formatearPrecio(u.precio, proyecto.moneda, proyecto.locale) : '';
 
-        const terrazaDt = document.getElementById('p-terraza-dt');
-        const terrazaDd = document.getElementById('p-terraza-dd');
-        terrazaDt.hidden = terrazaDd.hidden = !u.m2Terraza;
-        if (u.m2Terraza) terrazaDd.textContent = u.m2Terraza + ' m²';
+        const terraza = document.getElementById('p-terraza');
+        terraza.hidden = !u.m2Terraza;
+        if (u.m2Terraza) terraza.textContent = '+ ' + u.m2Terraza + ' m² terraza';
 
-        const cocheraDt = document.getElementById('p-cochera-dt');
-        const cocheraDd = document.getElementById('p-cochera-dd');
-        cocheraDt.hidden = cocheraDd.hidden = !u.cocheraPrecio;
-        if (u.cocheraPrecio) cocheraDd.textContent = formatearPrecio(u.cocheraPrecio, proyecto.moneda, proyecto.locale) + ' (opcional)';
+        // Cochera: debajo del precio, en el pie — es parte de lo que cuesta.
+        const cochera = document.getElementById('p-cochera');
+        cochera.hidden = !u.cocheraPrecio;
+        if (u.cocheraPrecio) cochera.textContent = 'Cochera opcional ' + formatearPrecio(u.cocheraPrecio, proyecto.moneda, proyecto.locale);
         const fuente = document.getElementById('p-fuente');
         fuente.textContent = u.estimado ? 'Dato estimado' : 'Dato publicado';
         fuente.className = 'p-tag ' + (u.estimado ? 'p-tag-estimado' : 'p-tag-real');
@@ -7685,6 +8196,9 @@
         marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
         panel.classList.add('abierto');
         actualizarSolUnidad();
+        // Al final: enfocar() encuadra en lo que el panel deja libre y en
+        // mobile necesita la altura real de la hoja ya con su contenido.
+        if (mover) enfocar(u);
       }
 
       function cerrar() {
@@ -7696,31 +8210,45 @@
         actualizarSolUnidad();
       }
 
+      // Copiar link: ícono en la cabecera; la confirmación sale en el mismo
+      // aviso flotante que el botón de compartir de la barra.
       const btnCopiar = document.getElementById('p-copiar');
-      const btnCopiarTxt = btnCopiar.querySelector('.bton-txt');
       btnCopiar.addEventListener('click', async () => {
         if (!elegida) return;
         try { await navigator.clipboard.writeText(linkDe(elegida)); }
         catch { return; }
-        btnCopiarTxt.textContent = 'Link copiado';
-        setTimeout(() => btnCopiarTxt.textContent = 'Copiar link de esta unidad', 1800);
+        mostrarAvisoCompartir('Link copiado');
       });
 
       document.getElementById('cerrar').addEventListener('click', cerrar);
-      addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+      addEventListener('keydown', e => { if (e.key === 'Escape') { ocultarTarjeta(); cerrar(); } });
+      // Soltar después de arrastrar (girar el edificio) también dispara
+      // click: sin esta guarda, terminar un giro sobre una unidad la abría
+      // y terminarlo en el vacío cerraba el panel.
+      let inicioClic = null;
+      lienzo.addEventListener('pointerdown', e => { inicioClic = { x: e.clientX, y: e.clientY }; });
       lienzo.addEventListener('click', e => {
+        if (inicioClic && Math.hypot(e.clientX - inicioClic.x, e.clientY - inicioClic.y) > 8) return;
         // Táctil: el rayo sale del punto tocado (no hay hover que lo haya
-        // calculado antes) y muestra la tarjeta en vez de abrir el panel.
+        // calculado antes).
+        let caja = sobre;
         if (esTactil) {
           raton.x = (e.clientX / innerWidth) * 2 - 1;
           raton.y = -(e.clientY / innerHeight) * 2 + 1;
           rayo.setFromCamera(raton, camara);
           const toque = rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
-          if (toque.length) { mostrarTarjeta(toque[0].object); return; }
-          ocultarTarjeta();
+          caja = toque.length ? toque[0].object : null;
         }
-        if (sobre) abrir(sobre.userData.unidad);
-        else if (sobreCalle) window.open(cartelCalle.userData.mapsUrl, '_blank', 'noopener');
+        if (caja) {
+          pausarHover(e);
+          // Primero la tarjeta; con el panel ya abierto se pasa directo a la
+          // otra unidad.
+          if (elegida) abrir(caja.userData.unidad, true);
+          else seleccionar(caja);
+          return;
+        }
+        ocultarTarjeta();
+        if (sobreCalle) window.open(cartelCalle.userData.mapsUrl, '_blank', 'noopener');
         else cerrar();
       });
 
@@ -7770,6 +8298,11 @@
           modalRenders.hidden && modalAvance.hidden;
       }
 
+      // Resaltado (ver el fundido de cajas en animar()).
+      const OPACIDAD_ELEGIDA = 0.92, BORDE_ELEGIDA = 0.9, EMISIVO_ELEGIDA = 0.6;
+      const BLANCO = new THREE.Color(1, 1, 1);
+      const EMISIVO_HOVER = new THREE.Color(0.22, 0.22, 0.22), EMISIVO_NADA = new THREE.Color(0, 0, 0);
+
       let tCuadro = performance.now();
       function animar() {
         requestAnimationFrame(animar);
@@ -7803,17 +8336,31 @@
         // fundido. (Antes un forEach al final del bucle fijaba la elegida en
         // 0.34 y ponía en 0 el resto en cada cuadro: pisaba esta
         // interpolación y la tarjeta táctil nunca llegaba a resaltar.)
+        // La elegida (en la tarjeta o en el panel) no usa el mismo gris del
+        // hover (0.22 vs 0.34 no se distinguía, y una vendida casi
+        // transparente apenas se aclaraba): brilla en su propio color, sube a
+        // opacidad casi plena y marca el borde, aunque los filtros la estén
+        // atenuando.
         for (const c of cajas) {
           const d = c.userData, m = c.material;
-          if (d.opObj != null) m.opacity = Math.abs(d.opObj - m.opacity) < 0.003 ? d.opObj : m.opacity + (d.opObj - m.opacity) * kF;
-          if (d.colorObj) m.color.lerp(d.colorObj, kF);
-          if (d.bordeObj != null) {
+          const esElegida = esElegidaCaja(c);
+          const opObj = esElegida ? Math.max(d.opObj ?? m.opacity, OPACIDAD_ELEGIDA) : d.opObj;
+          if (opObj != null) m.opacity = Math.abs(opObj - m.opacity) < 0.003 ? opObj : m.opacity + (opObj - m.opacity) * kF;
+          const colorObj = esElegida ? d.colorBase : d.colorObj;
+          if (colorObj) m.color.lerp(colorObj, kF);
+          const bordeObj = esElegida ? BORDE_ELEGIDA : d.bordeObj;
+          if (bordeObj != null) {
             const bm = d.borde.material;
-            bm.opacity = Math.abs(d.bordeObj - bm.opacity) < 0.003 ? d.bordeObj : bm.opacity + (d.bordeObj - bm.opacity) * kF;
+            bm.opacity = Math.abs(bordeObj - bm.opacity) < 0.003 ? bordeObj : bm.opacity + (bordeObj - bm.opacity) * kF;
           }
-          const em = elegida && d.unidad.id === elegida.id ? 0.34 : (c === sobre || c === cajaTarjeta) ? 0.22 : 0;
-          const cur = m.emissive.r;
-          if (cur !== em) m.emissive.setScalar(Math.abs(em - cur) < 0.004 ? em : cur + (em - cur) * kH);
+          const emObj = esElegida
+            ? (d.emElegida ||= d.colorBase.clone().lerp(BLANCO, 0.3).multiplyScalar(EMISIVO_ELEGIDA))
+            : c === sobre ? EMISIVO_HOVER : EMISIVO_NADA;
+          if (!m.emissive.equals(emObj)) {
+            m.emissive.lerp(emObj, kH);
+            const e = m.emissive;
+            if (Math.abs(e.r - emObj.r) + Math.abs(e.g - emObj.g) + Math.abs(e.b - emObj.b) < 0.01) e.copy(emObj);
+          }
         }
         actualizarBrujula();
         const girando = String(rampaGiro > 0);
@@ -7822,13 +8369,16 @@
         rayo.setFromCamera(raton, camara);
         // En táctil no hay hover: la posición del "ratón" es la del último
         // arrastre y resaltaría unidades al azar. El tap se resuelve aparte
-        // (ver el click del lienzo).
-        const golpes = esTactil ? [] : rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
+        // (ver el click del lienzo). Tampoco mientras está en pausa (ver
+        // pausarHover()).
+        const golpes = esTactil || hoverPausado ? [] : rayo.intersectObjects(cajas.filter(c => c.userData.activa), false);
         const nuevo = golpes.length ? golpes[0].object : null;
         if (nuevo !== sobre) {
           sobre = nuevo;
           lienzo.style.cursor = sobre ? 'pointer' : 'grab';
-          if (sobre) {
+          // Con la tarjeta a la vista el hover queda en resaltado + cursor:
+          // un tooltip encima de la tarjeta se mezclaba con ella.
+          if (sobre && !cajaTarjeta && !esElegidaCaja(sobre)) {
             tooltip.classList.add('tt-unidad');
             pintarResumenUnidad(tooltip, sobre.userData.unidad, true);
             tooltip.classList.add('visible');
@@ -7839,7 +8389,7 @@
         // Cartel de calle: mismo patrón de hover/tooltip que las unidades,
         // pero sin emissive que resaltar — solo cursor + tooltip para dejar
         // claro que abre Google Maps.
-        const golpeCalle = (!sobre && cartelCalle) ? rayo.intersectObject(cartelCalle, false) : [];
+        const golpeCalle = (!sobre && cartelCalle && !hoverPausado) ? rayo.intersectObject(cartelCalle, false) : [];
         const nuevoSobreCalle = golpeCalle.length > 0;
         if (nuevoSobreCalle !== sobreCalle) {
           sobreCalle = nuevoSobreCalle;
@@ -7864,6 +8414,8 @@
         }
 
         render.render(escena, camara);
+        // Después del render: cámara y edificio ya están en su lugar de este cuadro.
+        if (cajaTarjeta && cajaAncla && !esTactil) ubicarTarjeta();
       }
       animar();
 

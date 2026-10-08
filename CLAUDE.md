@@ -187,11 +187,18 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   hacen click en la fila vecina (`moverPisoAislado()`); centrado entre "Panel interno" y
   la toolbar para no superponerse; en pantallas bajas compacta filas y un fundido en el
   borde avisa que hay más pisos.
-- **Tooltip / tarjeta táctil**: `pintarResumenUnidad()` (número, estado, torre/piso,
+- **Tooltip / tarjeta de unidad**: `pintarResumenUnidad()` (número, estado, torre/piso,
   tipología, m², precio — alquiler en UYU/mes, vendidas sin precio). Desktop: hover =
-  tooltip, click = `abrir(u)` directo. Táctil (`matchMedia('(hover: none)')`): tap =
-  `#tarjeta-unidad` con "Ver unidad"; recién eso llama a `abrir(u)`, que es lo que
-  registra el evento — en mobile Demanda cuenta aperturas de ficha, no taps.
+  tooltip. Click o tap = `seleccionar(caja)`: la cámara va hasta la unidad (`enfocar(u)`,
+  vía `moverCamara()`, 750 ms), la unidad queda resaltada como elegida y aparece
+  `#tarjeta-unidad`. En desktop la tarjeta va `.anclada` a la unidad (aspecto de
+  tooltip, la sigue si se gira el edificio; `ubicarTarjeta()` en el bucle) con "Click
+  para ver la unidad"; en táctil (`matchMedia('(hover: none)')`) sube sobre la barra
+  inferior con "Ver unidad". Recién eso llama a `abrir(u)`, que es lo que registra el
+  evento: Demanda cuenta aperturas de ficha, no clicks. Con el panel ya abierto, un
+  click en otra unidad cambia el panel directo; `?u=` también abre el panel directo.
+  `enfocar()` encuadra la unidad en lo que dejan libre la tarjeta o el panel. Un
+  arrastre que termina sobre una unidad no la selecciona.
 - **Toolbar** (`#herramientas`): brújula + píldora de 48px (misma altura y línea de base
   que `#barra-inferior`) con tres grupos separados por `.hr-sep`: vista inicial · zoom ·
   giro automático / sol. `#sol-trigger` se muda por JS (`ubicarSolTrigger()`): en
