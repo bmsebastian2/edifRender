@@ -194,7 +194,9 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   `#tarjeta-unidad`. En desktop la tarjeta va `.anclada` a la unidad (aspecto de
   tooltip, la sigue si se gira el edificio; `ubicarTarjeta()` en el bucle) con "Click
   para ver la unidad"; en táctil (`matchMedia('(hover: none)')`) sube sobre la barra
-  inferior con "Ver unidad". Recién eso llama a `abrir(u)`, que es lo que registra el
+  inferior con "Ver unidad". En los dos casos una línea guía (`#tarjeta-guia`,
+  `actualizarGuia()`) une la tarjeta con un punto en el centro de la fachada de la unidad
+  que mira a la cámara. Recién el botón de la tarjeta llama a `abrir(u)`, que es lo que registra el
   evento: Demanda cuenta aperturas de ficha, no clicks. Con el panel ya abierto, un
   click en otra unidad cambia el panel directo; `?u=` también abre el panel directo.
   `enfocar()` encuadra la unidad en lo que dejan libre la tarjeta o el panel. Un

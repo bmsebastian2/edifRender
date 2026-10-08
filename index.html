@@ -2174,6 +2174,52 @@
       border-radius: 2px;
     }
 
+    /* Línea guía tarjeta → unidad (ver actualizarGuia()): tinta con halo
+       blanco, para leerse igual sobre vidrio gris, verde oscuro o una
+       unidad resaltada. z-index 9: encima del 3D, debajo de toda la
+       interfaz (la tarjeta va en 11). */
+    #tarjeta-guia {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 9;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--t) var(--ease);
+    }
+
+    #tarjeta-unidad.visible:not(.fuera)~#tarjeta-guia:not(.sin-linea) {
+      opacity: 1
+    }
+
+    .guia-halo {
+      stroke: rgba(255, 255, 255, .9);
+      stroke-width: 4.5;
+      stroke-linecap: round;
+    }
+
+    .guia-linea {
+      stroke: var(--tinta);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+    }
+
+    /* El punto sobre la unidad aparece cuando la línea termina de crecer. */
+    .guia-punto {
+      fill: var(--tinta);
+      stroke: #fff;
+      stroke-width: 2;
+      transform-box: fill-box;
+      transform-origin: center;
+      transform: scale(0);
+      transition: transform var(--t) var(--ease);
+    }
+
+    #tarjeta-guia.llego .guia-punto {
+      transform: scale(1)
+    }
+
     /* Toolbar + brújula, abajo a la derecha. Misma altura (48px), mismo
        borde y misma sombra que #barra-inferior, alineadas sobre la misma
        línea de base (bottom: 20px). Dentro de la píldora, tres grupos
@@ -4031,6 +4077,13 @@
       <button class="tarjeta-cerrar" id="tarjeta-cerrar" type="button" aria-label="Cerrar">×</button>
     </div>
   </div>
+  <!-- Línea que une la tarjeta con su unidad (ver actualizarGuia()).
+       Después de #tarjeta-unidad: su visibilidad sale de la de la tarjeta. -->
+  <svg id="tarjeta-guia" aria-hidden="true">
+    <line class="guia-halo"></line>
+    <line class="guia-linea"></line>
+    <circle class="guia-punto" r="4"></circle>
+  </svg>
 
   <!-- Controles de vista, abajo a la derecha: brújula (solo con
      geometria.norte_grados) + vista inicial · zoom · giro automático / sol
@@ -7612,11 +7665,16 @@
         if (libre.y1 - libre.y0 < 80) libre.y0 = Math.min(56, libre.y1 - 80);
         const ndcX = (libre.x0 + libre.x1) / W - 1;
         const ndcY = 1 - (libre.y0 + libre.y1) / H;
-        // Radio: 62 de siempre, salvo que la franja libre sea tan baja (hoja
-        // mobile) que no entren ~10m de alto alrededor de la unidad: ahí se
-        // aleja lo justo para que se lea con sus vecinas, no solo un vidrio.
+        // Radio: 62 en desktop, de siempre. Pero nunca tan cerca que:
+        // - a lo ancho entren menos de 40m: con el celular vertical el FOV
+        //   horizontal es angosto (ver factorAspecto) y 62 dejaba ~25m, la
+        //   unidad en primer plano con apenas sus vecinas. Con 40m la unidad
+        //   queda en ~15% del ancho de cualquier celular y se ve el edificio.
+        // - en la franja libre no entren ~10m de alto (hoja mobile abierta).
         const tanFov = Math.tan(THREE.MathUtils.degToRad(camara.fov / 2));
-        const RADIO_UNIDAD = Math.min(150, Math.max(62, 10 / (2 * tanFov * (libre.y1 - libre.y0) / H)));
+        const radioAncho = 40 / (2 * tanFov * (W / H));
+        const radioFranja = 10 / (2 * tanFov * (libre.y1 - libre.y0) / H);
+        const RADIO_UNIDAD = Math.min(150, Math.max(62, radioAncho, radioFranja));
         const medioH = RADIO_UNIDAD * tanFov;
         const medioW = medioH * (W / H);
         const D = new THREE.Vector3(Math.sin(PHI_UNIDAD) * Math.sin(theta), Math.cos(PHI_UNIDAD), Math.sin(PHI_UNIDAD) * Math.cos(theta));
@@ -7957,7 +8015,8 @@
       // cajaTarjeta = la unidad elegida; cajaAncla = donde está la tarjeta de
       // desktop en pantalla (al cambiar de unidad, la vieja se desvanece en
       // su lugar y con su contenido, y recién después pasa a la nueva).
-      let cajaTarjeta = null, cajaAncla = null, esperaTarjeta = 0;
+      // inicioGuia = desde cuándo crece la línea guía (ver actualizarGuia()).
+      let cajaTarjeta = null, cajaAncla = null, esperaTarjeta = 0, inicioGuia = 0;
       function seleccionar(caja) {
         cajaTarjeta = caja;
         clearTimeout(esperaTarjeta);
@@ -7967,6 +8026,9 @@
         if (esTactil) {
           pintar();
           tarjeta.classList.add('visible');
+          // La tarjeta táctil aparece enseguida; la línea, cuando la cámara
+          // ya casi llegó (si no, barre la pantalla siguiendo a la unidad).
+          inicioGuia = performance.now() + (REDUCIR_MOVIMIENTO ? 0 : MS_CAMARA_UNIDAD * 0.6);
         } else {
           if (!tarjeta.classList.contains('visible')) pintar();
           tarjeta.classList.remove('visible');
@@ -7976,6 +8038,7 @@
             cajaAncla = caja;
             ubicarTarjeta();
             tarjeta.classList.add('visible');
+            inicioGuia = performance.now();
           }, REDUCIR_MOVIMIENTO ? 0 : MS_CAMARA_UNIDAD * 0.6);
         }
         // Después de pintarla: enfocar() encuadra según el alto de la tarjeta.
@@ -7985,6 +8048,7 @@
         clearTimeout(esperaTarjeta);
         cajaTarjeta = null;
         tarjeta.classList.remove('visible');
+        guia.classList.remove('llego');
         sobre = null; // el próximo cuadro recalcula el hover (y su tooltip, que con la tarjeta no iba)
       }
       function verUnidadTarjeta() {
@@ -8023,6 +8087,61 @@
         tarjeta.classList.toggle('fuera', p.z > 1 || p.x < 0 || p.x > W || p.y < 0 || p.y > H);
         tarjeta.style.left = Math.min(W - w / 2 - 12, Math.max(w / 2 + 12, p.x)) + 'px';
         tarjeta.style.top = p.y + 'px';
+      }
+
+      /* Línea guía: une la tarjeta con su unidad. Sale del borde de la
+         tarjeta que mira a la unidad (vertical sobre ella mientras entre en
+         el ancho de la tarjeta) y termina en un punto sobre el centro de la
+         unidad, proyectado en cada cuadro: acompaña al edificio si se gira.
+         Crece desde la tarjeta en ~260ms y recién ahí aparece el punto. En
+         desktop sigue a cajaAncla, para que al cambiar de unidad se
+         desvanezca junto con la tarjeta vieja. */
+      const guia = document.getElementById('tarjeta-guia');
+      const [guiaHalo, guiaLinea] = guia.querySelectorAll('line');
+      const guiaPunto = guia.querySelector('circle');
+      // El punto va al centro de la fachada que mira a la cámara, no al
+      // centro 3D de la unidad: ese queda metros adentro y, con la cámara
+      // un poco desde arriba, su proyección subía hasta la losa de arriba.
+      // Un rayo horizontal desde afuera, a media altura, hacia el centro:
+      // donde toca la unidad está esa fachada (sirve con contornos curvos).
+      const centroGuia = new THREE.Vector3(), haciaCamara = new THREE.Vector3();
+      const origenRayo = new THREE.Vector3(), sentidoRayo = new THREE.Vector3();
+      const rayoGuia = new THREE.Raycaster();
+      function puntoFachada(c, destino) {
+        c.getWorldPosition(destino);
+        haciaCamara.set(camara.position.x - destino.x, 0, camara.position.z - destino.z).normalize();
+        origenRayo.copy(destino).addScaledVector(haciaCamara, 60);
+        rayoGuia.set(origenRayo, sentidoRayo.copy(haciaCamara).negate());
+        const toque = rayoGuia.intersectObject(c, false);
+        if (toque.length) destino.copy(toque[0].point);
+        return destino;
+      }
+      function actualizarGuia(ahora) {
+        const c = esTactil ? cajaTarjeta : cajaAncla;
+        const p = REDUCIR_MOVIMIENTO ? 1 : Math.min(1, (ahora - inicioGuia) / 260);
+        if (!c || p <= 0) { guia.classList.add('sin-linea'); guia.classList.remove('llego'); return; }
+        const W = innerWidth, H = innerHeight;
+        puntoFachada(c, centroGuia).project(camara);
+        const ux = (centroGuia.x + 1) / 2 * W, uy = (1 - centroGuia.y) / 2 * H;
+        const r = tarjeta.getBoundingClientRect();
+        const sx = Math.min(r.right - 18, Math.max(r.left + 18, ux));
+        const sy = uy > r.bottom ? r.bottom : uy < r.top ? r.top : null;
+        // Sin línea si la unidad quedó detrás de la tarjeta o fuera de cuadro.
+        if (sy === null || centroGuia.z > 1 || ux < 0 || ux > W || uy < 0 || uy > H) {
+          guia.classList.add('sin-linea');
+          guia.classList.remove('llego');
+          return;
+        }
+        guia.classList.remove('sin-linea');
+        const e = 1 - Math.pow(1 - p, 3);
+        const ex = sx + (ux - sx) * e, ey = sy + (uy - sy) * e;
+        for (const l of [guiaHalo, guiaLinea]) {
+          l.setAttribute('x1', sx); l.setAttribute('y1', sy);
+          l.setAttribute('x2', ex); l.setAttribute('y2', ey);
+        }
+        guiaPunto.setAttribute('cx', ux);
+        guiaPunto.setAttribute('cy', uy);
+        guia.classList.toggle('llego', p >= 1);
       }
 
       // Después de un clic que mueve la cámara el puntero queda quieto sobre
@@ -8416,6 +8535,7 @@
         render.render(escena, camara);
         // Después del render: cámara y edificio ya están en su lugar de este cuadro.
         if (cajaTarjeta && cajaAncla && !esTactil) ubicarTarjeta();
+        if (cajaTarjeta) actualizarGuia(ahora);
       }
       animar();
 
