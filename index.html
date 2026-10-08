@@ -3509,6 +3509,19 @@
         transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
       }
 
+      /* Con la ficha desplegada (convive con el riel y con Filtros): el riel
+       arranca debajo de la tarjeta en vez de taparle el costado derecho, y
+       Filtros no sube más que hasta ella. --fin-ficha lo pone el script
+       (medirFinFicha()); el fallback es una tarjeta de dos renglones. */
+      body:has(#ficha.abierta) #pisos {
+        top: calc(var(--fin-ficha, 216px) + 8px);
+        max-height: calc(100vh - var(--fin-ficha, 216px) - 8px - 128px - env(safe-area-inset-bottom));
+      }
+
+      body:has(#ficha.abierta) #filtros {
+        max-height: calc(100vh - var(--fin-ficha, 216px) - 8px - 68px - env(safe-area-inset-bottom));
+      }
+
       #pisos .pisos-marca {
         justify-content: center;
         padding: 0 0 4px;
@@ -3592,6 +3605,14 @@
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         font-size: 12px;
+      }
+
+      /* Con la ficha desplegada (su tarjeta flota fuera del flujo), el
+       cartel baja debajo de ella en vez de taparle la dirección: 6px de
+       aire arriba y abajo de la tarjeta. --alto-cuerpo-ficha lo pone
+       medirFinFicha(). */
+      #ficha.abierta~#piso-info.visible {
+        margin-top: calc(var(--alto-cuerpo-ficha, 104px) + 12px)
       }
 
       #piso-info.visible> :not(.pi-corto) {
@@ -5296,16 +5317,34 @@
         fichaToggle.setAttribute('aria-expanded', abierta);
       });
       // En fase de captura: ningún stopPropagation del lienzo o de las hojas
-      // puede impedir que se cierre. Excepciones: el lienzo y la tarjeta de
-      // unidad. Tocar una unidad no la pliega (se sigue viendo el edificio
-      // mientras se mira la unidad); en el lienzo se decide al moverse o al
-      // soltar: arrastrar o tocar el vacío la siguen plegando (ver el click
-      // del lienzo). Abrir el panel también la pliega (ver abrir()).
+      // puede impedir que se cierre. Excepciones: el lienzo, la tarjeta de
+      // unidad y Filtros/Pisos (botón y hoja). Tocar una unidad o usar los
+      // filtros y el riel no la pliega (los datos del edificio se siguen
+      // viendo; el riel y Filtros se acomodan debajo, ver --fin-ficha); en el
+      // lienzo se decide al moverse o al soltar: arrastrar o tocar el vacío
+      // la siguen plegando (ver el click del lienzo). Abrir el panel también
+      // la pliega (ver abrir()).
       document.addEventListener('pointerdown', e => {
         if (!ficha.classList.contains('abierta') || ficha.contains(e.target)) return;
-        if (e.target === lienzo || e.target.closest('#tarjeta-unidad')) return;
+        if (e.target === lienzo ||
+          e.target.closest('#tarjeta-unidad, #filtros-trigger, #pisos-trigger, #filtros, #pisos')) return;
         cerrarFicha();
       }, true);
+      // Borde inferior de la tarjeta desplegada, para que el riel de pisos y
+      // Filtros (mobile) se acomoden debajo en vez de taparla. Medido por
+      // layout (offsetTop/offsetHeight): no lo afecta la animación de
+      // apertura ni que esté oculta.
+      const fichaCuerpo = document.getElementById('ficha-cuerpo');
+      function medirFinFicha() {
+        const fin = ficha.getBoundingClientRect().top + fichaCuerpo.offsetTop + fichaCuerpo.offsetHeight;
+        document.documentElement.style.setProperty('--fin-ficha', Math.round(fin) + 'px');
+        // Para bajar el cartel del piso (#piso-info) debajo de la tarjeta.
+        document.documentElement.style.setProperty('--alto-cuerpo-ficha', fichaCuerpo.offsetHeight + 'px');
+      }
+      // La primera medición va después de pintar la dirección, los datos y la
+      // leyenda de la píldora (que fija el ancho de la tarjeta): ver el final
+      // de esta sección, antes de ESCENA.
+      addEventListener('resize', medirFinFicha);
       document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarFicha(); });
 
       // Cada celda depende solo de su propio dato — si falta, se saca junto
@@ -5399,6 +5438,7 @@
         document.getElementById('aviso').hidden = true;
         document.getElementById('ficha-resumen').textContent = 'Ver ficha';
       }
+      medirFinFicha(); // ficha ya pintada: el riel y Filtros se acomodan debajo
 
       /* ============================================================
          2. ESCENA
@@ -7541,10 +7581,14 @@
       btnAbajo.addEventListener('click', () => moverPisoAislado(false));
       btnSep.addEventListener('click', actualizarBadgeFiltros);
 
-      // Mobile: nunca dos capas abiertas a la vez — abrir Filtros o Pisos
-      // pliega la ficha.
-      [pisosTrigger, filtrosTrigger].forEach(t => t.addEventListener('click', cerrarFicha));
-      fichaToggle.addEventListener('click', () => { cerrarHoja(); cerrarFiltros(); });
+      // Mobile: Filtros y Pisos no se abren juntos (abrirHoja/abrirFiltros
+      // cierran el otro), pero los dos conviven con la ficha desplegada: ni
+      // abrirlos la pliega ni desplegarla los cierra (pedido de Sebastian:
+      // los datos del edificio no desaparecen). Ver --fin-ficha en el CSS.
+      fichaToggle.addEventListener('click', () => {
+        medirFinFicha();
+        actualizarBordesLista(); // el riel cambia de alto: recalcular el fundido
+      });
 
       /* ============================================================
          Planta real de la tipología (subida por el cliente desde admin.html,

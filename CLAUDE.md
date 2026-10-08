@@ -185,15 +185,17 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   vivo), unidades, entrega y disponibilidad contada en vivo por `aspectoDe(u)`, solo
   estados con unidades y solo si `muestra_totales`. En mobile se pliega a una píldora
   con puntos + cifras y se despliega a pedido (arranca desplegada, salvo con `?u=` o
-  `?sol=`). Desplegada, tocar una unidad o su tarjeta no la pliega (pedido de Sebastian:
-  ver el edificio y la unidad a la vez, y `enfocar()` encuadra debajo de ella); arrastrar
-  el edificio, tocar el vacío u otra capa, Escape o abrir el panel sí la pliegan.
+  `?sol=`). Desplegada, tocar una unidad o su tarjeta, o abrir/usar Filtros o Pisos, no
+  la pliega (pedido de Sebastian: los datos del edificio no desaparecen; `enfocar()`
+  encuadra debajo de ella, y el riel y Filtros se acomodan debajo vía `--fin-ficha`,
+  que mide `medirFinFicha()`); arrastrar el edificio, tocar el vacío, otra capa (sol,
+  renders, avance), Escape o abrir el panel sí la pliegan.
 - **Barra inferior única** (`#barra-inferior`): en desktop, desplegables Tipología /
   Estado / Torre / Vista que abren `#filtros` como popover con un solo grupo
   (`data-grupo`, `abrirGrupoFiltros()`), Restablecer (`restablecerFiltros()`, reusa los
   sets + `aplicar()` + click en los toggles) y los accesos a renders / avance. En
   mobile: Filtros · Pisos + íconos (renders, avance, sol), cada uno abre su hoja; nunca
-  dos capas abiertas.
+  dos hojas abiertas (la ficha desplegada sí convive con Filtros y Pisos).
 - **Riel de pisos** (`#pisos`): cifra = unidades **disponibles** del piso; flechas que
   hacen click en la fila vecina (`moverPisoAislado()`); centrado entre "Panel interno" y
   la toolbar para no superponerse; en pantallas bajas compacta filas y un fundido en el
