@@ -215,14 +215,60 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   `enfocar()` encuadra la unidad en lo que dejan libre la tarjeta o el panel. Un
   arrastre que termina sobre una unidad no la selecciona.
 - **Toolbar** (`#herramientas`): brújula + píldora de 48px (misma altura y línea de base
-  que `#barra-inferior`) con tres grupos separados por `.hr-sep`: vista inicial · zoom ·
-  giro automático / sol. `#sol-trigger` se muda por JS (`ubicarSolTrigger()`): en
-  desktop a la píldora, en mobile a la barra inferior. No sumar más controles acá.
+  que `#barra-inferior`) con cuatro grupos separados por `.hr-sep`: vista inicial · zoom ·
+  giro automático / sol · pantalla completa (`#hr-pantalla`, último a propósito: en el
+  modo showroom queda solo en esa esquina). `#sol-trigger` se muda por JS
+  (`ubicarSolTrigger()`, antes de `#hr-sep-pantalla`): en desktop a la píldora, en mobile
+  a la barra inferior. No sumar más controles acá. Si la barra inferior centrada chocaría
+  con la toolbar (Restablecer + renders/avance la estiran), `acomodarBarraInferior()` la
+  corre a la izquierda con `.corrida`, igual que el layout de tablet (861–1180px).
   Giro y zoom (`moverCamara()`
   interpola giro/phi/radio/objetivo con los mismos límites que el arrastre). **Brújula**
   (solo con `norte_grados`): `anguloNorte(giro)` proyecta el norte del modelo
   `(−sin N, −cos N)` girado por `giro` sobre la pantalla con la cámara en `theta`; click
   = norte arriba. En mobile queda solo la brújula.
+
+### Modo showroom (kiosco)
+
+Pantalla completa con el edificio solo, girando, para una pantalla o tablet en la sala de
+ventas sin nadie que la atienda. Sección `KIOSCO` del script (al final de `iniciar()`).
+
+- Entrada: `#hr-pantalla` en la toolbar (`requestFullscreen`; el modo dura lo que dura la
+  pantalla completa y todo sale de `fullscreenchange`), o `?p=<slug>&kiosco=1`, que
+  arranca ya limpio y muestra "Iniciar" (el navegador exige un toque para la pantalla
+  completa). Con `?kiosco=1`, salir de pantalla completa vuelve a "Iniciar", no a la
+  interfaz; `queryProyecto()` conserva `kiosco=1` al reescribir la URL. Sin Fullscreen API
+  (iPhone) el modo anda igual, sin botón.
+- El modo es `body.kiosco` (el CSS esconde cabezal, ficha, filtros, riel, barra inferior,
+  sol, brújula y el resto de la toolbar) + otros tiempos del **mismo** giro automático:
+  `VEL_GIRO_KIOSCO` (una vuelta cada 90 s) y `INACTIVIDAD_KIOSCO_MS` (vuelve a los 20 s).
+  En el modo `puedeGirar()` ignora riel/filtros/sol/piso aislado (no están a la vista).
+  No toca filtros, piso aislado ni separar pisos: al salir quedan como estaban.
+- Entrar cierra tarjeta/panel y lleva la cámara a `encuadreGeneral()` (el de "Vista
+  inicial", sin el giro en 0); el giro arranca al llegar. Una tarjeta o panel abiertos
+  20 s sin actividad se cierran solos (`volverAlGiro()`).
+- **Demo**: tras `CADA_DEMO_MS` (45 s) de giro, el reloj del showroom destaca una unidad
+  con `seleccionar()` tal cual (cámara, resaltado, tarjeta ampliada, guía; no abre el
+  panel ni registra evento), la deja `MS_DEMO` (8 s) y vuelve al giro.
+  `proximaUnidadDemo()`: solo `estado = 'disponible'` y `activa` (respeta los filtros),
+  sin repetir hasta agotar la lista, saltando ≥ un tercio de `PISOS` respecto de la
+  anterior. Sin candidatas no hay demo, solo giro. Un toque la corta igual que al giro:
+  la demo guarda el `ultimaActividad` que dejó su propio `moverCamara()`; si cambia, fue
+  un toque y la tarjeta queda del visitante. No corre con "Iniciar" a la vista.
+- Tarjeta y tooltip de unidad ~1,6× más grandes. Del panel se esconde lo que se llevaría
+  la pantalla o no sirve en un aparato compartido (WhatsApp/Consultar, lista de espera
+  —una sola sesión para todos—, copiar link); el cartel de calle no abre Maps.
+- Marca abajo a la izquierda (`#kiosco-marca`). Wake Lock mientras dure el modo (se
+  vuelve a pedir al volver a la pestaña; sin soporte se ignora).
+- **QR** (`#kiosco-qr`, arriba a la izquierda; `actualizarQR()` desde el mismo reloj):
+  `linkProyecto(BASE)` (siempre la URL pública, aunque el visor se abra desde localhost o
+  una copia local), más `&u=<id>` si hay una unidad destacada (demo, tarjeta o panel),
+  siempre sin `kiosco` y con `&src=qr-showroom`. La librería (`qrcode-generator` 1.4.4,
+  cdnjs) se carga recién en el modo; el svg se arma a mano (`pintarQR()`). Sin red no
+  hay QR y reintenta cada 30 s. Es la única tarjeta blanca del modo: el QR necesita
+  fondo y margen para leerse.
+- Atribución: usar `&src=showroom` en la URL de la pantalla para separar sus eventos en
+  Demanda (todos los visitantes del aparato comparten una sesión).
 
 ### Estados de presentación: `aspectoDe(u)` / `ALQUILER`
 

@@ -2338,12 +2338,22 @@
     }
 
     /* Tablet / desktop angosto: la barra de filtros se corre a la
-       izquierda para no chocar con la toolbar (~290px con brújula y sol). */
+       izquierda para no chocar con la toolbar (~330px con brújula, sol y
+       pantalla completa). Más ancho, lo mismo si igual chocaría (.corrida,
+       ver acomodarBarraInferior()). */
     @media (max-width:1180px) and (min-width:861px) {
       #barra-inferior {
         left: 24px;
         transform: none;
-        max-width: calc(100vw - 340px);
+        max-width: calc(100vw - 390px);
+      }
+    }
+
+    @media (min-width:861px) {
+      #barra-inferior.corrida {
+        left: 24px;
+        transform: none;
+        max-width: calc(100vw - 390px);
       }
     }
 
@@ -3723,6 +3733,285 @@
     }
 
     /* ============================================================
+       SHOWROOM (body.kiosco, ver KIOSCO en el script) — el edificio solo,
+       para una pantalla en la sala de ventas. Va después de los @media
+       para ganarles: se esconde toda la interfaz menos lo que abre una
+       unidad (tarjeta, más grande, y panel), la marca y el botón de
+       pantalla completa, que queda solo en su lugar de la toolbar. Es
+       display: none y nada más: filtros, riel y sol siguen como estaban
+       y vuelven tal cual al salir.
+       ============================================================ */
+    .kiosco #cabezal,
+    .kiosco #pisos,
+    .kiosco #pisos-backdrop,
+    .kiosco #admin-link,
+    .kiosco #barra-inferior,
+    .kiosco #filtros,
+    .kiosco #filtros-backdrop,
+    .kiosco #sol,
+    .kiosco #brujula,
+    .kiosco .hr-grupo> :not(#hr-pantalla),
+    .kiosco:not(.pantalla-llena) #herramientas,
+    /* Del panel, lo que se iría de la pantalla (WhatsApp, Consultar) o no
+       sirve en un aparato compartido por todos los visitantes (lista de
+       espera: una sola sesión, ver limitar_leads_por_sesion; copiar link). */
+    .kiosco #acciones-panel,
+    .kiosco #p-espera,
+    .kiosco #p-espera-ir,
+    .kiosco #p-copiar {
+      display: none !important
+    }
+
+    /* Botón de pantalla completa: solo ícono con sombra, como la brújula
+       mobile (ver CLAUDE.md), en la esquina donde estaba la toolbar. */
+    .kiosco #herramientas {
+      right: 20px;
+      bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+
+    .kiosco .hr-grupo {
+      display: flex;
+      height: auto;
+      padding: 0;
+      background: none;
+      border: none;
+      box-shadow: none;
+    }
+
+    .kiosco #hr-pantalla {
+      width: 44px;
+      height: 44px;
+      color: var(--tinta);
+      opacity: .55;
+      filter: drop-shadow(0 0 2px rgba(255, 255, 255, .95)) drop-shadow(0 1px 2px rgba(0, 0, 0, .3));
+    }
+
+    .kiosco #hr-pantalla:hover {
+      background: none;
+      opacity: 1
+    }
+
+    .kiosco #hr-pantalla svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    #hr-pantalla[hidden],
+    #hr-pantalla .ic-salir,
+    .pantalla-llena #hr-pantalla .ic-entrar {
+      display: none
+    }
+
+    .pantalla-llena #hr-pantalla .ic-salir {
+      display: block
+    }
+
+    /* Marca: abajo a la izquierda, sin tarjeta (mismo criterio). No toma
+       el puntero: arrastrar encima sigue girando el edificio. */
+    #kiosco-marca {
+      display: none
+    }
+
+    .kiosco #kiosco-marca {
+      position: fixed;
+      left: 24px;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      z-index: 8;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+      filter: drop-shadow(0 0 2px rgba(255, 255, 255, .95)) drop-shadow(0 0 6px rgba(255, 255, 255, .7));
+    }
+
+    #kiosco-marca svg {
+      flex: none;
+      color: var(--verde);
+    }
+
+    #kiosco-marca p {
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    #kiosco-marca b {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+
+    #kiosco-marca span {
+      margin-left: 7px;
+      font-size: 14px;
+      color: var(--suave);
+    }
+
+    /* QR: arriba a la izquierda, el rincón que el modo deja libre (sin
+       ficha) y que no tapan ni el panel (derecha, en desktop) ni la tarjeta
+       táctil (abajo). Única excepción a "sin tarjeta opaca": la cámara del
+       celular necesita fondo blanco y margen alrededor para leerlo. Tampoco
+       toma el puntero. */
+    #kiosco-qr {
+      display: none
+    }
+
+    .kiosco #kiosco-qr.listo {
+      position: fixed;
+      top: calc(20px + env(safe-area-inset-top));
+      left: 20px;
+      z-index: 8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: clamp(168px, 18vmin, 230px);
+      padding: 10px 10px 12px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: var(--sombra);
+      pointer-events: none;
+    }
+
+    #kiosco-qr-codigo {
+      width: 100%;
+      aspect-ratio: 1;
+      color: var(--tinta);
+    }
+
+    /* Un svg nuevo por cada cambio de destino: entra con un fundido. */
+    #kiosco-qr-codigo svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      animation: qr-entra .35s var(--ease);
+    }
+
+    @keyframes qr-entra {
+      from {
+        opacity: 0
+      }
+    }
+
+    #kiosco-qr p {
+      margin: 0;
+      text-align: center;
+      line-height: 1.25;
+    }
+
+    #kiosco-qr b {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 650;
+    }
+
+    #kiosco-qr span {
+      font-size: 12.5px;
+      color: var(--suave);
+    }
+
+    /* "Iniciar" (?kiosco=1): el navegador no deja entrar solo en pantalla
+       completa; hace falta un toque. Grande y al centro, para quien
+       prende la pantalla del showroom. */
+    #kiosco-iniciar {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      z-index: 20;
+      transform: translate(-50%, -50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 22px 46px;
+      border: none;
+      border-radius: 999px;
+      background: var(--verde);
+      color: #fff;
+      font-size: 24px;
+      font-weight: 650;
+      box-shadow: 0 14px 44px rgba(20, 40, 35, .28);
+      cursor: pointer;
+      transition: background var(--t) var(--ease), transform var(--t) var(--ease);
+    }
+
+    #kiosco-iniciar:hover {
+      background: #38907B
+    }
+
+    #kiosco-iniciar:active {
+      transform: translate(-50%, -50%) scale(.96)
+    }
+
+    #kiosco-iniciar[hidden] {
+      display: none
+    }
+
+    /* Tarjeta y tooltip de la unidad, ~1,6× para leerse a tres metros. Los
+       tamaños fijos de siempre, escalados; la posición la sigue calculando
+       el JS con el tamaño real (ubicarTarjeta(), enfocar()). */
+    .kiosco #tarjeta-unidad,
+    .kiosco #tooltip.tt-unidad {
+      min-width: 340px;
+      padding: 20px 24px;
+      border-radius: 24px;
+    }
+
+    /* Táctil: centrada y con tope de ancho (en una tablet apaisada de
+       showroom ocupaba todo el ancho). */
+    .kiosco #tarjeta-unidad:not(.anclada) {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .kiosco .tt-num {
+      font-size: 26px
+    }
+
+    .kiosco .tt-estado {
+      gap: 9px;
+      font-size: 18px;
+    }
+
+    .kiosco .tt-estado .punto {
+      width: 12px;
+      height: 12px;
+    }
+
+    .kiosco .tt-sub {
+      margin-top: 6px;
+      font-size: 20px;
+    }
+
+    .kiosco .tt-precio {
+      margin-top: 12px;
+      font-size: 26px;
+    }
+
+    .kiosco .tt-precio small {
+      font-size: 18px
+    }
+
+    .kiosco .tt-hint {
+      margin-top: 14px;
+      padding-top: 12px;
+      font-size: 18px;
+    }
+
+    .kiosco .tarjeta-acciones {
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .kiosco .tarjeta-acciones .bton {
+      padding: 16px 20px;
+      font-size: 20px;
+    }
+
+    .kiosco .tarjeta-cerrar {
+      width: 60px;
+      font-size: 28px;
+    }
+
+    /* ============================================================
        CARGA — overlay a pantalla completa, presente desde el primer paint
        (sin esperar JS), para que nunca se vea contenido de otro proyecto
        ni una pantalla en blanco mientras resuelve cargarProyecto(). El
@@ -4148,8 +4437,47 @@
           <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4" />
         </svg>
       </button>
+      <!-- Pantalla completa = modo showroom (ver KIOSCO). Último a propósito:
+         en el modo queda solo, en la misma esquina. El sol se ubica antes
+         de este separador (ver ubicarSolTrigger()). -->
+      <span class="hr-sep" id="hr-sep-pantalla" aria-hidden="true"></span>
+      <button id="hr-pantalla" type="button" aria-label="Pantalla completa" title="Pantalla completa" hidden>
+        <svg class="ic-entrar" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+        </svg>
+        <svg class="ic-salir" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+        </svg>
+      </button>
     </div>
   </div>
+
+  <!-- Modo showroom (ver KIOSCO): marca abajo y, con ?kiosco=1, el botón
+     que entra en pantalla completa (el navegador exige un toque). -->
+  <div id="kiosco-marca" aria-hidden="true">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+      stroke-linecap="round" stroke-linejoin="round">
+      <rect x="5" y="3" width="11" height="18"></rect>
+      <path d="M16 10l4 2v9h-4"></path>
+      <path d="M8 7h1M11 7h1M8 11h1M11 11h1M8 15h1M11 15h1"></path>
+    </svg>
+    <p><b id="kiosco-nombre"></b><span id="kiosco-firma"></span></p>
+  </div>
+  <!-- QR para seguir en el celular (ver actualizarQR()). Aparece recién
+     cuando el código está dibujado (.listo). -->
+  <div id="kiosco-qr" aria-hidden="true">
+    <div id="kiosco-qr-codigo"></div>
+    <p><b>Escaneá con tu celular</b><span id="kiosco-qr-txt"></span></p>
+  </div>
+  <button id="kiosco-iniciar" type="button" hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+    </svg>
+    Iniciar
+  </button>
 
   <!-- En mobile #filtros es una hoja que sube desde abajo (mismo mecanismo
      que #pisos/#pisos-trigger: la data siempre estuvo ahí pero ocupaba
@@ -5287,6 +5615,9 @@
       const cbDev = document.getElementById('cb-dev');
       cbDev.hidden = !firma;
       if (firma) cbDev.textContent = 'by ' + firma;
+      // La misma marca, abajo, en el modo showroom (ver KIOSCO).
+      document.getElementById('kiosco-nombre').textContent = partesNombre ? partesNombre[1] : proyecto.nombre;
+      document.getElementById('kiosco-firma').textContent = firma ? 'by ' + firma : '';
 
       document.getElementById('cb-ciudad').hidden = !proyecto.ciudad;
       document.getElementById('cb-ciudad-txt').textContent = proyecto.ciudad || '';
@@ -6647,9 +6978,16 @@
          interacción lo corta en seco (rampaGiro = 0) y reinicia el contador.
          Arranca como si la inactividad ya se hubiera cumplido: es el giro de
          bienvenida de siempre. giroForzado = el botón de la toolbar ("girar
-         ahora"), que no espera la inactividad. Ver puedeGirar() en el BUCLE. */
+         ahora"), que no espera la inactividad. Ver puedeGirar() en el BUCLE.
+         En el modo showroom (kiosco, ver KIOSCO) es el mismo giro con otros
+         tiempos: una vuelta cada 90 s y vuelve a los 20 s, para no ganarle
+         a quien se acercó a mirar. KIOSCO_URL = la pantalla del showroom
+         (?kiosco=1), que arranca ya en ese modo. */
       const INACTIVIDAD_MS = 6000, VEL_GIRO = 2 * Math.PI / 80, RAMPA_GIRO_S = 2.5;
-      let ultimaActividad = performance.now() - INACTIVIDAD_MS, giroForzado = false, rampaGiro = 0;
+      const INACTIVIDAD_KIOSCO_MS = 20000, VEL_GIRO_KIOSCO = 2 * Math.PI / 90;
+      const KIOSCO_URL = new URLSearchParams(location.search).get('kiosco') === '1';
+      let kiosco = false;
+      let ultimaActividad = -Infinity, giroForzado = false, rampaGiro = 0;
       function registrarActividad() {
         ultimaActividad = performance.now();
         giroForzado = false;
@@ -7063,11 +7401,30 @@
       const grupoHerramientas = document.querySelector('#herramientas .hr-grupo');
       function ubicarSolTrigger() {
         const destino = solEsHoja.matches ? barraInferior : grupoHerramientas;
-        if (solTrigger.parentElement !== destino) destino.appendChild(solTrigger);
+        // En la toolbar, junto al giro: antes de pantalla completa, que va última.
+        if (solTrigger.parentElement !== destino)
+          destino.insertBefore(solTrigger, destino === grupoHerramientas ? document.getElementById('hr-sep-pantalla') : null);
       }
       ubicarSolTrigger();
       solEsHoja.addEventListener('change', ubicarSolTrigger);
       document.getElementById('sol-cerrar').addEventListener('click', () => activarSol(false));
+
+      // Desktop: la barra inferior va centrada salvo que choque con la
+      // toolbar (Restablecer y los accesos a renders / avance la estiran;
+      // en BRUSCO con todo a la vista pedía ~1450px). Entonces se corre a
+      // la izquierda, como en tablet (.corrida, ver CSS). Se mide sin la
+      // clase; los dos observadores cubren cualquier cambio de ancho.
+      const herramientasEl = document.getElementById('herramientas');
+      function acomodarBarraInferior() {
+        barraInferior.classList.remove('corrida');
+        if (solEsHoja.matches) return;
+        barraInferior.classList.toggle('corrida',
+          barraInferior.getBoundingClientRect().right + 16 > herramientasEl.getBoundingClientRect().left);
+      }
+      const obsBarra = new ResizeObserver(acomodarBarraInferior);
+      obsBarra.observe(barraInferior);
+      obsBarra.observe(herramientasEl);
+      addEventListener('resize', acomodarBarraInferior);
 
       // Mobile: la hoja del sol no tiene velo (ver CSS), así que arrastrar
       // sobre el edificio lo sigue girando con la hoja abierta. Un toque
@@ -7737,11 +8094,16 @@
         moverCamara({ giro: g, phi: PHI_UNIDAD, radio: RADIO_UNIDAD, objetivo: dest }, MS_CAMARA_UNIDAD);
       }
 
+      // Links para compartir: siempre con ?p=, nunca con ?kiosco; fuera de
+      // http, la URL canónica (BASE). El QR del showroom pasa BASE siempre
+      // (ver actualizarQR()).
+      function linkProyecto(propia = location.protocol.startsWith('http')
+        ? location.origin + location.pathname
+        : BASE) {
+        return propia + '?p=' + encodeURIComponent(proyecto.slug);
+      }
       function linkDe(u) {
-        const propia = location.protocol.startsWith('http')
-          ? location.origin + location.pathname
-          : BASE;
-        return propia + '?p=' + encodeURIComponent(proyecto.slug) + '&u=' + u.id;
+        return linkProyecto() + '&u=' + u.id;
       }
 
       // En previsualizaciones (about:srcdoc) el historial no se puede tocar.
@@ -7751,9 +8113,14 @@
 
       // ?p=<slug> se preserva en la URL incluso al cerrar el panel — si no, un
       // edificio que no sea el default perdería su slug de la barra y una
-      // recarga en ese momento resolvería al edificio equivocado.
+      // recarga en ese momento resolvería al edificio equivocado. Lo mismo
+      // ?kiosco=1: si la pantalla del showroom se recarga después de que
+      // alguien abrió una unidad, tiene que volver en modo showroom.
       function queryProyecto() {
-        return proyecto.slug === DEFAULT_SLUG ? '' : 'p=' + encodeURIComponent(proyecto.slug);
+        return [
+          proyecto.slug === DEFAULT_SLUG ? '' : 'p=' + encodeURIComponent(proyecto.slug),
+          KIOSCO_URL ? 'kiosco=1' : '',
+        ].filter(Boolean).join('&');
       }
 
       /* ============================================================
@@ -8248,21 +8615,23 @@
       lienzo.addEventListener('pointerdown', () => { transicionCamara = null; });
       lienzo.addEventListener('wheel', () => { transicionCamara = null; }, { passive: true });
 
-      document.getElementById('hr-reset').addEventListener('click', () => {
-        // Mismo encuadre que enfocarPiso() / "Separar pisos", con el giro en 0.
+      // Mismo encuadre que enfocarPiso() / "Separar pisos", sin tocar el giro.
+      // "Vista inicial" lo usa con el giro en 0; el showroom, tal cual.
+      function encuadreGeneral() {
         if (pisoAislado !== null) {
-          moverCamara({
-            giro: 0, phi: 1.28,
+          return {
+            phi: 1.28,
             radio: CONJUNTO ? Math.max(72, radioGeneral * 0.75) : 72,
             objetivo: new THREE.Vector3(CENTRO_X, pisoAislado * PASO + ALTO / 2, CENTRO_Z),
-          });
-        } else {
-          const extra = separado ? (pisosGrupo.length - 1) * 2.5 : 0;
-          const obj = objetivoGeneral.clone();
-          obj.y += extra / 2;
-          moverCamara({ giro: 0, phi: phiGeneral, radio: radioGeneral + extra * 0.85, objetivo: obj });
+          };
         }
-      });
+        const extra = separado ? (pisosGrupo.length - 1) * 2.5 : 0;
+        const obj = objetivoGeneral.clone();
+        obj.y += extra / 2;
+        return { phi: phiGeneral, radio: radioGeneral + extra * 0.85, objetivo: obj };
+      }
+      document.getElementById('hr-reset').addEventListener('click', () =>
+        moverCamara({ giro: 0, ...encuadreGeneral() }));
       document.getElementById('hr-mas').addEventListener('click', () =>
         moverCamara({ radio: Math.max(34, radio - 16) }, 260));
       document.getElementById('hr-menos').addEventListener('click', () =>
@@ -8461,6 +8830,237 @@
       }
 
       /* ============================================================
+         KIOSCO — modo showroom: el edificio solo, girando, para una
+         pantalla o tablet en la sala de ventas que funciona todo el día
+         sin que nadie la atienda.
+         - Botón de la toolbar (#hr-pantalla): el modo dura lo que dura la
+           pantalla completa. Escape, el mismo botón o el gesto del sistema
+           la terminan, y todo sale de fullscreenchange.
+         - ?kiosco=1 (la pantalla del showroom): arranca ya en el modo. El
+           navegador no deja entrar en pantalla completa sin un gesto, así
+           que muestra "Iniciar"; si después se sale de la pantalla completa
+           vuelve "Iniciar", nunca la interfaz normal.
+         El modo es body.kiosco (el CSS esconde la interfaz) + los tiempos
+         del mismo giro automático (INACTIVIDAD_KIOSCO_MS, VEL_GIRO_KIOSCO)
+         + la demo que cada tanto destaca una unidad (ver el reloj, abajo).
+         No toca filtros, piso aislado ni separar pisos: al salir quedan
+         como estaban. Sí cierra la tarjeta o el panel de una unidad, que
+         frenan el giro.
+         ============================================================ */
+      const raiz = document.documentElement;
+      const pedirPantalla = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
+      const salirPantalla = document.exitFullscreen || document.webkitExitFullscreen;
+      const enPantallaCompleta = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+      // iPhone no tiene pantalla completa para la página: ahí ?kiosco=1 sigue
+      // andando (modo limpio + giro + pantalla encendida), sin el botón.
+      const hayPantallaCompleta = !!pedirPantalla && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+      const btnPantalla = document.getElementById('hr-pantalla');
+      const btnIniciar = document.getElementById('kiosco-iniciar');
+      btnPantalla.hidden = document.getElementById('hr-sep-pantalla').hidden = !hayPantallaCompleta;
+
+      function entrarPantalla() {
+        // Rechazada (o sin promesa en Safari viejo): con ?kiosco=1 vuelve
+        // "Iniciar" para probar de nuevo; si no, no pasa nada.
+        try {
+          const p = pedirPantalla.call(raiz, { navigationUI: 'hide' });
+          if (p && p.catch) p.catch(() => { if (KIOSCO_URL) btnIniciar.hidden = false; });
+        } catch (e) { if (KIOSCO_URL) btnIniciar.hidden = false; }
+      }
+      btnPantalla.addEventListener('click', () => {
+        if (enPantallaCompleta()) salirPantalla.call(document);
+        else entrarPantalla();
+      });
+
+      function alCambiarPantalla() {
+        const llena = enPantallaCompleta();
+        document.body.classList.toggle('pantalla-llena', llena);
+        const txt = llena ? 'Salir de pantalla completa' : 'Pantalla completa';
+        btnPantalla.setAttribute('aria-label', txt);
+        btnPantalla.title = txt;
+        if (KIOSCO_URL) btnIniciar.hidden = llena;
+        else ponerKiosco(llena);
+      }
+      document.addEventListener('fullscreenchange', alCambiarPantalla);
+      document.addEventListener('webkitfullscreenchange', alCambiarPantalla);
+
+      // Encuadre del edificio entero y giro apenas llega la cámara.
+      // moverCamara() registra actividad (frenaría el giro 20 s): se corre
+      // ultimaActividad para que el giro arranque, con su rampa, al terminar
+      // el recorrido.
+      const MS_VUELTA_KIOSCO = 1200;
+      function volverAlGiro() {
+        ocultarTarjeta();
+        cerrar();
+        moverCamara(encuadreGeneral(), MS_VUELTA_KIOSCO);
+        ultimaActividad = performance.now() + MS_VUELTA_KIOSCO - INACTIVIDAD_KIOSCO_MS;
+      }
+
+      function ponerKiosco(activo) {
+        if (kiosco === activo) return;
+        kiosco = activo;
+        document.body.classList.toggle('kiosco', activo);
+        if (activo) {
+          volverAlGiro();
+          pedirWakeLock();
+        } else {
+          soltarWakeLock();
+          // Una demo a medias no se queda en la interfaz normal: esa
+          // tarjeta no la eligió nadie.
+          if (demo) { demo = null; ocultarTarjeta(); }
+        }
+      }
+
+      // Que la pantalla no se apague mientras dure el modo. Sin soporte o
+      // rechazado (batería baja, http): se ignora. El navegador lo suelta
+      // solo al ocultar la pestaña; se pide de nuevo al volver.
+      let wakeLock = null;
+      async function pedirWakeLock() {
+        if (!kiosco || wakeLock || document.hidden || !('wakeLock' in navigator)) return;
+        try {
+          const l = await navigator.wakeLock.request('screen');
+          if (!kiosco) { l.release().catch(() => {}); return; } // se salió mientras tanto
+          wakeLock = l;
+          l.addEventListener('release', () => { if (wakeLock === l) wakeLock = null; });
+        } catch (e) { /* sin soporte: la pantalla sigue su propia configuración */ }
+      }
+      function soltarWakeLock() {
+        if (wakeLock) wakeLock.release().catch(() => {});
+        wakeLock = null;
+      }
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) pedirWakeLock(); });
+
+      /* Reloj del showroom (cada 0,5 s), para una pantalla que nadie atiende:
+         - Una tarjeta o un panel que quedaron abiertos no pueden frenar el
+           giro para siempre: pasados los mismos 20 s sin tocar nada se
+           cierran y el edificio vuelve a girar entero.
+         - Demo: tras CADA_DEMO_MS de giro, destaca una unidad disponible con
+           la misma selección de un clic (seleccionar(): cámara con
+           recorrido, resaltado, tarjeta ampliada y línea guía; no abre el
+           panel ni registra el evento, así no ensucia Demanda), la deja
+           MS_DEMO y vuelve al giro. El giro arranca INACTIVIDAD_KIOSCO_MS
+           después de ultimaActividad, así que de ahí se cuenta.
+         - Cualquier toque corta la demo igual que corta el giro: pasa por
+           registrarActividad(), que mueve ultimaActividad, y la demo deja de
+           manejar la tarjeta (queda del visitante; la cierra la regla 1).
+         Con "Iniciar" a la vista (?kiosco=1 sin arrancar) solo gira. */
+      const CADA_DEMO_MS = 45000, MS_DEMO = 8000;
+      let demo = null; // { hasta, actividad }: la demo en curso
+      setInterval(() => {
+        if (!kiosco || document.hidden) return;
+        actualizarQR();
+        const ahora = performance.now();
+        if (demo) {
+          if (ultimaActividad !== demo.actividad) demo = null; // la cortó un toque
+          else if (ahora >= demo.hasta) { demo = null; volverAlGiro(); }
+          return;
+        }
+        const quieto = ahora - ultimaActividad;
+        if (cajaTarjeta || elegida) {
+          if (quieto >= INACTIVIDAD_KIOSCO_MS) volverAlGiro();
+        } else if (quieto >= INACTIVIDAD_KIOSCO_MS + CADA_DEMO_MS && btnIniciar.hidden) {
+          const caja = proximaUnidadDemo();
+          if (!caja) return; // ninguna disponible: queda solo el giro
+          seleccionar(caja);
+          // seleccionar() → moverCamara() acaba de registrar actividad: esa es
+          // la de la demo; otra distinta es un toque.
+          demo = { hasta: performance.now() + MS_CAMARA_UNIDAD + MS_DEMO, actividad: ultimaActividad };
+        }
+      }, 500);
+
+      // Recorre las disponibles sin repetir hasta agotarlas (y vuelve a
+      // empezar), saltando de piso para que se vea la altura: al azar entre
+      // las que quedan a un tercio del edificio o más de la anterior; si
+      // ninguna queda tan lejos, entre las más lejanas. Solo estado
+      // 'disponible' (nunca vendida, reservada ni sin estado público) y que
+      // pase los filtros puestos (activa): con "2 dormitorios" filtrado, la
+      // demo muestra esas.
+      let pendientesDemo = [], pisoDemo = null;
+      function proximaUnidadDemo() {
+        const candidatas = cajas.filter(c => c.userData.activa && c.userData.unidad.estado === 'disponible');
+        if (!candidatas.length) return null;
+        pendientesDemo = pendientesDemo.filter(c => candidatas.includes(c));
+        if (!pendientesDemo.length) pendientesDemo = candidatas.slice();
+        const salto = c => pisoDemo === null ? Infinity : Math.abs(c.userData.unidad.piso - pisoDemo);
+        let opciones = pendientesDemo.filter(c => salto(c) >= Math.max(1, Math.round(PISOS / 3)));
+        if (!opciones.length) {
+          const max = Math.max(...pendientesDemo.map(salto));
+          opciones = pendientesDemo.filter(c => salto(c) === max);
+        }
+        const caja = opciones[Math.floor(Math.random() * opciones.length)];
+        pendientesDemo.splice(pendientesDemo.indexOf(caja), 1);
+        pisoDemo = caja.userData.unidad.piso;
+        return caja;
+      }
+
+      /* QR para llevarse el visor al celular: la URL normal del proyecto
+         (sin ?kiosco, así en el celular se abre la versión completa) o, si
+         hay una unidad destacada (la de la demo, la tarjeta o el panel), la
+         de esa unidad. &src=qr-showroom separa en Demanda a quien llegó
+         escaneando. Lo llama el reloj de arriba: cambia a lo sumo medio
+         segundo después que la tarjeta. La librería (qrcode-generator) se
+         carga recién en el modo: el visor normal no la descarga. Sin red no
+         hay QR (reintenta cada 30 s); el resto del modo sigue igual. */
+      const LIB_QR = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+      const cajaQR = document.getElementById('kiosco-qr');
+      let libQR = null, urlQR = null, falloQR = -Infinity;
+      function actualizarQR() {
+        const u = elegida || (cajaTarjeta && cajaTarjeta.userData.unidad) || null;
+        // Siempre la URL pública (BASE), no la de esta pestaña: abierto desde
+        // localhost o una copia local, el celular no podría abrir el link.
+        const url = linkProyecto(BASE) + (u ? '&u=' + u.id : '') + '&src=qr-showroom';
+        if (url === urlQR || performance.now() - falloQR < 30000) return;
+        urlQR = url;
+        libQR ||= new Promise((ok, mal) => {
+          const s = document.createElement('script');
+          s.src = LIB_QR;
+          s.onload = () => ok(window.qrcode);
+          s.onerror = mal;
+          document.head.appendChild(s);
+        });
+        libQR.then(qrcode => {
+          if (urlQR === url) pintarQR(qrcode, url, u); // si no, ya cambió mientras cargaba
+        }, () => {
+          libQR = urlQR = null;
+          falloQR = performance.now();
+        });
+      }
+      // Dibujado a mano (un path con un cuadrado por módulo) y no con el
+      // svg de la librería: así el color sale del CSS y el margen de 2
+      // módulos, más el padding de la tarjeta, deja el silencio que pide
+      // la cámara.
+      function pintarQR(qrcode, url, u) {
+        const qr = qrcode(0, 'M');
+        qr.addData(url);
+        qr.make();
+        const n = qr.getModuleCount();
+        let d = '';
+        for (let f = 0; f < n; f++)
+          for (let c = 0; c < n; c++) if (qr.isDark(f, c)) d += 'M' + c + ' ' + f + 'h1v1h-1z';
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
+        svg.setAttribute('viewBox', '-2 -2 ' + (n + 4) + ' ' + (n + 4));
+        svg.setAttribute('shape-rendering', 'crispEdges');
+        path.setAttribute('d', d);
+        path.setAttribute('fill', 'currentColor');
+        svg.appendChild(path);
+        document.getElementById('kiosco-qr-codigo').replaceChildren(svg);
+        document.getElementById('kiosco-qr-txt').textContent =
+          u ? 'para ver la unidad ' + numeroDe(u) : 'para ver el edificio';
+        cajaQR.classList.add('listo');
+      }
+
+      if (KIOSCO_URL) {
+        ponerKiosco(true);
+        btnIniciar.hidden = false;
+        btnIniciar.addEventListener('click', () => {
+          btnIniciar.hidden = true;
+          if (hayPantallaCompleta) entrarPantalla();
+          volverAlGiro();
+          pedirWakeLock(); // por si sin un toque el navegador no lo dio
+        });
+      }
+
+      /* ============================================================
          6. BUCLE
          ============================================================ */
 
@@ -8476,14 +9076,17 @@
       // Windows/Android) el edificio no giraba nunca.
       const modalRenders = document.getElementById('renders-modal');
       const modalAvance = document.getElementById('avance-modal');
+      // En el showroom el riel, los filtros y el sol no están a la vista
+      // (quedan como estaban, ver KIOSCO): no lo frenan, y con un piso
+      // aislado gira igual.
       function puedeGirar(ahora) {
         if (document.hidden) return false;
         if (giroForzado) return true;
-        return ahora - ultimaActividad >= INACTIVIDAD_MS &&
-          !elegida && !cajaTarjeta && pisoAislado === null &&
-          !riel.classList.contains('abierto') && !filtrosEl.classList.contains('abierto') &&
-          !filtrosEl.classList.contains('pop') && !solPanel.classList.contains('abierto') &&
-          modalRenders.hidden && modalAvance.hidden;
+        return ahora - ultimaActividad >= (kiosco ? INACTIVIDAD_KIOSCO_MS : INACTIVIDAD_MS) &&
+          !elegida && !cajaTarjeta && modalRenders.hidden && modalAvance.hidden &&
+          (kiosco || (pisoAislado === null &&
+            !riel.classList.contains('abierto') && !filtrosEl.classList.contains('abierto') &&
+            !filtrosEl.classList.contains('pop') && !solPanel.classList.contains('abierto')));
       }
 
       // Resaltado (ver el fundido de cajas en animar()).
@@ -8500,7 +9103,7 @@
         tCuadro = ahora;
         if (puedeGirar(ahora)) {
           rampaGiro = Math.min(1, rampaGiro + dt / RAMPA_GIRO_S);
-          giro -= VEL_GIRO * rampaGiro * rampaGiro * (3 - 2 * rampaGiro) * dt; // smoothstep
+          giro -= (kiosco ? VEL_GIRO_KIOSCO : VEL_GIRO) * rampaGiro * rampaGiro * (3 - 2 * rampaGiro) * dt; // smoothstep
           ubicarCamara();
         } else rampaGiro = 0; // corte seco, sin salida
 
@@ -8576,8 +9179,9 @@
 
         // Cartel de calle: mismo patrón de hover/tooltip que las unidades,
         // pero sin emissive que resaltar — solo cursor + tooltip para dejar
-        // claro que abre Google Maps.
-        const golpeCalle = (!sobre && cartelCalle && !hoverPausado) ? rayo.intersectObject(cartelCalle, false) : [];
+        // claro que abre Google Maps. En el showroom no: Maps se llevaría la
+        // pantalla (sin sobreCalle, el click tampoco lo abre).
+        const golpeCalle = (!sobre && cartelCalle && !hoverPausado && !kiosco) ? rayo.intersectObject(cartelCalle, false) : [];
         const nuevoSobreCalle = golpeCalle.length > 0;
         if (nuevoSobreCalle !== sobreCalle) {
           sobreCalle = nuevoSobreCalle;
