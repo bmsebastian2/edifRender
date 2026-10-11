@@ -403,11 +403,17 @@
 
   /* Amenities y Accesos: formularios de una línea bajo la tabla. */
   #panel-amenities table{min-width:0}
-  #panel-amenities td:nth-child(2){width:100%}
+  #panel-amenities td:nth-child(3){width:100%}
   /* Inactiva = atenuada, como la vendida en Unidades. */
-  #filas-amenities tr:has(td:nth-child(3) input:not(:checked)) .input-texto{color:var(--suave)}
+  #filas-amenities tr:has(td:nth-child(4) input:not(:checked)) :is(.input-texto,.amenity-icono){color:var(--suave)}
+  /* Ícono: la vista previa (como se ve en el visor) + el selector. */
+  .amenity-icono-celda{display:flex;align-items:center;gap:4px}
+  .amenity-icono{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:8px;
+    background:var(--fondo);color:#1E4A3F}
+  .amenity-icono-celda select{width:170px}
   #form-amenity-nuevo{display:flex;gap:8px;margin-top:16px}
   #form-amenity-nuevo input{flex:1;min-width:0}
+  #form-amenity-nuevo select{width:190px;flex:none}
   .form-tipologia-nueva{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
   .form-tipologia-nueva input.campo-nombre{flex:1;min-width:180px}
   .form-tipologia-nueva input.campo-num{width:96px}
@@ -602,12 +608,13 @@
   <section id="panel-amenities" hidden>
     <div class="tabla-envoltorio">
       <table>
-        <thead><tr><th></th><th>Texto</th><th>Activo</th><th></th></tr></thead>
+        <thead><tr><th></th><th>Ícono</th><th>Texto</th><th>Activo</th><th></th></tr></thead>
         <tbody id="filas-amenities"></tbody>
       </table>
     </div>
     <form id="form-amenity-nuevo">
       <input id="nuevo-amenity-texto" type="text" placeholder="Nueva amenity…">
+      <select id="nuevo-amenity-icono" aria-label="Ícono"></select>
       <button type="submit">Agregar</button>
     </form>
   </section>
@@ -750,6 +757,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="supabase-config.js"></script>
+<script src="amenities-iconos.js"></script>
 <script>
 // Mismos colores que ESTADOS en index.html: el cliente tiene que leer el
 // mismo lenguaje en el visor y acá. Vendida en gris, nunca rojo.
@@ -1390,6 +1398,23 @@ function pintarAmenities(lista){
     tdFlechas.append(btnArriba, btnAbajo);
     tr.appendChild(tdFlechas);
 
+    const tdIcono = document.createElement('td');
+    const celdaIcono = document.createElement('div');
+    celdaIcono.className = 'amenity-icono-celda';
+    const vista = document.createElement('span');
+    vista.className = 'amenity-icono';
+    vista.innerHTML = svgAmenity(a.icono, 18);
+    const selIcono = document.createElement('select');
+    opcionesIconoAmenity(selIcono, a.icono);
+    selIcono.setAttribute('aria-label', 'Ícono de ' + a.texto);
+    selIcono.addEventListener('change', () => {
+      vista.innerHTML = svgAmenity(selIcono.value, 18);
+      guardarAmenity(a.id, { icono: selIcono.value || null });
+    });
+    celdaIcono.append(vista, selIcono);
+    tdIcono.appendChild(celdaIcono);
+    tr.appendChild(tdIcono);
+
     const tdTexto = document.createElement('td');
     const inputTexto = document.createElement('input');
     inputTexto.className = 'input-texto';
@@ -1414,6 +1439,15 @@ function pintarAmenities(lista){
 
     tbody.appendChild(tr);
   });
+}
+
+// Opciones del catálogo de amenities-iconos.js. "Genérico" = sin ícono
+// (null): el visor muestra el destello. Una clave que el catálogo ya no
+// tiene se muestra como genérico, sin borrarla de la base.
+function opcionesIconoAmenity(sel, valor){
+  sel.add(new Option('Genérico', ''));
+  Object.entries(ICONOS_AMENITY).forEach(([clave, { nombre }]) => sel.add(new Option(nombre, clave)));
+  sel.value = tieneIconoAmenity(valor) ? valor : '';
 }
 
 async function guardarAmenity(id, cambios){
@@ -1442,6 +1476,16 @@ async function borrarAmenity(id){
   cargarAmenities();
 }
 
+// Alta: el ícono se sugiere a partir del texto mientras se escribe
+// (sugerirIconoAmenity), hasta que se lo elige a mano.
+const nuevoIcono = document.getElementById('nuevo-amenity-icono');
+opcionesIconoAmenity(nuevoIcono, '');
+let iconoElegidoAMano = false;
+nuevoIcono.addEventListener('change', () => { iconoElegidoAMano = true; });
+document.getElementById('nuevo-amenity-texto').addEventListener('input', ev => {
+  if (!iconoElegidoAMano) nuevoIcono.value = sugerirIconoAmenity(ev.target.value);
+});
+
 document.getElementById('form-amenity-nuevo').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const input = document.getElementById('nuevo-amenity-texto');
@@ -1451,9 +1495,11 @@ document.getElementById('form-amenity-nuevo').addEventListener('submit', async (
     .eq('project_id', PROYECTO_ACTUAL.id).order('orden', { ascending:false }).limit(1);
   const siguienteOrden = existentes && existentes.length ? existentes[0].orden + 1 : 1;
   const { error } = await sb.from('amenities')
-    .insert({ project_id: PROYECTO_ACTUAL.id, texto, orden: siguienteOrden, activo: true });
+    .insert({ project_id: PROYECTO_ACTUAL.id, texto, icono: nuevoIcono.value || null, orden: siguienteOrden, activo: true });
   if (error){ alert('No se pudo agregar: ' + error.message); return; }
   input.value = '';
+  nuevoIcono.value = '';
+  iconoElegidoAMano = false;
   cargarAmenities();
 });
 

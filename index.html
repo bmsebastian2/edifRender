@@ -444,6 +444,68 @@
       border-radius: 50%;
     }
 
+    /* Al pie de la ficha: la puerta a las amenities (abre #capa-edificio,
+       ver pintarAmenities()). Fila entera clickeable y sin caja: el fondo
+       aparece al pasar, como en los botones de la barra. */
+    .cb-extra {
+      margin-top: 14px;
+      padding-top: 8px;
+      border-top: 1px solid var(--linea);
+    }
+
+    .cb-extra[hidden] {
+      display: none
+    }
+
+    .cb-amenities {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: calc(100% + 16px);
+      margin: 0 -8px -6px;
+      padding: 7px 8px;
+      border: none;
+      border-radius: 10px;
+      background: none;
+      cursor: pointer;
+      text-align: left;
+      transition: background-color var(--t) var(--ease);
+    }
+
+    .cb-amenities:hover {
+      background: var(--fondo)
+    }
+
+    .cb-amenities:active {
+      background: var(--presion)
+    }
+
+    .cb-amenities[aria-expanded="true"] {
+      background: var(--verde-suave)
+    }
+
+    .cb-amenities:focus-visible {
+      outline: 2px solid var(--verde);
+      outline-offset: 1px
+    }
+
+    .cb-amenities-iconos {
+      display: flex;
+      gap: 6px;
+      flex: none;
+      color: #1E4A3F;
+    }
+
+    .cb-amenities .cb-dato-txt {
+      flex: 1
+    }
+
+    .cb-amenities .chev {
+      flex: none;
+      color: var(--suave);
+      transform: rotate(-90deg);
+    }
+
     #admin-link {
       position: fixed;
       top: calc(var(--alto-barra) + 14px);
@@ -1935,23 +1997,187 @@
     }
 
     #p-edificio .p-edificio-tit {
-      margin: 0 0 8px;
+      margin: 0 0 10px;
       font-weight: 600;
       color: var(--tinta);
       font-size: 12.5px
     }
 
-    #p-edificio ul {
-      margin: 0 0 10px;
-      padding-left: 18px
-    }
-
-    #p-edificio li {
-      margin-bottom: 3px
-    }
-
     #p-edificio p {
       margin: 0
+    }
+
+    #p-amenities-bloque[hidden] {
+      display: none
+    }
+
+    #p-edificio .amenities-grilla {
+      margin-bottom: 14px
+    }
+
+    /* Sin amenities ni texto legal no queda nada que mostrar (ni la línea). */
+    #p-edificio:not(:has(> :not([hidden]))) {
+      display: none
+    }
+
+    /* Amenities: grilla de ícono + nombre, la misma en la hoja de la ficha y
+       en el panel de la unidad. Celdas neutras sobre --fondo; el ícono va en
+       el verde oscuro de texto de marca (#1E4A3F), que se lee como tinta: el
+       verde de marca es el color de lo DISPONIBLE en el edificio y queda
+       para eso. Dos columnas en 300px (aun con barra de scroll); más en una
+       hoja ancha de tablet. */
+    .amenities-grilla {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .amenity {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      padding: 12px 8px 11px;
+      border-radius: 12px;
+      background: var(--fondo);
+      text-align: center;
+      font-size: 12.5px;
+      line-height: 1.35;
+      color: var(--tinta);
+      overflow-wrap: break-word;
+    }
+
+    .amenity svg {
+      flex: none;
+      color: #1E4A3F;
+    }
+
+    /* Capa del edificio (ver abrirCapaEdificio()). Desktop: tarjeta debajo
+       de la ficha y del mismo ancho, en la columna izquierda — el edificio
+       va al centro y el riel a la derecha, así no tapa ninguno de los dos.
+       top y max-height los pone el script (dependen de la ficha). Mobile:
+       hoja inferior, ver la media query de 860px. */
+    #capa-edificio {
+      position: fixed;
+      left: 24px;
+      top: 0;
+      z-index: 11;
+      width: 300px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      padding: 14px 18px 18px;
+      background: #fff;
+      border: 1px solid var(--linea);
+      border-radius: var(--radio);
+      box-shadow: 0 12px 36px rgba(20, 40, 35, .14);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease), visibility 0s linear var(--t);
+    }
+
+    #capa-edificio.abierta {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
+    }
+
+    /* Una sección a la vez (data-seccion, como los grupos de #filtros). */
+    .ce-seccion {
+      display: none
+    }
+
+    #capa-edificio[data-seccion="amenities"] .ce-seccion[data-seccion="amenities"] {
+      display: block
+    }
+
+    .ce-cabeza {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    #ce-cerrar {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      flex: none;
+      padding: 0;
+      border: 1px solid var(--linea);
+      border-radius: 50%;
+      background: none;
+      color: var(--suave);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      transition: background-color var(--t) var(--ease), color var(--t) var(--ease);
+    }
+
+    #ce-cerrar:hover {
+      color: var(--tinta);
+      background: var(--fondo)
+    }
+
+    #ce-cerrar:active {
+      background: var(--presion)
+    }
+
+    #ce-cerrar:focus-visible {
+      outline: 2px solid var(--verde);
+      outline-offset: 2px
+    }
+
+    /* Mobile: hoja inferior blanca, como la del sol (sin velo: el edificio
+       se sigue viendo arriba). Con la ficha desplegada no sube más que
+       hasta ella (--fin-ficha, ver medirFinFicha()). z-index 20 como las
+       otras hojas, por encima de la barra inferior. */
+    @media (max-width:860px) {
+      #capa-edificio {
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: 0;
+        z-index: 20;
+        width: auto;
+        max-height: min(70vh, 560px);
+        padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
+        border: none;
+        border-top: 1px solid var(--linea);
+        border-radius: 14px 14px 0 0;
+        box-shadow: 0 -10px 30px rgba(20, 26, 28, .16);
+        opacity: 1;
+        transform: translateY(100%);
+        transition: transform var(--t-hoja) var(--ease), visibility 0s linear var(--t-hoja);
+      }
+
+      #capa-edificio.abierta {
+        transform: none;
+        transition: transform var(--t-hoja) var(--ease);
+      }
+
+      #capa-edificio::before {
+        content: "";
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--linea);
+      }
+
+      body:has(#ficha.abierta) #capa-edificio {
+        max-height: calc(100vh - var(--fin-ficha, 216px) - 12px);
+      }
     }
 
     /* Tooltip: oscuro y chico para textos cortos (cartel de calle); con
@@ -3749,6 +3975,7 @@
     .kiosco #filtros,
     .kiosco #filtros-backdrop,
     .kiosco #sol,
+    .kiosco #capa-edificio,
     .kiosco #brujula,
     .kiosco .hr-grupo> :not(#hr-pantalla),
     .kiosco:not(.pantalla-llena) #herramientas,
@@ -4326,6 +4553,19 @@
         </div>
       </div>
       <div id="aviso">Cargando estado de las unidades…</div>
+      <!-- Oculto hasta que pintarAmenities() confirme que hay al menos una:
+         sin amenities cargados la fila no existe. -->
+      <div class="cb-extra" id="cb-extra" hidden>
+        <button class="cb-amenities" id="cb-amenities" type="button" aria-haspopup="dialog" aria-expanded="false"
+          aria-controls="capa-edificio">
+          <span class="cb-amenities-iconos" id="cb-amenities-iconos" aria-hidden="true"></span>
+          <span class="cb-dato-txt"><b id="cb-amenities-n"></b> <span id="cb-amenities-pal">amenities</span></span>
+          <svg class="chev" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
       </div>
     </section>
     <div id="piso-info" aria-live="polite"></div>
@@ -4628,6 +4868,18 @@
     </div>
   </div>
 
+  <!-- Capa del edificio: se abre desde la ficha (ver abrirCapaEdificio()).
+     Una sección a la vez, según data-seccion. -->
+  <div id="capa-edificio" role="dialog" aria-labelledby="ce-titulo-amenities" data-seccion="amenities">
+    <section class="ce-seccion" data-seccion="amenities">
+      <div class="ce-cabeza">
+        <p class="p-eyebrow" id="ce-titulo-amenities">Amenities del edificio</p>
+        <button id="ce-cerrar" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <ul class="amenities-grilla" id="ce-amenities"></ul>
+    </section>
+  </div>
+
   <!-- Simulador solar: apagado por default (ver CSS #sol/#sol-trigger).
      Abrir el panel prende la simulación, cerrarlo la apaga — no hay un
      interruptor separado del panel mismo. -->
@@ -4830,8 +5082,10 @@
     </details>
 
     <div id="p-edificio">
-      <p class="p-edificio-tit">Amenities del edificio</p>
-      <ul id="p-amenities"></ul>
+      <div id="p-amenities-bloque" hidden>
+        <p class="p-edificio-tit">Amenities del edificio</p>
+        <ul class="amenities-grilla" id="p-amenities"></ul>
+      </div>
       <p id="p-legal" hidden></p>
     </div>
 
@@ -4891,6 +5145,7 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="supabase-config.js"></script>
+  <script src="amenities-iconos.js"></script>
   <script>
     /* ============================================================
        1. DATOS — vienen de Supabase (tablas `public_units`/`public_projects`/
@@ -5344,9 +5599,90 @@
       }
     }
 
+    // Amenities: grilla de ícono + nombre, la misma en la hoja de la ficha y
+    // en el panel de la unidad (quien entra por un link ?u= cae directo en
+    // el panel, con la ficha plegada). El ícono sale de amenities.icono (ver
+    // amenities-iconos.js); sin ícono asignado va el genérico. Sin amenities
+    // no aparece nada: ni la fila de la ficha ni el bloque del panel. El
+    // texto lo carga el cliente en el admin: va como texto, nunca como HTML.
     function pintarAmenities(lista) {
-      document.getElementById('p-amenities').innerHTML = lista.map(a => '<li>' + a.texto + '</li>').join('');
+      const hay = lista.length > 0;
+      document.getElementById('cb-extra').hidden = !hay;
+      document.getElementById('p-amenities-bloque').hidden = !hay;
+      if (!hay) return;
+      const grilla = () => lista.map(a => {
+        const li = document.createElement('li');
+        li.className = 'amenity';
+        li.innerHTML = svgAmenity(a.icono);
+        const nombre = document.createElement('span');
+        nombre.textContent = a.texto;
+        li.append(nombre);
+        return li;
+      });
+      document.getElementById('ce-amenities').replaceChildren(...grilla());
+      document.getElementById('p-amenities').replaceChildren(...grilla());
+      // Fila de la ficha: hasta cuatro íconos distintos de muestra (el
+      // genérico solo si no hay ninguno asignado) + cuántas son.
+      const muestra = [...new Set(lista.map(a => a.icono).filter(tieneIconoAmenity))].slice(0, 4);
+      document.getElementById('cb-amenities-iconos').innerHTML =
+        (muestra.length ? muestra : [null]).map(k => svgAmenity(k, 16)).join('');
+      document.getElementById('cb-amenities-n').textContent = lista.length;
+      document.getElementById('cb-amenities-pal').textContent = lista.length === 1 ? 'amenity' : 'amenities';
     }
+
+    // Capa del edificio (#capa-edificio): las amenities a pedido desde la
+    // ficha. Desktop: tarjeta debajo de la ficha. Mobile: hoja inferior.
+    // Se cierra con ×, Escape o tocando cualquier cosa afuera (el edificio,
+    // los botones de las otras hojas): así nunca quedan dos abiertas, sin
+    // tener que tocar cada una. Tocar el edificio la cierra y sigue de
+    // largo, como en el riel y Filtros: si era una unidad, la selecciona.
+    const capaEdificio = document.getElementById('capa-edificio');
+    const capaEsHoja = matchMedia('(max-width:860px)');
+    let disparadorCapa = null;
+
+    function capaAbierta() {
+      return capaEdificio.classList.contains('abierta');
+    }
+    function ubicarCapaEdificio() {
+      if (capaEsHoja.matches) {
+        capaEdificio.style.top = capaEdificio.style.maxHeight = '';
+        return;
+      }
+      const top = Math.round(document.getElementById('ficha').getBoundingClientRect().bottom + 10);
+      capaEdificio.style.top = top + 'px';
+      // Hasta el borde de abajo; si la barra inferior pasa por esta columna
+      // (tablet, o corrida a la izquierda), hasta ella.
+      const barra = document.getElementById('barra-inferior').getBoundingClientRect();
+      const piso = barra.left < capaEdificio.getBoundingClientRect().right ? barra.top - 10 : innerHeight - 20;
+      capaEdificio.style.maxHeight = Math.max(160, piso - top) + 'px';
+    }
+    function abrirCapaEdificio(seccion, disparador) {
+      capaEdificio.dataset.seccion = seccion;
+      disparadorCapa = disparador;
+      ubicarCapaEdificio();
+      capaEdificio.scrollTop = 0;
+      capaEdificio.classList.add('abierta');
+      disparador.setAttribute('aria-expanded', 'true');
+      document.getElementById('ce-cerrar').focus({ preventScroll: true });
+    }
+    function cerrarCapaEdificio() {
+      if (!capaAbierta()) return;
+      capaEdificio.classList.remove('abierta');
+      disparadorCapa.setAttribute('aria-expanded', 'false');
+      if (capaEdificio.contains(document.activeElement)) disparadorCapa.focus({ preventScroll: true });
+    }
+    document.getElementById('cb-amenities').addEventListener('click', e => {
+      capaAbierta() && capaEdificio.dataset.seccion === 'amenities'
+        ? cerrarCapaEdificio() : abrirCapaEdificio('amenities', e.currentTarget);
+    });
+    document.getElementById('ce-cerrar').addEventListener('click', cerrarCapaEdificio);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarCapaEdificio(); });
+    // En captura, como el cierre de la ficha: ningún stopPropagation lo frena.
+    document.addEventListener('pointerdown', e => {
+      if (!capaAbierta() || capaEdificio.contains(e.target) || disparadorCapa.contains(e.target)) return;
+      cerrarCapaEdificio();
+    }, true);
+    addEventListener('resize', () => { if (capaAbierta()) ubicarCapaEdificio(); });
 
     function pintarLegal(textos) {
       if (!textos || !textos.legal) return;
@@ -5649,7 +5985,8 @@
       });
       // En fase de captura: ningún stopPropagation del lienzo o de las hojas
       // puede impedir que se cierre. Excepciones: el lienzo, la tarjeta de
-      // unidad y Filtros/Pisos (botón y hoja). Tocar una unidad o usar los
+      // unidad, Filtros/Pisos (botón y hoja) y la hoja de amenities (se abre
+      // desde la ficha). Tocar una unidad o usar los
       // filtros y el riel no la pliega (los datos del edificio se siguen
       // viendo; el riel y Filtros se acomodan debajo, ver --fin-ficha); en el
       // lienzo se decide al moverse o al soltar: arrastrar o tocar el vacío
@@ -5658,9 +5995,17 @@
       document.addEventListener('pointerdown', e => {
         if (!ficha.classList.contains('abierta') || ficha.contains(e.target)) return;
         if (e.target === lienzo ||
-          e.target.closest('#tarjeta-unidad, #filtros-trigger, #pisos-trigger, #filtros, #pisos')) return;
+          e.target.closest('#tarjeta-unidad, #filtros-trigger, #pisos-trigger, #filtros, #pisos, #capa-edificio')) return;
         cerrarFicha();
       }, true);
+      // Amenities (ver abrirCapaEdificio()): en mobile nunca dos hojas
+      // abiertas. El botón está dentro de la ficha, así que el cierre por
+      // toque afuera de las otras hojas no lo cubre.
+      document.getElementById('cb-amenities').addEventListener('click', () => {
+        cerrarHoja();
+        cerrarFiltros();
+        if (solActivo && solEsHoja.matches) activarSol(false);
+      });
       // Borde inferior de la tarjeta desplegada, para que el riel de pisos y
       // Filtros (mobile) se acomoden debajo en vez de taparla. Medido por
       // layout (offsetTop/offsetHeight): no lo afecta la animación de
@@ -5711,9 +6056,10 @@
       document.getElementById('cb-div-1').hidden = !(hayPisos && (hayUnidades || hayEntrega));
       document.getElementById('cb-div-2').hidden = !(hayUnidades && hayEntrega);
       document.getElementById('cb-datos').hidden = !(hayPisos || hayUnidades || hayEntrega);
-      // Mobile: la tarjeta desplegada trae solo dirección + datos (la leyenda
-      // va en la píldora). Sin nada de eso no hay qué desplegar.
-      if (!direccionTxt && !(hayPisos || hayUnidades || hayEntrega) && proyecto.muestra_totales) {
+      // Mobile: la tarjeta desplegada trae solo dirección + datos + amenities
+      // (la leyenda va en la píldora). Sin nada de eso no hay qué desplegar.
+      if (!direccionTxt && !(hayPisos || hayUnidades || hayEntrega) && document.getElementById('cb-extra').hidden &&
+        proyecto.muestra_totales) {
         fichaToggle.disabled = true;
         fichaToggle.querySelector('.chev').style.display = 'none';
       }
@@ -9086,7 +9432,7 @@
           !elegida && !cajaTarjeta && modalRenders.hidden && modalAvance.hidden &&
           (kiosco || (pisoAislado === null &&
             !riel.classList.contains('abierto') && !filtrosEl.classList.contains('abierto') &&
-            !filtrosEl.classList.contains('pop') && !solPanel.classList.contains('abierto')));
+            !filtrosEl.classList.contains('pop') && !solPanel.classList.contains('abierto') && !capaAbierta()));
       }
 
       // Resaltado (ver el fundido de cajas en animar()).
