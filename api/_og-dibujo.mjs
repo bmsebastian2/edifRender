@@ -11,12 +11,14 @@ import T from './_tarjeta.js';
 export const ANCHO_IMG = 1200, ALTO_IMG = 630;
 
 // Inter subseteada (ASCII + Latin-1 + puntuación tipográfica), bajada de
-// Google Fonts. Rutas literales: así el empaquetado de Vercel las incluye.
+// Google Fonts. Cada una con readFileSync(new URL('literal', import.meta.url))
+// directo: es el patrón que el empaquetado de Vercel reconoce para incluir el
+// archivo (con la URL guardada en una variable no la incluye y falla en runtime).
 const FUENTES = [
-  [400, new URL('./_fuentes/Inter-400.ttf', import.meta.url)],
-  [600, new URL('./_fuentes/Inter-600.ttf', import.meta.url)],
-  [700, new URL('./_fuentes/Inter-700.ttf', import.meta.url)],
-].map(([weight, ruta]) => ({ name: 'Inter', weight, style: 'normal', data: readFileSync(ruta) }));
+  [400, readFileSync(new URL('./_fuentes/Inter-400.ttf', import.meta.url))],
+  [600, readFileSync(new URL('./_fuentes/Inter-600.ttf', import.meta.url))],
+  [700, readFileSync(new URL('./_fuentes/Inter-700.ttf', import.meta.url))],
+].map(([weight, data]) => ({ name: 'Inter', weight, style: 'normal', data }));
 
 const K = C.COLORES;
 // Color de la marca Cota: el del ícono #cota de la barra del visor.
