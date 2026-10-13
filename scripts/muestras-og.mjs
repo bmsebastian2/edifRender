@@ -7,6 +7,8 @@
 // 2. Llama al handler de api/og.mjs con los casos de abajo y deja cada PNG
 //    en muestras-og/ (ignorada por git), con el tiempo de cada uno: el
 //    primero incluye la carga de módulos, wasm y fuentes (en frío).
+// 3. Al lado, <caso>-cuadrado.png: el recorte central de 630×630 que muestra
+//    la miniatura de WhatsApp, con la misma composición.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -49,10 +51,27 @@ async function llamar(url) {
   return { ms: Math.round(performance.now() - t0), headers, cuerpo: Buffer.concat(partes.map(b => Buffer.from(b))) };
 }
 
+// Para el recorte: la misma composición que arma el handler, a partir de la URL.
+const { default: T } = await import('../api/_tarjeta.js');
+const { default: C } = await import('../api/_compartido.js');
+const datosDe = new Map();
+async function composicion(url) {
+  const q = new URL(url, 'http://localhost').searchParams;
+  if (q.has('marca')) return D.imagenMarca();
+  const slug = q.get('p') || C.DEFAULT_SLUG;
+  if (!datosDe.has(slug)) datosDe.set(slug, await T.cargar(slug));
+  const datos = datosDe.get(slug);
+  if (!datos) return D.imagenMarca();
+  const u = T.buscarUnidad(datos.unidades, q.get('u'));
+  return u ? D.imagenUnidad(datos.proyecto, datos.unidades, u) : D.imagenProyecto(datos.proyecto, datos.unidades);
+}
+
 for (const [nombre, url] of CASOS) {
   const { ms, headers, cuerpo } = await llamar(url);
   writeFileSync(join(carpeta, nombre + '.png'), cuerpo);
-  console.log(`${nombre.padEnd(38)} ${String(ms).padStart(5)} ms  ${headers.status} ${headers['content-type']}  ${headers['cache-control']}  ${(cuerpo.length / 1024).toFixed(0)} KB`);
+  const cuadrado = await D.png(D.recorteCentral(await composicion(url)), D.LADO_ZONA, D.LADO_ZONA);
+  writeFileSync(join(carpeta, nombre + '-cuadrado.png'), cuadrado);
+  console.log(`${nombre.padEnd(38)} ${String(ms).padStart(5)} ms  ${headers.status} ${headers['content-type']}  ${headers['cache-control']}  ${(cuerpo.length / 1024).toFixed(0)} KB (cuadrado ${(cuadrado.length / 1024).toFixed(0)} KB)`);
 }
 
 // Falla simulada: Supabase no responde → marca con s-maxage=60.

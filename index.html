@@ -5445,12 +5445,15 @@
     // nuevo trae una vista previa nueva. El visor ignora v= al abrir un link.
     // FNV-1a de 32 bits en base 36. scripts/generar-compartido.mjs la copia a
     // api/_compartido.js: el visor y la tarjeta calculan exactamente lo mismo.
+    // Entra el valor, no cómo vino guardado: 136673, "136673" y "136673.00" son
+    // el mismo precio; null, '' y undefined son "sin precio"; estimado cuenta
+    // solo si es true (null, false y '' son lo mismo: no se muestra).
     function versionCompartir(unidades) {
+      const numero = x => x == null || x === '' || !isFinite(Number(x)) ? '' : String(Number(x));
       let h = 0x811c9dc5;
       for (const u of unidades) {
-        for (const c of [u.id, u.estado, u.precio, u.precioAlquiler, u.estimado].join('|') + ';') {
-          h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
-        }
+        const clave = [u.id, u.estado || '', numero(u.precio), numero(u.precioAlquiler), u.estimado === true ? 1 : 0];
+        for (const c of clave.join('|') + ';') h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
       }
       return h.toString(36);
     }

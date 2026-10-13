@@ -344,7 +344,9 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   `?u=` o del proyecto, vía `conVersion`, que arma `iniciar()`). `v` =
   `versionCompartir(unidades)`: FNV-1a de id, estado, precio, precio de alquiler y
   `estimado`, el mismo cálculo que hace `api/compartir.js` (ver "Vista previa al
-  compartir"). El visor ignora `v=` al abrir un link; los links sin `v=` andan igual.
+  compartir"). Entra el valor, no cómo vino guardado (136673 = "136673.00"; null = '' =
+  sin precio; `estimado` solo cuenta si es `true`). El visor ignora `v=` al abrir un
+  link; los links sin `v=` andan igual.
 - Cada `abrir(u)` registra un click en `events` (`registrarEvento`), que alimenta la
   pestaña Demanda del admin.
 
@@ -532,12 +534,20 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
   copiado de nuevo trae otro `v` y una vista previa nueva. `api/og.mjs` ignora `v` (solo
   separa la caché).
 - **`api/og.mjs`** (`?p=&u=` / `?p=` / `?marca=1`): con `@vercel/og` en Node, sin JSX.
+  - **Zona segura**: la miniatura de WhatsApp recorta el cuadrado central (630×630). Ahí
+    va solo el edificio, completo y centrado; el texto va en las dos bandas laterales de
+    285 px, centrado en vertical: la esquina superior izquierda la tapan los botones de
+    Facebook. `node scripts/muestras-og.mjs` deja cada muestra completa y su recorte
+    (`-cuadrado.png`).
   - Unidad: elevación del lado que le queda más cerca (`ladoDe()`: frente o
-    contrafrente, con rótulo "Vista frente" / "Vista contrafrente"), la unidad en el color
-    de su estado con borde y el resto en gris tenue; al costado número, torre/piso,
-    estado, tipología · m² y precio (con "(estimado)"). Proyecto: la fachada del frente
-    con cada unidad en el color de su estado (opacidad del 3D, mezclada a opaco), nombre
-    partido en "by", dirección, entrega y contador. Pie "armado por Cota" en gris.
+    contrafrente). La unidad va en el color de su estado con borde oscuro y halo; el resto
+    en gris, más claro que vendido / sin_dato para que una resaltada gris también
+    destaque, con bordes y losas marcados. A la izquierda: proyecto, rótulo "Vista frente"
+    / "Vista contrafrente", número y torre/piso. A la derecha: estado, tipología, m² y
+    precio (con "(estimado)"). Proyecto: la fachada del frente con cada unidad en el
+    color de su estado (opacidad del 3D, mezclada a opaco); a la izquierda el nombre
+    partido en "by" y el rótulo; a la derecha dirección, entrega y contador. Pie "armado
+    por Cota" en gris.
   - La elevación (`elevacion()` en `_og-dibujo.mjs`) proyecta cada contorno (o la caja
     `col`/`frente` de ROSSO, con `dimensionesDe()`) sobre el plano de la fachada según
     `frente_eje` (frente en −Z: +X a la izquierda; BRUSCO: B a la izquierda, A a la

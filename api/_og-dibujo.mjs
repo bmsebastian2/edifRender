@@ -31,10 +31,12 @@ function mezcla(hex, fondo, a) {
   const [x, y] = [c(hex), c(fondo)];
   return '#' + x.map((v, i) => Math.round(v * a + y[i] * (1 - a)).toString(16).padStart(2, '0')).join('');
 }
-// Grises del 3D: losa (matLosa, un poco más oscura para que se lea sobre el
-// fondo) y PB / niveles sin unidades (matPB 0xC7CBCC a .55).
-const COLOR_LOSA = '#D3D9D6';
-const COLOR_VACIO = mezcla('#C7CBCC', K.fondo, 0.55);
+// Grises (los del 3D, más oscuros: en una miniatura chica el edificio tiene
+// que leerse contra el fondo). Losa, PB / niveles sin unidades y el borde de
+// cada unidad, como las aristas del visor. Ningún gris lleva verde.
+const COLOR_LOSA = '#BFC6C3';
+const COLOR_VACIO = mezcla('#C7CBCC', K.fondo, 0.85);
+const COLOR_BORDE = mezcla(K.tinta, K.fondo, 0.4);
 // El resto de las unidades cuando hay una resaltada.
 const GRIS_TENUE = C.ESTADOS.sin_dato.color;
 
@@ -120,15 +122,18 @@ export function elevacion(proyecto, unidades, { lado = 'frente', resaltada = nul
   const xMin = Math.min(...todos.map(t => t[0])) - MARGEN, xMax = Math.max(...todos.map(t => t[1])) + MARGEN;
   const yMax = PISOS * D.PASO + D.ALTO + D.LOSA;
   const s = Math.min(ancho / (xMax - xMin), (alto - 4) / yMax);
-  const ox = (ancho - (xMax - xMin) * s) / 2;
+  // Centrado en los dos ejes: un edificio ancho y bajo (Altamira) no queda
+  // apoyado abajo con medio cuadrado vacío encima en la miniatura.
+  const ox = (ancho - (xMax - xMin) * s) / 2, oy = (alto - 4 - yMax * s) / 2;
   const r = n => Math.round(n * 10) / 10;
-  const X = x => ox + (x - xMin) * s, Y = y => alto - 3 - y * s;
+  const suelo = alto - 3 - oy;
+  const X = x => ox + (x - xMin) * s, Y = y => suelo - y * s;
   const rect = (x0, y0, x1, y1, fill, extra = '') =>
     `<rect x="${r(X(x0))}" y="${r(Y(y1))}" width="${r((x1 - x0) * s)}" height="${r(Math.max((y1 - y0) * s, 1.5))}" fill="${fill}"${extra}/>`;
 
   const partes = [];
   // Suelo.
-  partes.push(`<rect x="0" y="${r(alto - 3)}" width="${ancho}" height="2" fill="${COLOR_LOSA}"/>`);
+  partes.push(`<rect x="0" y="${r(suelo)}" width="${ancho}" height="2" fill="${COLOR_LOSA}"/>`);
   for (const v of vacios) {
     const y0 = v.n * D.PASO;
     for (const [a, b] of v.tramos) partes.push(rect(a, y0, b, y0 + D.ALTO, COLOR_VACIO));
@@ -153,8 +158,11 @@ export function elevacion(proyecto, unidades, { lado = 'frente', resaltada = nul
       const e = C.aspectoDe(p.u);
       return mezcla(e.color, K.fondo, e.opacidad);
     }
-    return mezcla(GRIS_TENUE, K.fondo, 0.34 - 0.16 * (p.prof - pMin) / pRango);
+    // Más claro que vendido (#B9BEBC) y sin_dato (#9AA19E): una resaltada en
+    // un estado gris tiene que seguir destacando. El volumen lo dan los bordes.
+    return mezcla(GRIS_TENUE, K.fondo, 0.42 - 0.18 * (p.prof - pMin) / pRango);
   };
+  const borde = ` stroke="${COLOR_BORDE}" stroke-width="1"`;
   for (const lista of porPiso.values()) {
     let cubierto = [];
     for (const p of [...lista].sort((a, b) => a.prof - b.prof)) {
@@ -163,15 +171,18 @@ export function elevacion(proyecto, unidades, { lado = 'frente', resaltada = nul
       if (p.u === resaltada) continue;
       for (const [a, b] of libres) {
         const angosto = b - a < RESTO_MIN;
-        if (b - a > 2 * JUNTA) partes.push(rect(a + JUNTA, p.y0, b - JUNTA, p.y1, angosto && !resaltada ? COLOR_VACIO : colorDe(p)));
+        if (b - a > 2 * JUNTA) partes.push(rect(a + JUNTA, p.y0, b - JUNTA, p.y1, angosto && !resaltada ? COLOR_VACIO : colorDe(p), borde));
       }
     }
   }
   // La resaltada al final: si quedara tapada (interior de manzana), se ve igual.
   const res = resaltada && piezas.find(p => p.u === resaltada);
   if (res) {
+    // Halo del color del fondo debajo del borde: la separa de las vecinas.
+    partes.push(rect(res.x0 + JUNTA, res.y0, res.x1 - JUNTA, res.y1, 'none',
+      ` stroke="${K.fondo}" stroke-width="10" stroke-linejoin="round"`));
     partes.push(rect(res.x0 + JUNTA, res.y0, res.x1 - JUNTA, res.y1, C.aspectoDe(res.u).color,
-      ` stroke="${K.tinta}" stroke-width="3" stroke-linejoin="round"`));
+      ` stroke="${K.tinta}" stroke-width="4" stroke-linejoin="round"`));
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${ancho}" height="${alto}" viewBox="0 0 ${ancho} ${alto}">${partes.join('')}</svg>`;
 }
@@ -219,61 +230,94 @@ function punto(color, tam) {
   return h('div', { width: tam, height: tam, borderRadius: tam / 2, background: color, flexShrink: 0 });
 }
 
+// Zona segura: la miniatura de WhatsApp recorta el cuadrado central
+// (630×630) de la imagen de 1200×630. Ahí va solo el edificio, completo; el
+// texto va en las dos bandas de los costados (285 px cada una), que en la
+// imagen completa se leen y en la miniatura quedan afuera enteras, sin
+// cortes a mitad de palabra. Las bandas arrancan centradas en vertical: la
+// esquina superior izquierda la tapan los botones de Facebook.
+export const LADO_ZONA = ALTO_IMG;
+const BANDA = (ANCHO_IMG - LADO_ZONA) / 2;
+const DIBUJO = { ancho: LADO_ZONA - 44, alto: LADO_ZONA - 64 };
 const LIENZO = { width: ANCHO_IMG, height: ALTO_IMG, background: K.fondo, fontFamily: 'Inter', color: K.tinta, position: 'relative' };
-const DIBUJO = { ancho: 600, alto: 474 };
-// Ancho fijo (1200 − 2×56 de margen − 600 del dibujo − 56 de separación):
-// sin él Satori no corta el texto largo en líneas y se sale de la imagen.
-const COLUMNA_TEXTO = { flexDirection: 'column', justifyContent: 'center', marginLeft: 56, width: 432, paddingBottom: 24 };
+// Ancho fijo: sin él Satori no corta el texto largo en líneas y se sale.
+const BANDA_IZQ = { position: 'absolute', left: 0, top: 0, width: BANDA, height: ALTO_IMG, flexDirection: 'column',
+  justifyContent: 'center', padding: '40px 22px 24px 40px' };
+const BANDA_DER = { ...BANDA_IZQ, left: BANDA + LADO_ZONA, padding: '40px 40px 24px 22px' };
+// Texto oscuro pero no negro: el rótulo de la vista tiene que leerse.
+const TINTA_MEDIA = mezcla(K.tinta, K.fondo, 0.78);
 
 // Pie de las imágenes de clientes: chico y discreto, sin verde.
 function pie() {
-  return h('div', { position: 'absolute', right: 56, bottom: 30, alignItems: 'center', gap: 6, fontSize: 17, color: K.suave, opacity: 0.8 },
-    img(marcaCota(K.suave), 18, 18), 'armado por Cota');
+  return h('div', { position: 'absolute', right: 40, bottom: 22, alignItems: 'center', gap: 5, fontSize: 15, color: K.suave, opacity: 0.85 },
+    img(marcaCota(K.suave), 16, 16), 'armado por Cota');
 }
-function rotulo(texto) {
-  return h('div', { fontSize: 17, fontWeight: 600, letterSpacing: 2.4, textTransform: 'uppercase', color: K.suave, marginBottom: 14 }, texto);
+function rotuloVista(lado) {
+  return h('div', { fontSize: 13, fontWeight: 700, letterSpacing: 1.6, textTransform: 'uppercase', color: TINTA_MEDIA, marginTop: 8 },
+    lado === 'frente' ? 'Vista frente' : 'Vista contrafrente');
 }
-function columnaDibujo(lado, svg) {
-  return h('div', { flexDirection: 'column', justifyContent: 'flex-end', width: DIBUJO.ancho, height: 534, flexShrink: 0 },
-    rotulo(lado === 'frente' ? 'Vista frente' : 'Vista contrafrente'),
+// El dibujo, centrado en la zona segura y apoyado abajo.
+function zonaDibujo(svg) {
+  return h('div', { position: 'absolute', left: BANDA + 22, top: 34, width: DIBUJO.ancho, height: DIBUJO.alto },
     svg ? img(svg, DIBUJO.ancho, DIBUJO.alto) : null);
+}
+// "UYU 55.000 / mes" → cifra grande y "/ mes" chico.
+function partirPrecio(precio) {
+  const i = precio.indexOf(' / ');
+  return i > 0 ? [precio.slice(0, i), precio.slice(i + 1)] : [precio, null];
 }
 
 export function imagenUnidad(proyecto, unidades, u) {
   const d = T.datosUnidad(proyecto, unidades, u);
   const lado = ladoDe(proyecto, unidades, u);
   const svg = elevacion(proyecto, unidades, { lado, resaltada: u, ...DIBUJO });
-  const datos = [d.tipologia, d.m2].filter(Boolean).join(' · ');
-  return h('div', { ...LIENZO, padding: '48px 56px' },
-    columnaDibujo(lado, svg),
-    h('div', COLUMNA_TEXTO,
-      h('div', { fontSize: 24, fontWeight: 600, color: K.suave }, proyecto.nombre),
-      h('div', { fontSize: 68, fontWeight: 700, letterSpacing: -1.5, lineHeight: 1.1, marginTop: 10 }, 'Unidad ' + d.numero),
-      d.ubicacion ? h('div', { fontSize: 26, color: K.suave, marginTop: 4 }, d.ubicacion) : null,
-      d.estado ? h('div', { alignSelf: 'flex-start', alignItems: 'center', gap: 10, marginTop: 22, padding: '8px 18px 8px 14px',
-        borderRadius: 999, background: mezcla(d.estado.color, K.fondo, 0.16), fontSize: 24, fontWeight: 600 },
-      punto(d.estado.color, 14), d.estado.nombre) : null,
-      datos ? h('div', { fontSize: 30, marginTop: 30 }, datos) : null,
-      d.precio ? h('div', { alignItems: 'baseline', gap: 12, marginTop: 10 },
-        h('div', { fontSize: 46, fontWeight: 700, letterSpacing: -0.5 }, d.precio),
-        d.estimado ? h('div', { fontSize: 22, color: K.suave }, '(estimado)') : null) : null),
+  const n = String(d.numero).length;
+  const [cifra, porMes] = d.precio ? partirPrecio(d.precio) : [null, null];
+  return h('div', LIENZO,
+    zonaDibujo(svg),
+    h('div', BANDA_IZQ,
+      h('div', { fontSize: 20, fontWeight: 600, color: K.suave, lineHeight: 1.25 }, proyecto.nombre),
+      rotuloVista(lado),
+      h('div', { fontSize: 15, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase', color: K.suave, marginTop: 34 }, 'Unidad'),
+      // "503" grande; "A1105" un poco menos, para que entre en la banda.
+      h('div', { fontSize: n <= 3 ? 92 : n === 4 ? 78 : 64, fontWeight: 700, letterSpacing: -2, lineHeight: 1 }, String(d.numero)),
+      d.ubicacion ? h('div', { fontSize: 20, color: K.suave, marginTop: 8 }, d.ubicacion) : null),
+    h('div', BANDA_DER,
+      d.estado ? h('div', { alignSelf: 'flex-start', alignItems: 'center', gap: 8, padding: '6px 14px 6px 11px', borderRadius: 999,
+        background: mezcla(d.estado.color, K.fondo, 0.18), fontSize: 20, fontWeight: 600 },
+      punto(d.estado.color, 12), d.estado.nombre) : null,
+      d.tipologia ? h('div', { fontSize: 22, marginTop: 24 }, d.tipologia) : null,
+      d.m2 ? h('div', { fontSize: 22, marginTop: 2 }, d.m2) : null,
+      cifra ? h('div', { fontSize: cifra.length <= 11 ? 34 : 28, fontWeight: 700, letterSpacing: -0.5, marginTop: 18, lineHeight: 1.1 }, cifra) : null,
+      porMes ? h('div', { fontSize: 18, color: K.suave }, porMes) : null,
+      d.precio && d.estimado ? h('div', { fontSize: 18, color: K.suave, marginTop: 2 }, '(estimado)') : null),
     pie());
 }
 
 export function imagenProyecto(proyecto, unidades) {
   const d = T.datosProyecto(proyecto, unidades);
   const svg = elevacion(proyecto, unidades, { lado: 'frente', ...DIBUJO });
-  return h('div', { ...LIENZO, padding: '48px 56px' },
-    columnaDibujo('frente', svg),
-    h('div', COLUMNA_TEXTO,
-      // "ROSSO" entra a 64 px; "Altamira Tres Cruces" va más chico, en dos líneas.
-      h('div', { fontSize: d.nombre.length <= 12 ? 64 : 52, fontWeight: 700, letterSpacing: -1.5, lineHeight: 1.08 }, d.nombre),
-      d.firma ? h('div', { fontSize: 30, color: K.suave, marginTop: 6 }, d.firma) : null,
-      d.lugar ? h('div', { fontSize: 24, color: K.suave, lineHeight: 1.35, marginTop: 28 }, d.lugar) : null,
-      d.entrega ? h('div', { fontSize: 24, marginTop: 8 }, d.entrega) : null,
-      d.contador.length ? h('div', { flexDirection: 'column', gap: 10, marginTop: 30 },
-        d.contador.map(c => h('div', { alignItems: 'center', gap: 12, fontSize: 30, fontWeight: 600 }, punto(c.color, 16), c.texto))) : null),
+  const n = d.nombre.length;
+  return h('div', LIENZO,
+    zonaDibujo(svg),
+    h('div', BANDA_IZQ,
+      // "ROSSO" entra a 56 px; "BRUSCO" a 48; "Altamira Tres Cruces" va en dos líneas.
+      h('div', { fontSize: n <= 5 ? 56 : n <= 8 ? 48 : 34, fontWeight: 700, letterSpacing: -1, lineHeight: 1.08 }, d.nombre),
+      d.firma ? h('div', { fontSize: 20, color: K.suave, marginTop: 6 }, d.firma) : null,
+      rotuloVista('frente')),
+    h('div', BANDA_DER,
+      d.lugar ? h('div', { fontSize: 17, color: K.suave, lineHeight: 1.35 }, d.lugar) : null,
+      d.entrega ? h('div', { fontSize: 17, marginTop: 6 }, d.entrega) : null,
+      d.contador.length ? h('div', { flexDirection: 'column', gap: 8, marginTop: 22 },
+        d.contador.map(c => h('div', { alignItems: 'center', gap: 10, fontSize: 22, fontWeight: 600 }, punto(c.color, 13), c.texto))) : null),
     pie());
+}
+
+// El recorte central que muestra la miniatura de WhatsApp, para revisarlo:
+// la misma composición corrida 285 px, en un lienzo de 630×630.
+export function recorteCentral(elemento) {
+  return h('div', { width: LADO_ZONA, height: LADO_ZONA, position: 'relative', overflow: 'hidden', background: K.fondo },
+    h('div', { position: 'absolute', left: -BANDA, top: 0, width: ANCHO_IMG, height: ALTO_IMG }, elemento));
 }
 
 export function imagenMarca() {
@@ -283,7 +327,7 @@ export function imagenMarca() {
     h('div', { fontSize: 36, color: K.suave, marginTop: 18 }, 'Visor 3D de disponibilidad'));
 }
 
-export async function png(elemento) {
-  const r = new ImageResponse(elemento, { width: ANCHO_IMG, height: ALTO_IMG, fonts: FUENTES });
+export async function png(elemento, ancho = ANCHO_IMG, alto = ALTO_IMG) {
+  const r = new ImageResponse(elemento, { width: ancho, height: alto, fonts: FUENTES });
   return Buffer.from(await r.arrayBuffer());
 }
