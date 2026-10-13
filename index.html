@@ -5404,31 +5404,37 @@
         mediaTipologias: mediaTipologias || [],
         hitosObra: hitosObra || [],
         fotosObra: fotosObra || [],
-        unidades: unidades.map(r => {
-          // Transición: antes de supabase-brusco-alquiler.sql las de alquiler
-          // venían como estado = 'sin_dato' + geom.operacion = 'alquiler' +
-          // geom.precio_alquiler_uyu. Se normalizan acá, en un solo lugar, para
-          // que el resto del visor solo conozca estado = 'alquiler'. Se puede
-          // sacar cuando ninguna unidad quede con geom.operacion = 'alquiler'
-          // y estado 'sin_dato'.
-          const alquilerViejo = r.estado === 'sin_dato' && !!r.geom && r.geom.operacion === 'alquiler';
-          const precioAlquiler = r.precio_alquiler != null ? r.precio_alquiler
-            : alquilerViejo ? r.geom.precio_alquiler_uyu : null;
-          return {
-            id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
-            // m2/precio null (unidad cargada sin dato todavía, p.ej. BRUSCO) quedan
-            // en null — Number(null) daría 0 y se mostraría "0 m²" / "$0".
-            dorms: r.dorms, m2: r.m2 != null ? Number(r.m2) : null, orient: r.orientacion,
-            precio: r.precio != null ? Number(r.precio) : null,
-            // UYU por mes, siempre UYU (no la moneda del proyecto).
-            precioAlquiler: precioAlquiler != null ? Number(precioAlquiler) : null,
-            estimado: r.estimado, estado: alquilerViejo ? 'alquiler' : r.estado,
-            m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
-            cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
-            geom: r.geom || null,
-            typologyId: r.typology_id || null,
-          };
-        }),
+        unidades: unidades.map(normalizarUnidad),
+      };
+    }
+
+    // Una fila de public_units → la unidad que usa el visor. Función con
+    // nombre a propósito: scripts/generar-compartido.mjs la copia a
+    // api/_compartido.js para que la vista previa al compartir lea los
+    // estados igual que el visor.
+    function normalizarUnidad(r) {
+      // Transición: antes de supabase-brusco-alquiler.sql las de alquiler
+      // venían como estado = 'sin_dato' + geom.operacion = 'alquiler' +
+      // geom.precio_alquiler_uyu. Se normalizan acá, en un solo lugar, para
+      // que el resto del visor solo conozca estado = 'alquiler'. Se puede
+      // sacar cuando ninguna unidad quede con geom.operacion = 'alquiler'
+      // y estado 'sin_dato'.
+      const alquilerViejo = r.estado === 'sin_dato' && !!r.geom && r.geom.operacion === 'alquiler';
+      const precioAlquiler = r.precio_alquiler != null ? r.precio_alquiler
+        : alquilerViejo ? r.geom.precio_alquiler_uyu : null;
+      return {
+        id: r.id, piso: r.piso, pos: r.pos, col: Number(r.col), frente: r.frente,
+        // m2/precio null (unidad cargada sin dato todavía, p.ej. BRUSCO) quedan
+        // en null — Number(null) daría 0 y se mostraría "0 m²" / "$0".
+        dorms: r.dorms, m2: r.m2 != null ? Number(r.m2) : null, orient: r.orientacion,
+        precio: r.precio != null ? Number(r.precio) : null,
+        // UYU por mes, siempre UYU (no la moneda del proyecto).
+        precioAlquiler: precioAlquiler != null ? Number(precioAlquiler) : null,
+        estimado: r.estimado, estado: alquilerViejo ? 'alquiler' : r.estado,
+        m2Terraza: r.m2_terraza != null ? Number(r.m2_terraza) : null,
+        cocheraPrecio: r.cochera_precio != null ? Number(r.cochera_precio) : null,
+        geom: r.geom || null,
+        typologyId: r.typology_id || null,
       };
     }
 

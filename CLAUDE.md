@@ -33,9 +33,11 @@ administrar accesos); este archivo es la arquitectura.
 
 Un sitio estático sin build: una visualización 3D navegable de la disponibilidad de
 unidades de un edificio residencial (Three.js **r128** desde cdnjs), con Supabase como
-backend. No hay bundler, package.json, tests ni linter (solo el control del flujo de
-selección de unidad, ver "Correr / probar"). Se despliega en Vercel en
-`https://armadoporcota.vercel.app/`, sirviendo la raíz del repo tal cual.
+backend. No hay bundler, package.json, tests ni linter (solo los controles del
+pre-commit, ver "Correr / probar"). Se despliega en Vercel en
+`https://armadoporcota.vercel.app/`, sirviendo la raíz del repo tal cual (menos lo que
+excluye `.vercelignore`), más una función para la vista previa al compartir (ver
+"Vista previa al compartir").
 
 Empezó como un solo edificio (ROSSO) y ahora es una **plataforma multi-tenant**: un
 mismo proyecto de Supabase aloja varios edificios (`projects`) de varios clientes
@@ -56,19 +58,34 @@ Archivos:
   `gltf-transform optimize`) usados como utilería en la calle.
 - `README.md` — runbook: alta de edificio paso a paso, acceso de plataforma, revocar
   accesos.
+- `vercel.json` — sin build ni framework (`framework: null`, `buildCommand: ""`,
+  `outputDirectory: "."`) + la ruta de los crawlers a `api/compartir`.
+- `.vercelignore` — no se publican `CLAUDE.md`, `*.sql`, `scripts/`, `datos/`,
+  `.githooks/` ni `node_modules/`.
+- `api/compartir.js` — HTML con las etiquetas Open Graph para los crawlers.
+  `api/_compartido.js` — **generado** por `scripts/generar-compartido.mjs`, no se edita a
+  mano (el prefijo `_` hace que Vercel no lo publique como función).
 
 ## Correr / probar
 
 No hay dev server ni build. Abrir `index.html` directo o servir la carpeta
 (`npx serve .`). Elegir edificio con `?p=<slug>` (por defecto `rosso`). Deploy = push a
-`main` (Vercel).
+`main` (Vercel). Un push a otra rama arma un preview, que tiene Deployment Protection:
+para probarlo con curl hace falta el header `x-vercel-protection-bypass` (Settings →
+Deployment Protection → Protection Bypass for Automation).
 
-`node scripts/control-seleccion.mjs` revisa que `index.html` siga teniendo armado el
-flujo de selección de unidad (ver "Selección de unidad: comportamiento protegido"). Lo
-corre el hook `.githooks/pre-commit` en cada commit que toque `index.html`, y frena el
-commit si falta algo. Se activa una vez por clon con `git config core.hooksPath .githooks`
-(ya activo en la máquina de Sebastian). Controla el código, no cómo se ve: igual hay que
-probar en el navegador.
+El hook `.githooks/pre-commit` corre dos controles sobre las versiones en stage. Se
+activa una vez por clon con `git config core.hooksPath .githooks` (ya activo en la
+máquina de Sebastian).
+
+- `node scripts/control-seleccion.mjs` revisa que `index.html` siga teniendo armado el
+  flujo de selección de unidad (ver "Selección de unidad: comportamiento protegido"). Corre
+  en cada commit que toque `index.html`. Controla el código, no cómo se ve: igual hay que
+  probar en el navegador.
+- `node scripts/generar-compartido.mjs ... --control` revisa que `api/_compartido.js`
+  siga siendo lo que se genera desde `index.html` y `supabase-config.js`. Corre en cada
+  commit que toque alguno de los tres; si quedó desactualizado lo regenera y frena el
+  commit (hay que agregarlo y volver a commitear).
 
 ## Modelo de datos en Supabase (multi-tenant)
 
@@ -132,8 +149,10 @@ Secuencia de carga: un overlay `#carga` está visible desde el primer paint →
 unidades, settings, amenities, renders del proyecto, media de tipologías, el huso
 horario del país, e hitos/fotos de obra. Cada consulta tiene un timeout de 15s vía
 `abortSignal`. Error de red → el overlay muestra "Reintentar"; slug inexistente o no
-publicado → mensaje amable sin reintentar. Si sale bien, `iniciar(proyecto, settings,
-UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra)` arma todo.
+publicado → mensaje amable sin reintentar. Cada fila de unidad pasa por
+`normalizarUnidad(r)` (que también usa la vista previa al compartir). Si sale bien,
+`iniciar(proyecto, settings, UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra)` arma
+todo.
 
 El script está organizado en secciones numeradas:
 
@@ -449,6 +468,58 @@ El riel de pisos se arma desde `proyecto.pisos`. Los niveles sin unidades se mue
 como una fila deshabilitada "Sin unidades" (p.ej. el piso de amenities de Altamira) en
 vez de desaparecer. La fila "PB" aparece si `tiene_pb` es `true` o `NULL`; `false` la
 oculta.
+
+## Vista previa al compartir (Open Graph)
+
+Cuando se comparte un link del visor por WhatsApp, Facebook, LinkedIn, etc., el crawler
+recibe un HTML con las etiquetas OG de la unidad (`?u=`) o del proyecto. Los visitantes
+no pasan por ningún código nuevo: reciben el `index.html` estático de siempre.
+
+- **Ruteo** (`vercel.json`): una sola ruta, `^/(index\.html)?$` con `has` sobre el
+  `user-agent` (WhatsApp/, facebookexternalhit, Facebot, Twitterbot, LinkedInBot,
+  TelegramBot, Slackbot, Discordbot, SkypeUriPreview, Pinterestbot, redditbot, Embedly,
+  Cardyb, vkShare, Iframely) → `api/compartir`. Solo tokens que no aparecen en el UA de
+  un navegador ni de un navegador interno de una app (por eso `Pinterestbot` y no
+  `Pinterest`): un visitante confundido con un bot no vería el visor. **vercel.json usa
+  routes (formato legacy). No agregar rewrites/redirects/headers/cleanUrls; si hacen
+  falta, migrar a routes o pasar a Middleware.** `rewrites` no sirve para esto: el
+  filesystem le gana (`/` sirve `index.html` aunque el header coincida; probado en
+  preview el 2026-10-13). Un Middleware también anda, pero suma ~100 ms y una invocación
+  a cada visita.
+- **`api/compartir.js`**: Node sin dependencias. Lee `public_projects` + `public_units`
+  por la REST de Supabase (timeout de 4 s) y nunca devuelve 500: unidad inexistente →
+  tarjeta del proyecto; falla de red → tarjeta neutra ("Disponibilidad navegable", con
+  caché de 60 s en vez de 600). Pone sus propios headers (`Cache-Control: s-maxage=600,
+  stale-while-revalidate`).
+- **Tarjeta de unidad**: `og:title` = "Unidad `numeroDe(u)` · `proyecto.nombre`";
+  `og:description` = tipología · m² · orientación · precio · estado, cada dato omitido si
+  falta. Mismas reglas que el visor: tipología de `tipologiaDe()` o dormitorios;
+  orientación = `units.orientacion` tal cual, o "Orientación norte y este" /
+  "Interior de manzana" solo si sale de `calcularFachadas()` (BRUSCO); precio de
+  `formatearPrecio()` ("US$ 210.000"), alquiler "UYU 55.000 / mes", sin precio en las
+  vendidas; estado con los nombres de `ESTADOS` ("En venta" si el proyecto tiene
+  alquiler), y `sin_dato` no se nombra.
+- **Tarjeta del proyecto** (sin `?u=` o id inexistente): dirección, ciudad · Entrega ·
+  disponibles (o "en venta" + "en alquiler"), los totales solo con `muestra_totales`.
+- `og:url` y el link visible del HTML van siempre con `?p=` (también ROSSO), sin `src`
+  ni `kiosco`, como `linkDe()`. `og:image` apunta a `/api/og?p=…&u=…` (Fase 2,
+  todavía no existe).
+- **`api/_compartido.js`** se genera desde `index.html` (`DEFAULT_SLUG`, `ESTADOS`,
+  `fmtAlquiler`, `aspectoDe`, `normalizarUnidad`, `numeroDe`, `tipologiaDe`, `torreDe`,
+  `etiquetaDorms`, `formatoMoneda`, `formatearPrecio`, `formatearM2`, `unirConY`,
+  `areaConSigno`, `calcularFachadas` + sus constantes) y `supabase-config.js` (URL y anon
+  key). Las funciones de la lista tienen que seguir siendo puras y con ese nombre; si
+  cambia alguna, el pre-commit lo avisa.
+- Probar: `curl -A "WhatsApp/2.23" "<url>/?p=brusco&u=303"` devuelve el HTML de la
+  tarjeta; sin `-A` tiene que devolver el visor.
+
+## Pendientes (fuera de alcance por ahora)
+
+- En producción `public_projects` no tiene `tiene_pb`: la migración `pisos` parece no
+  estar aplicada (el visor no falla porque pide `select('*')`, pero la fila PB nunca se
+  puede ocultar).
+- `supabase-js` se carga como `@supabase/supabase-js@2` desde jsdelivr, sin versión
+  fija.
 
 ## Dar de alta un edificio nuevo
 

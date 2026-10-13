@@ -5,7 +5,7 @@
   "outputDirectory": ".",
   "routes": [
     {
-      "src": "^/$",
+      "src": "^/(index\\.html)?$",
       "has": [
         {
           "type": "header",
