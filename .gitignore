@@ -1,0 +1,3 @@
+node_modules/
+# PNG de muestra de /api/og (node scripts/muestras-og.mjs): para revisar, no se commitean.
+muestras-og/

@@ -159,6 +159,21 @@ function calcularFachadas(unidades, geometria) {
   return res;
 }
 
+function dimensionesDe(geo) {
+  const ANCHO = geo.ancho ?? 5.4, PROF = geo.prof ?? 6.4, ALTO = geo.alto ?? 3,
+    LOSA = geo.losa_espesor ?? 0.32, PASO = ALTO + LOSA;
+  const SEP_X = geo.sep_x ?? (ANCHO + 0.3), SEP_Z = geo.sep_z ?? ((PROF + 2.0) / 2);
+  return { ANCHO, PROF, ALTO, LOSA, PASO, SEP_X, SEP_Z };
+}
+
+const COLORES = {
+  fondo: '#F7F8F7',
+  tinta: '#17201E',
+  suave: '#6B7471',
+  linea: 'rgba(20, 40, 35, .10)',
+  verde: '#2B6656',
+};
+
 module.exports = {
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
@@ -177,4 +192,6 @@ module.exports = {
   unirConY,
   areaConSigno,
   calcularFachadas,
+  dimensionesDe,
+  COLORES,
 };

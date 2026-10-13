@@ -53,6 +53,24 @@ export function generar(html, cfg) {
     return trozo(i, hastaCierre(i, '{', '}'));
   };
 
+  // Medidas por defecto de la torre (las de ROSSO), que en el visor viven
+  // dentro de iniciar(): se copian las dos sentencias tal cual y se envuelven
+  // en una función de `geo` (= proyecto.geometria).
+  const iDim = posicion('const ANCHO = geo.ancho');
+  const finDim = html.indexOf(';', posicion('const SEP_X = geo.sep_x')) + 1;
+  const dimensiones = 'function dimensionesDe(geo) {\n  ' +
+    trozo(iDim, finDim).split('\n').join('\n  ') +
+    '\n  return { ANCHO, PROF, ALTO, LOSA, PASO, SEP_X, SEP_Z };\n}';
+
+  // Tokens de color de :root (la paleta del visor) para las imágenes.
+  const raizCss = html.slice(posicion(':root {'), hastaCierre(posicion(':root {'), '{', '}'));
+  const TOKENS = ['fondo', 'tinta', 'suave', 'linea', 'verde'];
+  const colores = 'const COLORES = {\n' + TOKENS.map(t => {
+    const m = raizCss.match(new RegExp('--' + t + ':\\s*([^;]+);'));
+    if (!m) throw new Error('No encontré --' + t + ' en :root de index.html');
+    return '  ' + t + ": '" + m[1].trim() + "',";
+  }).join('\n') + '\n};';
+
   const iSlug = posicion("const DEFAULT_SLUG = '");
   const iEstados = posicion('const ESTADOS = {');
   const iAlquiler = posicion('const fmtAlquiler = new Intl.NumberFormat(');
@@ -72,9 +90,11 @@ export function generar(html, cfg) {
     trozo(iAlquiler, hastaCierre(iAlquiler, '(', ')')) + ';',
     ...FUNCIONES.map(funcion),
     trozo(iFachadas, finFachadas),
+    dimensiones,
+    colores,
   ];
   const nombres = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'DEFAULT_SLUG', 'ESTADOS', 'fmtAlquiler', ...FUNCIONES,
-    'calcularFachadas'];
+    'calcularFachadas', 'dimensionesDe', 'COLORES'];
   return [
     '// GENERADO por scripts/generar-compartido.mjs desde index.html y',
     '// supabase-config.js. No editar a mano: el pre-commit lo regenera y frena',

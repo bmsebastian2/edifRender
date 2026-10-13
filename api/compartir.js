@@ -4,16 +4,17 @@
 // nunca pasa por esta función. Devuelve un HTML mínimo con las etiquetas OG
 // de la unidad (?u=) o del proyecto, y un link visible al visor.
 //
-// Nunca un 500: unidad inexistente → tarjeta del proyecto; Supabase caído o
-// cualquier error → tarjeta neutra (sin el proyecto no hay nombre que poner).
-// Lo que se comparte con el visor (estados, número, tipología, formatos,
-// fachadas) viene de _compartido.js, generado desde index.html.
+// Nunca un 500: unidad inexistente → tarjeta del proyecto; slug inexistente,
+// Supabase caído o cualquier error → tarjeta neutra de Cota. Los datos de
+// cada tarjeta salen de _tarjeta.js (los mismos que dibuja api/og.mjs).
 'use strict';
 
-let C = null;
-try { C = require('./_compartido.js'); } catch (e) { console.error('compartir: sin _compartido.js', e); }
+let C = null, T = null;
+try {
+  C = require('./_compartido.js');
+  T = require('./_tarjeta.js');
+} catch (e) { console.error('compartir: sin _compartido.js / _tarjeta.js', e); }
 
-const TIMEOUT_MS = 4000;
 const CACHE_OK = 's-maxage=600, stale-while-revalidate';
 // Una falla de Supabase no se guarda 10 minutos en la CDN.
 const CACHE_FALLA = 's-maxage=60, stale-while-revalidate';
@@ -28,8 +29,12 @@ module.exports = async (req, res) => {
 
   let tarjeta, cache = CACHE_OK;
   try {
-    if (!C) throw new Error('sin _compartido.js');
-    tarjeta = await armarTarjeta(origen, slug, pedida);
+    if (!T) throw new Error('sin _tarjeta.js');
+    const datos = await T.cargar(slug);
+    const u = datos && T.buscarUnidad(datos.unidades, pedida);
+    tarjeta = !datos ? tarjetaNeutra(origen, slug, null)
+      : u ? tarjetaUnidad(origen, datos.proyecto, datos.unidades, u)
+      : tarjetaProyecto(origen, datos.proyecto, datos.unidades);
   } catch (e) {
     console.error('compartir:', slug, pedida, e && e.message);
     tarjeta = tarjetaNeutra(origen, slug, pedida);
@@ -41,47 +46,15 @@ module.exports = async (req, res) => {
   res.end(pagina(tarjeta));
 };
 
-async function armarTarjeta(origen, slug, pedida) {
-  // Un slug con caracteres raros no existe: tarjeta neutra sin consultar.
-  if (!/^[a-z0-9-]+$/i.test(slug)) return tarjetaNeutra(origen, slug, null);
-  const signal = AbortSignal.timeout(TIMEOUT_MS);
-  const [proyecto] = await leer('public_projects?slug=eq.' + encodeURIComponent(slug) + '&select=*&limit=1', signal);
-  if (!proyecto) return tarjetaNeutra(origen, slug, null);
-  const unidades = (await leer('public_units?project_id=eq.' + proyecto.id + '&select=*&order=id', signal))
-    .map(C.normalizarUnidad);
-
-  // Igual que el visor: ?u= se compara como texto contra el id.
-  const u = pedida ? unidades.find(x => String(x.id) === pedida) : null;
-  return u ? tarjetaUnidad(origen, proyecto, unidades, u) : tarjetaProyecto(origen, proyecto, unidades);
-}
-
-async function leer(consulta, signal) {
-  const r = await fetch(C.SUPABASE_URL + '/rest/v1/' + consulta, {
-    signal, headers: { apikey: C.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + C.SUPABASE_ANON_KEY },
-  });
-  if (!r.ok) throw new Error(consulta.split('?')[0] + ': HTTP ' + r.status);
-  return r.json();
-}
-
-// "2 dormitorios · 78 m² · Orientación norte · US$ 210.000 · Disponible",
-// cada dato omitido si falta. Las reglas son las de pintarResumenUnidad(),
-// textoOrientacion() y nombreEstado() del visor.
+// "2 dormitorios · 78 m² · Orientación norte · US$ 210.000 (estimado) · Disponible",
+// cada dato omitido si falta.
 function tarjetaUnidad(origen, proyecto, unidades, u) {
-  const hayAlquiler = unidades.some(x => x.estado === 'alquiler');
-  const datos = [
-    C.tipologiaDe(u) || (u.dorms != null ? C.etiquetaDorms(u.dorms) : null),
-    u.m2 != null ? C.formatearM2(u.m2, proyecto.locale) + ' m²' : null,
-    orientacionDe(proyecto, unidades, u),
-    precioDe(proyecto, u),
-    // sin_dato no se nombra: "Sin estado público" en una tarjeta confunde.
-    u.estado in C.ESTADOS && u.estado !== 'sin_dato'
-      ? (u.estado === 'disponible' && hayAlquiler ? 'En venta' : C.ESTADOS[u.estado].nombre)
-      : null,
-  ].filter(Boolean);
-  const titulo = 'Unidad ' + C.numeroDe(u) + ' · ' + proyecto.nombre;
+  const d = T.datosUnidad(proyecto, unidades, u);
+  const titulo = 'Unidad ' + d.numero + ' · ' + proyecto.nombre;
   return {
     titulo,
-    descripcion: datos.join(' · '),
+    descripcion: [d.tipologia, d.m2, d.orientacion, T.precioConMarca(d), d.estado && d.estado.nombre]
+      .filter(Boolean).join(' · '),
     url: linkVisor(origen, proyecto.slug, u.id),
     imagen: origen + '/api/og?p=' + encodeURIComponent(proyecto.slug) + '&u=' + u.id,
     imagenAlt: titulo + ' resaltada en la fachada del edificio',
@@ -90,43 +63,12 @@ function tarjetaUnidad(origen, proyecto, unidades, u) {
   };
 }
 
-// units.orientacion (texto libre: "Frente", "Esquina Paullier") tal cual. Si
-// no hay, los cardinales calculados por calcularFachadas(), que el visor solo
-// arma con lat/lon/norte_grados (tieneNorte()) — hoy solo BRUSCO.
-function orientacionDe(proyecto, unidades, u) {
-  if (u.orient) return u.orient;
-  const geo = proyecto.geometria || {};
-  if (proyecto.lat == null || proyecto.lon == null || geo.norte_grados == null) return null;
-  const fs = C.calcularFachadas(unidades, geo);
-  const f = fs && fs.get(u.id);
-  if (!f) return null;
-  return f.length ? 'Orientación ' + C.unirConY(f.map(x => x.cardinal)) : 'Interior de manzana';
-}
-
-// Alquiler: solo el precio por mes en UYU. Venta: con la moneda y el locale
-// del proyecto, nunca en las vendidas.
-function precioDe(proyecto, u) {
-  if (u.estado === 'alquiler') return u.precioAlquiler != null ? C.fmtAlquiler.format(u.precioAlquiler) + ' / mes' : null;
-  if (u.precio == null || u.estado === 'vendido' || !proyecto.moneda) return null;
-  return C.formatearPrecio(u.precio, proyecto.moneda, proyecto.locale);
-}
-
-// Sin ?u= o con un id que no existe: dirección · entrega · disponibilidad,
-// como la ficha del visor (los totales solo con muestra_totales).
+// Sin ?u= o con un id que no existe: dirección · entrega · contador.
 function tarjetaProyecto(origen, proyecto, unidades) {
-  const venta = unidades.filter(u => u.estado === 'disponible').length;
-  const alquiler = unidades.filter(u => u.estado === 'alquiler').length;
-  const datos = [
-    [proyecto.direccion, proyecto.ciudad].filter(Boolean).join(', '),
-    proyecto.entrega ? 'Entrega ' + proyecto.entrega : null,
-  ];
-  if (proyecto.muestra_totales) {
-    if (venta) datos.push(venta + ' ' + (alquiler ? 'en venta' : C.ESTADOS.disponible.plural));
-    if (alquiler) datos.push(alquiler + ' ' + C.ESTADOS.alquiler.plural);
-  }
+  const d = T.datosProyecto(proyecto, unidades);
   return {
     titulo: proyecto.nombre,
-    descripcion: datos.filter(Boolean).join(' · '),
+    descripcion: [d.lugar, d.entrega, ...d.contador.map(c => c.texto)].filter(Boolean).join(' · '),
     url: linkVisor(origen, proyecto.slug, null),
     imagen: origen + '/api/og?p=' + encodeURIComponent(proyecto.slug),
     imagenAlt: 'Fachada de ' + proyecto.nombre,
@@ -135,13 +77,16 @@ function tarjetaProyecto(origen, proyecto, unidades) {
   };
 }
 
+// Slug inexistente o falla: la tarjeta de Cota, con su imagen de marca.
 function tarjetaNeutra(origen, slug, pedida) {
+  const valido = /^[a-z0-9-]+$/i.test(slug);
   return {
-    titulo: 'Disponibilidad navegable',
-    descripcion: null,
-    url: linkVisor(origen, /^[a-z0-9-]+$/i.test(slug) ? slug : null, pedida && /^\d+$/.test(pedida) ? pedida : null),
-    imagen: null,
-    locale: null,
+    titulo: 'Cota · Visor 3D de disponibilidad',
+    descripcion: 'Recorré el edificio en 3D y mirá qué unidades están disponibles, piso por piso.',
+    url: linkVisor(origen, valido ? slug : null, valido && pedida && /^\d+$/.test(pedida) ? pedida : null),
+    imagen: origen + '/api/og?marca=1',
+    imagenAlt: 'Cota · Visor 3D de disponibilidad',
+    locale: 'es-UY',
     textoLink: 'Ver en el visor 3D',
   };
 }

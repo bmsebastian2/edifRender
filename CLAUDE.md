@@ -33,11 +33,11 @@ administrar accesos); este archivo es la arquitectura.
 
 Un sitio estático sin build: una visualización 3D navegable de la disponibilidad de
 unidades de un edificio residencial (Three.js **r128** desde cdnjs), con Supabase como
-backend. No hay bundler, package.json, tests ni linter (solo los controles del
-pre-commit, ver "Correr / probar"). Se despliega en Vercel en
-`https://armadoporcota.vercel.app/`, sirviendo la raíz del repo tal cual (menos lo que
-excluye `.vercelignore`), más una función para la vista previa al compartir (ver
-"Vista previa al compartir").
+backend. No hay bundler, tests ni linter (solo los controles del pre-commit, ver
+"Correr / probar"); el `package.json` existe solo para la dependencia de `api/og.mjs`
+y no hay build. Se despliega en Vercel en `https://armadoporcota.vercel.app/`,
+sirviendo la raíz del repo tal cual (menos lo que excluye `.vercelignore`), más dos
+funciones para la vista previa al compartir (ver "Vista previa al compartir").
 
 Empezó como un solo edificio (ROSSO) y ahora es una **plataforma multi-tenant**: un
 mismo proyecto de Supabase aloja varios edificios (`projects`) de varios clientes
@@ -63,8 +63,14 @@ Archivos:
 - `.vercelignore` — no se publican `CLAUDE.md`, `*.sql`, `scripts/`, `datos/`,
   `.githooks/` ni `node_modules/`.
 - `api/compartir.js` — HTML con las etiquetas Open Graph para los crawlers.
-  `api/_compartido.js` — **generado** por `scripts/generar-compartido.mjs`, no se edita a
-  mano (el prefijo `_` hace que Vercel no lo publique como función).
+  `api/og.mjs` — la imagen de esa tarjeta (PNG 1200×630). Los archivos con prefijo `_`
+  no son funciones: `api/_tarjeta.js` (qué datos muestra cada tarjeta, escrito a mano),
+  `api/_og-dibujo.mjs` (la elevación y la composición), `api/_fuentes/` (Inter
+  subseteada), `api/_marca-cota.png` (imagen de marca, generada por
+  `scripts/muestras-og.mjs`) y `api/_compartido.js` — **generado** por
+  `scripts/generar-compartido.mjs`, no se edita a mano.
+- `package.json` + `package-lock.json` + `.npmrc` — solo `@vercel/og`, versión exacta;
+  `.npmrc` (`omit=optional`) deja afuera `sharp` (ver "Vista previa al compartir").
 
 ## Correr / probar
 
@@ -487,31 +493,61 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
   preview el 2026-10-13). Un Middleware también anda, pero suma ~100 ms y una invocación
   a cada visita.
 - **`api/compartir.js`**: Node sin dependencias. Lee `public_projects` + `public_units`
-  por la REST de Supabase (timeout de 4 s) y nunca devuelve 500: unidad inexistente →
-  tarjeta del proyecto; falla de red → tarjeta neutra ("Disponibilidad navegable", con
-  caché de 60 s en vez de 600). Pone sus propios headers (`Cache-Control: s-maxage=600,
-  stale-while-revalidate`).
+  por la REST de Supabase (`_tarjeta.js`, timeout de 4 s) y nunca devuelve 500: unidad
+  inexistente → tarjeta del proyecto; slug inexistente o falla de red → tarjeta neutra
+  ("Cota · Visor 3D de disponibilidad", imagen `/api/og?marca=1`; ante una falla, caché
+  de 60 s en vez de 600). Pone sus propios headers (`Cache-Control: s-maxage=600,
+  stale-while-revalidate`; al cliente le llega `public, max-age=0, must-revalidate`
+  porque la CDN de Vercel consume el `s-maxage`).
 - **Tarjeta de unidad**: `og:title` = "Unidad `numeroDe(u)` · `proyecto.nombre`";
   `og:description` = tipología · m² · orientación · precio · estado, cada dato omitido si
   falta. Mismas reglas que el visor: tipología de `tipologiaDe()` o dormitorios;
   orientación = `units.orientacion` tal cual, o "Orientación norte y este" /
   "Interior de manzana" solo si sale de `calcularFachadas()` (BRUSCO); precio de
-  `formatearPrecio()` ("US$ 210.000"), alquiler "UYU 55.000 / mes", sin precio en las
-  vendidas; estado con los nombres de `ESTADOS` ("En venta" si el proyecto tiene
-  alquiler), y `sin_dato` no se nombra.
+  `formatearPrecio()` ("US$ 210.000"), con "(estimado)" si `units.estimado`, alquiler
+  "UYU 55.000 / mes", sin precio en las vendidas; estado con los nombres de `ESTADOS`
+  ("En venta" si el proyecto tiene alquiler), y `sin_dato` no se nombra.
 - **Tarjeta del proyecto** (sin `?u=` o id inexistente): dirección, ciudad · Entrega ·
-  disponibles (o "en venta" + "en alquiler"), los totales solo con `muestra_totales`.
+  contador (disponibles, o "en venta" + "en alquiler"). El contador sale solo con
+  `muestra_totales` y si `CONTADOR_EN_TARJETA` (en `_tarjeta.js`, por slug, default
+  `true`) no lo apaga.
 - `og:url` y el link visible del HTML van siempre con `?p=` (también ROSSO), sin `src`
-  ni `kiosco`, como `linkDe()`. `og:image` apunta a `/api/og?p=…&u=…` (Fase 2,
-  todavía no existe).
+  ni `kiosco`, como `linkDe()`.
+- **`api/og.mjs`** (`?p=&u=` / `?p=` / `?marca=1`): con `@vercel/og` en Node, sin JSX.
+  - Unidad: elevación del lado que le queda más cerca (`ladoDe()`: frente o
+    contrafrente, con rótulo "Vista frente" / "Vista contrafrente"), la unidad en el color
+    de su estado con borde y el resto en gris tenue; al costado número, torre/piso,
+    estado, tipología · m² y precio (con "(estimado)"). Proyecto: la fachada del frente
+    con cada unidad en el color de su estado (opacidad del 3D, mezclada a opaco), nombre
+    partido en "by", dirección, entrega y contador. Pie "armado por Cota" en gris.
+  - La elevación (`elevacion()` en `_og-dibujo.mjs`) proyecta cada contorno (o la caja
+    `col`/`frente` de ROSSO, con `dimensionesDe()`) sobre el plano de la fachada según
+    `frente_eje` (frente en −Z: +X a la izquierda; BRUSCO: B a la izquierda, A a la
+    derecha; el contrafrente sale espejado). Por piso dibuja solo el tramo visible de cada
+    unidad; los restos de menos de 1,6 m van en gris neutro. PB y niveles sin unidades van
+    como volumen neutro.
+  - Slug inexistente → marca; cualquier falla → marca con `s-maxage=60`. La marca es
+    `api/_marca-cota.png`, un PNG fijo: servirla no puede fallar. Solo `node:fs` se
+    importa arriba; `@vercel/og`, fuentes y datos se cargan dentro del `try`.
+  - **`@vercel/og` fijo en 0.11.1**: la 1.0.3 revienta al importarse en ESM (harfbuzzjs
+    empaquetado usa `require`/`__dirname`). Antes de subir de versión, correr
+    `node scripts/muestras-og.mjs`.
+  - `.npmrc` con `omit=optional`: sin él se instala `sharp` (dependencia opcional) y
+    `@vercel/og` lo usa en lugar de `resvg.wasm`: función mucho más pesada y muestras
+    locales distintas de producción.
+  - Tamaño: lo nuestro (código + Inter 400/600/700 + marca) ~230 KB; la librería suma
+    ~2,4 MB (casi todo `resvg.wasm`).
 - **`api/_compartido.js`** se genera desde `index.html` (`DEFAULT_SLUG`, `ESTADOS`,
   `fmtAlquiler`, `aspectoDe`, `normalizarUnidad`, `numeroDe`, `tipologiaDe`, `torreDe`,
   `etiquetaDorms`, `formatoMoneda`, `formatearPrecio`, `formatearM2`, `unirConY`,
-  `areaConSigno`, `calcularFachadas` + sus constantes) y `supabase-config.js` (URL y anon
-  key). Las funciones de la lista tienen que seguir siendo puras y con ese nombre; si
-  cambia alguna, el pre-commit lo avisa.
+  `areaConSigno`, `calcularFachadas` + sus constantes, las medidas por defecto de la
+  torre como `dimensionesDe(geo)` y los colores de `:root` como `COLORES`) y
+  `supabase-config.js` (URL y anon key). Las funciones de la lista tienen que seguir
+  siendo puras y con ese nombre; si cambia alguna, el pre-commit lo avisa.
 - Probar: `curl -A "WhatsApp/2.23" "<url>/?p=brusco&u=303"` devuelve el HTML de la
-  tarjeta; sin `-A` tiene que devolver el visor.
+  tarjeta; sin `-A` tiene que devolver el visor. `node scripts/muestras-og.mjs` deja PNG
+  de muestra de los casos típicos en `muestras-og/` (ignorada por git) y regenera
+  `api/_marca-cota.png`.
 
 ## Pendientes (fuera de alcance por ahora)
 
@@ -520,6 +556,9 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
   puede ocultar).
 - `supabase-js` se carga como `@supabase/supabase-js@2` desde jsdelivr, sin versión
   fija.
+- El contador de la tarjeta del proyecto se configura con `CONTADOR_EN_TARJETA` en
+  `api/_tarjeta.js` (por slug). Pasarlo a una columna de `settings` / `public_settings`
+  necesita migración.
 
 ## Dar de alta un edificio nuevo
 
