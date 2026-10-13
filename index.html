@@ -1331,58 +1331,81 @@
       height: 3px
     }
 
-    /* Tira de datos: tipología · superficie · terraza · orientación, en
-       columnas iguales con separador fino. Dato arriba, etiqueta abajo. */
+    /* Tira de datos: tipología · superficie (+ terraza) · orientación, con
+       el lenguaje de la tarjeta de la unidad: ícono + valor en tinta +
+       unidad en gris, en línea, y lo que no entra baja de renglón. En
+       columnas con etiqueta abajo no entraba: con el ícono, "dormitorios"
+       o "Esquina Paullier" se cortaban o se salían de los 330px del panel.
+       Las etiquetas (dt) quedan para lectores de pantalla; a la vista las
+       dice el ícono. */
     .p-datos {
       margin: 18px 0 0;
       padding: 14px 0;
       border-top: 1px solid var(--linea);
       border-bottom: 1px solid var(--linea);
-      display: grid;
-      grid-auto-flow: column;
-      grid-auto-columns: minmax(0, 1fr);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
       flex: none
     }
 
     .p-dato {
-      display: flex;
-      flex-direction: column-reverse;
-      justify-content: flex-end;
-      gap: 4px;
-      padding: 0 12px;
+      position: relative;
       min-width: 0
-    }
-
-    .p-dato:first-child {
-      padding-left: 0
-    }
-
-    .p-dato+.p-dato {
-      border-left: 1px solid var(--linea)
     }
 
     .p-dato[hidden] {
       display: none
     }
 
+    /* Fuera de la vista, no del árbol de accesibilidad. */
     .p-dato dt {
-      margin: 0;
-      font-size: 10px;
-      font-weight: 650;
-      letter-spacing: .07em;
-      white-space: nowrap;
-      text-transform: uppercase;
-      color: var(--suave)
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap
     }
 
     .p-dato dd {
       margin: 0;
-      font-size: 15.5px;
-      font-weight: 600;
-      line-height: 1.25;
-      letter-spacing: -.01em;
-      font-variant-numeric: tabular-nums;
-      hyphens: auto
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.3;
+      color: var(--suave);
+      font-variant-numeric: tabular-nums
+    }
+
+    .p-dato dd b {
+      color: var(--tinta);
+      font-weight: 650
+    }
+
+    /* Mismo trazo que los íconos de la tarjeta, en gris, del alto del texto
+       y a la altura de la primera línea (la orientación puede ocupar dos). */
+    .p-dato dd svg {
+      flex: none;
+      width: 1.15em;
+      height: 1.15em;
+      margin-top: .08em;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round
+    }
+
+    .p-dato dd>span {
+      min-width: 0
+    }
+
+    /* "92 m²" no se parte. */
+    #p-m2 {
+      white-space: nowrap
     }
 
     /* "+ 11 m² terraza" debajo de la superficie, en la misma celda. */
@@ -1444,11 +1467,28 @@
       white-space: nowrap
     }
 
+    /* "/ mes" del alquiler, como en la tarjeta (la moneda usa .tt-moneda). */
+    #p-precio small {
+      font-size: .6em;
+      font-weight: 500;
+      letter-spacing: 0;
+      color: var(--suave)
+    }
+
+    #p-precio-m2 {
+      font-variant-numeric: tabular-nums
+    }
+
+    /* width 0 + min-width 100%: la línea de abajo (precio por m², etiqueta,
+       cochera) no ensancha el bloque — mide lo que el precio y se acomoda
+       debajo. Si no, con el precio por m² los botones bajaban de renglón. */
     .p-precio-sub {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 4px 10px;
+      width: 0;
+      min-width: 100%;
       margin: 6px 0 0;
       font-size: 11.5px;
       color: var(--suave)
@@ -2230,17 +2270,37 @@
       -webkit-backdrop-filter: blur(18px);
     }
 
+    /* Resumen de la unidad (tooltip y tarjeta). Una sola regla para todo:
+       el valor en tinta y con peso, la etiqueta chica y en gris — la misma
+       de los datos de la ficha. El precio es lo más grande de la tarjeta. */
+    .tt-torre {
+      margin-bottom: 2px;
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--suave);
+    }
+
     .tt-cab {
       display: flex;
-      align-items: center;
+      align-items: baseline;
       justify-content: space-between;
       gap: 14px;
     }
 
     .tt-num {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: -.01em;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tt-num-et {
+      font-size: .7em;
+      font-weight: 500;
+      letter-spacing: 0;
+      color: var(--suave);
     }
 
     .tt-estado {
@@ -2252,23 +2312,103 @@
       color: var(--suave);
     }
 
-    .tt-sub {
-      margin-top: 3px;
+    /* Piso · dormitorios · m²: ícono + valor + etiqueta (como .cb-dato).
+       Sin separadores: el espacio separa, y si un dato falta no queda nada
+       colgando. Los íconos en em, del alto del texto. */
+    .tt-datos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 14px;
+      margin-top: 8px;
       font-size: 12.5px;
       color: var(--suave);
     }
 
-    .tt-precio {
-      margin-top: 8px;
-      font-size: 15px;
-      font-weight: 700;
+    .tt-dato {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .tt-dato b {
+      color: var(--tinta);
+      font-weight: 650;
       font-variant-numeric: tabular-nums;
     }
 
+    .tt-dato svg {
+      flex: none;
+      width: 1.15em;
+      height: 1.15em;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .tt-precio {
+      margin-top: 12px;
+      font-size: 20px;
+      font-weight: 650;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* La moneda en segundo plano: lo que se compara es la cifra. También
+       en el precio del panel (#p-precio): en em, sigue a cada tamaño. */
+    .tt-moneda {
+      font-size: .62em;
+      font-weight: 600;
+      letter-spacing: .02em;
+      color: var(--suave);
+    }
+
     .tt-precio small {
-      font-size: 12px;
+      font-size: .6em;
+      font-weight: 500;
+      letter-spacing: 0;
+      color: var(--suave);
+    }
+
+    .tt-precio-m2 {
+      margin-top: 3px;
+      font-size: 11.5px;
       font-weight: 500;
       color: var(--suave);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Táctil: la tarjeta va abajo, a lo ancho, y se lee con el pulgar cerca
+       — un escalón más grande. :where() para no ganarle al showroom. */
+    :where(#tarjeta-unidad:not(.anclada)) .tt-torre {
+      font-size: 10.5px
+    }
+
+    :where(#tarjeta-unidad:not(.anclada)) .tt-num {
+      font-size: 20px
+    }
+
+    :where(#tarjeta-unidad:not(.anclada)) .tt-estado {
+      font-size: 12.5px
+    }
+
+    :where(#tarjeta-unidad:not(.anclada)) .tt-datos {
+      gap: 6px 18px;
+      margin-top: 10px;
+      font-size: 14.5px;
+    }
+
+    :where(#tarjeta-unidad:not(.anclada)) .tt-precio {
+      margin-top: 14px;
+      font-size: 23px;
+    }
+
+    :where(#tarjeta-unidad:not(.anclada)) .tt-precio-m2 {
+      margin-top: 4px;
+      font-size: 13px;
     }
 
     .tt-hint {
@@ -4189,8 +4329,13 @@
       margin: 0 auto;
     }
 
+    .kiosco .tt-torre {
+      margin-bottom: 4px;
+      font-size: 16px;
+    }
+
     .kiosco .tt-num {
-      font-size: 26px
+      font-size: 29px
     }
 
     .kiosco .tt-estado {
@@ -4203,18 +4348,24 @@
       height: 12px;
     }
 
-    .kiosco .tt-sub {
-      margin-top: 6px;
+    .kiosco .tt-datos {
+      gap: 6px 22px;
+      margin-top: 12px;
       font-size: 20px;
     }
 
-    .kiosco .tt-precio {
-      margin-top: 12px;
-      font-size: 26px;
+    .kiosco .tt-dato {
+      gap: 8px
     }
 
-    .kiosco .tt-precio small {
-      font-size: 18px
+    .kiosco .tt-precio {
+      margin-top: 18px;
+      font-size: 32px;
+    }
+
+    .kiosco .tt-precio-m2 {
+      margin-top: 5px;
+      font-size: 18px;
     }
 
     .kiosco .tt-hint {
@@ -4998,19 +5149,22 @@
 
     <!-- Lo que define la unidad, leído de un golpe: dato grande arriba,
        etiqueta chica abajo (dt va primero en el DOM por semántica; el CSS
-       lo muestra debajo). Las celdas sin dato se ocultan enteras. -->
+       lo muestra debajo). Las celdas sin dato se ocultan enteras. Los
+       íconos (data-icono) los completa el JS desde ICONOS_RESUMEN, los
+       mismos de la tarjeta de la unidad. -->
     <dl class="p-datos">
-      <div class="p-dato">
+      <div class="p-dato" id="p-dorms-c">
         <dt id="p-dorms-dt">Dormitorios</dt>
-        <dd id="p-dorms"></dd>
+        <dd><svg data-icono="dorms" viewBox="0 0 24 24" aria-hidden="true"></svg><span id="p-dorms"></span></dd>
       </div>
       <div class="p-dato" id="p-m2-c">
         <dt>Superficie</dt>
-        <dd><span id="p-m2"></span><span class="p-dato-extra" id="p-terraza" hidden></span></dd>
+        <dd><svg data-icono="m2" viewBox="0 0 24 24" aria-hidden="true"></svg><span><span id="p-m2"></span><span
+              class="p-dato-extra" id="p-terraza" hidden></span></span></dd>
       </div>
       <div class="p-dato" id="p-orient-c">
         <dt>Orientación</dt>
-        <dd id="p-orient"></dd>
+        <dd><svg data-icono="orient" viewBox="0 0 24 24" aria-hidden="true"></svg><span id="p-orient"></span></dd>
       </div>
     </dl>
 
@@ -5100,6 +5254,7 @@
       <div class="p-precio-wrap" id="p-precio-wrap">
         <p id="p-precio"></p>
         <p class="p-precio-sub">
+          <span id="p-precio-m2" hidden></span>
           <span id="p-fuente" class="p-tag"></span>
           <span id="p-cochera" hidden></span>
         </p>
@@ -5277,8 +5432,15 @@
       };
     }
 
+    function formatoMoneda(moneda, locale) {
+      return new Intl.NumberFormat(locale, { style: 'currency', currency: moneda, maximumFractionDigits: 0 });
+    }
     function formatearPrecio(valor, moneda, locale) {
-      return new Intl.NumberFormat(locale, { style: 'currency', currency: moneda, maximumFractionDigits: 0 }).format(valor);
+      return formatoMoneda(moneda, locale).format(valor);
+    }
+    // m² con el separador decimal del locale ("56,3" en es-UY, no "56.3").
+    function formatearM2(valor, locale) {
+      return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(valor);
     }
 
     // Número de venta que ve el visitante. u.id sigue siendo la clave (?u=,
@@ -6084,8 +6246,13 @@
       // leyenda; ROSSO y Altamira, sin alquiler, siguen diciendo "Disponible".
       // En la píldora de mobile cada cifra lleva su etiqueta corta en vez de
       // un punto solo: quien entra por primera vez entiende sin tocar nada.
+      // El mismo nombre por operación va en los chips, la tarjeta y el panel
+      // (nombreEstado()).
+      const hayAlquiler = UNIDADES.some(esAlquiler);
+      function nombreEstado(u) {
+        return u.estado === 'disponible' && hayAlquiler ? 'En venta' : aspectoDe(u).nombre;
+      }
       if (proyecto.muestra_totales) {
-        const hayAlquiler = UNIDADES.some(esAlquiler);
         const conteos = [ESTADOS.disponible, ESTADOS.alquiler, ESTADOS.reservado, ESTADOS.vendido, ESTADOS.sin_dato]
           .map(e => {
             const venta = e === ESTADOS.disponible && hayAlquiler;
@@ -7883,12 +8050,11 @@
       // siguen en fEstado (prendidos), así que pasa(u) no cambia. Si hay
       // unidades en alquiler (BRUSCO), "Disponible" pasa a "En venta": mismo
       // orden y nombres que la píldora de disponibilidad.
-      const hayAlquilerChips = UNIDADES.some(esAlquiler);
       Object.keys(ESTADOS).forEach(k => {
         const e = ESTADOS[k];
         const deEstado = UNIDADES.filter(u => u.estado === k);
         if (!deEstado.length) return;
-        const nombre = k === 'disponible' && hayAlquilerChips ? 'En venta'
+        const nombre = k === 'disponible' && hayAlquiler ? 'En venta'
           : k === 'sin_dato' ? 'A consultar' : e.nombre;
         chipsEstado[k] = chip(document.getElementById('f-estado'), nombre + cifra(deEstado.length), e.color,
           on => on ? fEstado.add(k) : fEstado.delete(k), deEstado.length);
@@ -8525,7 +8691,9 @@
 
       function actualizarFinanciacionPanel(u) {
         const finPanel = document.getElementById('p-financiacion');
-        if (!tieneFinanciacion() || u.precio == null) { finPanel.hidden = true; finActual = null; return; }
+        // En alquiler no se financia una compra, aunque la unidad tenga
+        // precio de venta cargado.
+        if (!tieneFinanciacion() || u.precio == null || esAlquiler(u)) { finPanel.hidden = true; finActual = null; return; }
         finPanel.hidden = false;
         finSlider.min = finCfg.entrega_min;
         finSlider.max = finCfg.entrega_max;
@@ -8550,7 +8718,7 @@
       // conversación sabiendo el presupuesto del visitante.
       function actualizarLinkWA(u) {
         let texto = 'Hola, quiero consultar por la unidad ' + numeroDe(u) + ' de ' + proyecto.nombre + ' (' +
-          [(tipologiaDe(u) || etiquetaDorms(u.dorms)).toLowerCase(), u.m2 != null ? u.m2 + ' m²' : null]
+          [(tipologiaDe(u) || etiquetaDorms(u.dorms)).toLowerCase(), u.m2 != null ? formatearM2(u.m2, proyecto.locale) + ' m²' : null]
             .filter(Boolean).join(', ') + '). ' + linkDe(u);
         if (finActual) {
           texto += ' Simulé una entrega del ' + finActual.entregaPct + '% (' +
@@ -8719,35 +8887,109 @@
         return n;
       }
 
+      const fmtVenta = formatoMoneda(proyecto.moneda, proyecto.locale);
+
+      // Íconos de piso, dormitorios y m²: el trazo de los de la ficha (24×24,
+      // 1.6, sin color propio) y el tamaño en em desde el CSS, así siguen al
+      // texto en táctil y en el showroom. Contenido fijo, nunca de la base.
+      const ICONOS_RESUMEN = {
+        // El mismo de "pisos" en la ficha.
+        piso: '<rect x="4" y="4" width="16" height="4.2"/><rect x="4" y="9.9" width="16" height="4.2"/><rect x="4" y="15.8" width="16" height="4.2"/>',
+        dorms: '<path d="M3 19v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 16h18M5 11V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M12 5v6"/>',
+        // Una planta en L: superficie, no "ampliar".
+        m2: '<path d="M4 4h10v6h6v10H4z"/>',
+        // Brújula: solo en el panel (la tarjeta no muestra orientación).
+        orient: '<circle cx="12" cy="12" r="8.5"/><path d="M15 9l-1.8 4.2L9 15l1.8-4.2z"/>',
+      };
+      // Los del panel están en el HTML vacíos (data-icono): una sola fuente.
+      document.querySelectorAll('svg[data-icono]').forEach(s => { s.innerHTML = ICONOS_RESUMEN[s.dataset.icono]; });
+
+      // Un dato del resumen: ícono + valor en tinta + etiqueta en gris, el
+      // mismo lenguaje que los datos de la ficha (.cb-dato). antes = la
+      // etiqueta va delante del valor ("Piso 3").
+      function datoResumen(icono, valor, etiqueta, antes) {
+        const d = nodo('span', 'tt-dato');
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.innerHTML = ICONOS_RESUMEN[icono];
+        d.appendChild(svg);
+        if (etiqueta && antes) d.append(etiqueta + ' ');
+        d.append(...valorEnTinta(valor));
+        if (etiqueta && !antes) d.append(' ' + etiqueta);
+        return d;
+      }
+
+      // Un texto de la base ("2 dormitorios", "Flex") con la misma regla:
+      // si empieza con un número, la cifra en tinta y el resto en gris; si
+      // no, todo en tinta. Así una tipología cargada como texto se ve igual
+      // que la que sale de dorms.
+      function valorEnTinta(texto) {
+        const m = /^(\d+(?:[.,]\d+)?)(\s.+)$/.exec(texto);
+        return m ? [nodo('b', null, m[1]), m[2]] : [nodo('b', null, texto)];
+      }
+
+      // Precio con la moneda en segundo plano ("US$" chico y gris, la cifra
+      // en tinta): lo que se compara entre unidades es el número. Lo usan
+      // la tarjeta y el panel; reemplaza el contenido de el.
+      function pintarPrecio(el, fmt, valor) {
+        el.textContent = '';
+        for (const parte of fmt.formatToParts(valor))
+          el.append(parte.type === 'currency' ? nodo('span', 'tt-moneda', parte.value) : parte.value);
+        return el;
+      }
+      // Precio por m²: el número con el que se comparan unidades entre sí.
+      // Solo con precio de venta y superficie (m² sin cargar o en 0, no).
+      function tienePrecioM2(u) {
+        return !esAlquiler(u) && u.precio != null && u.m2 > 0;
+      }
+      function precioPorM2(u) {
+        return fmtVenta.format(u.precio / u.m2) + ' / m²';
+      }
+
       function pintarResumenUnidad(cont, u, conPista) {
         const a = aspectoDe(u);
         const torreU = torresDisponibles.length ? torreDe(u) : null;
         cont.textContent = '';
 
+        // Torre arriba, como el eyebrow del panel (solo en proyectos con torres).
+        if (torreU) cont.appendChild(nodo('div', 'tt-torre', torreU === 'Basamento' ? torreU : 'Torre ' + torreU));
+
         const cab = nodo('div', 'tt-cab');
-        cab.appendChild(nodo('span', 'tt-num', 'Unidad ' + numeroDe(u)));
+        const num = nodo('span', 'tt-num');
+        num.append(nodo('span', 'tt-num-et', 'Unidad'), ' ' + numeroDe(u));
+        cab.appendChild(num);
         const est = nodo('span', 'tt-estado');
         const punto = nodo('span', 'punto');
         punto.style.background = a.color;
-        est.append(punto, a.nombre);
+        est.append(punto, nombreEstado(u));
         cab.appendChild(est);
         cont.appendChild(cab);
 
-        cont.appendChild(nodo('div', 'tt-sub', [
-          torreU ? (torreU === 'Basamento' ? torreU : 'Torre ' + torreU) : null,
-          'Piso ' + u.piso,
-          tipologiaDe(u) || etiquetaDorms(u.dorms),
-          u.m2 != null ? u.m2 + ' m²' : null,
-        ].filter(Boolean).join(' · ')));
+        // Piso · dormitorios · m², cada uno con su ícono. El que no tiene
+        // dato no se arma: sin huecos ni separadores colgando.
+        const datos = nodo('div', 'tt-datos');
+        if (u.piso != null) datos.appendChild(u.piso === 0
+          ? datoResumen('piso', 'PB')
+          : datoResumen('piso', String(u.piso), 'Piso', true));
+        const tipologia = tipologiaDe(u);
+        if (tipologia || u.dorms === 0) datos.appendChild(datoResumen('dorms', tipologia || etiquetaDorms(0)));
+        else if (u.dorms > 0) datos.appendChild(datoResumen('dorms', String(u.dorms), 'dorm.'));
+        if (u.m2 != null) datos.appendChild(datoResumen('m2', formatearM2(u.m2, proyecto.locale), 'm²'));
+        if (datos.childElementCount) cont.appendChild(datos);
 
-        // Precio: el de alquiler (UYU por mes) si es de alquiler; el de venta
-        // si hay uno y no está vendida. Sin dato, no se inventa nada.
-        if (esAlquiler(u) && u.precioAlquiler != null) {
-          const p = nodo('div', 'tt-precio', fmtAlquiler.format(u.precioAlquiler));
-          p.appendChild(nodo('small', null, ' / mes'));
-          cont.appendChild(p);
+        // Precio: el de alquiler (UYU por mes) si es de alquiler — sin él,
+        // ninguno: el de venta en una unidad que se alquila confunde —; el de
+        // venta si hay uno y no está vendida. Sin dato, no se inventa nada.
+        if (esAlquiler(u)) {
+          if (u.precioAlquiler != null) {
+            const p = pintarPrecio(nodo('div', 'tt-precio'), fmtAlquiler, u.precioAlquiler);
+            p.appendChild(nodo('small', null, ' / mes'));
+            cont.appendChild(p);
+          }
         } else if (u.precio != null && u.estado !== 'vendido') {
-          cont.appendChild(nodo('div', 'tt-precio', formatearPrecio(u.precio, proyecto.moneda, proyecto.locale)));
+          cont.appendChild(pintarPrecio(nodo('div', 'tt-precio'), fmtVenta, u.precio));
+          if (tienePrecioM2(u)) cont.appendChild(nodo('div', 'tt-precio-m2', precioPorM2(u)));
         }
         // conPista: la línea "Click para ver la unidad" del tooltip; 'boton'
         // = la misma línea como botón (tarjeta anclada de desktop).
@@ -9032,7 +9274,7 @@
         document.getElementById('p-eyebrow').textContent =
           (torreU ? (torreU === 'Basamento' ? torreU : 'Torre ' + torreU) + ' · ' : '') + 'Piso ' + u.piso;
         document.getElementById('p-unidad').textContent = numeroDe(u);
-        document.getElementById('p-estado-txt').textContent = e.nombre;
+        document.getElementById('p-estado-txt').textContent = nombreEstado(u);
         document.getElementById('p-color').style.background = e.color;
         const pEstado = document.getElementById('p-estado');
         // El color va en el punto y el fondo; el texto siempre en tinta:
@@ -9044,28 +9286,50 @@
         pintarPlantaUnidad(u);
         const tipologia = tipologiaDe(u);
         const comoCifra = !tipologia && u.dorms > 0;
+        // Sin tipología ni dormitorios cargados, la celda no va (si no,
+        // "null dormitorios").
+        document.getElementById('p-dorms-c').hidden = !tipologia && u.dorms == null;
+        // Valor en negrita (tinta) y la unidad en gris, como en la tarjeta:
+        // "2 dormitorios", "92 m²"; una tipología con nombre va entera.
         document.getElementById('p-dorms-dt').textContent = comoCifra ? 'Dormitorios' : 'Tipología';
-        document.getElementById('p-dorms').textContent = tipologia || (comoCifra ? u.dorms : etiquetaDorms(u.dorms));
+        const pDorms = document.getElementById('p-dorms');
+        pDorms.textContent = '';
+        const textoDorms = tipologia || (u.dorms != null ? etiquetaDorms(u.dorms) : '');
+        if (textoDorms) pDorms.append(...valorEnTinta(textoDorms));
         // Sin m² / precio cargados (null, no 0) se ocultan en vez de mostrar
         // "null m²" o un precio en cero — ver cargarProyecto().
         document.getElementById('p-m2-c').hidden = u.m2 == null;
-        document.getElementById('p-m2').textContent = u.m2 != null ? u.m2 + ' m²' : '';
+        const pSup = document.getElementById('p-m2');
+        pSup.textContent = '';
+        if (u.m2 != null) pSup.append(nodo('b', null, formatearM2(u.m2, proyecto.locale)), ' m²');
         const orient = textoOrientacion(u);
         document.getElementById('p-orient-c').hidden = !orient;
-        document.getElementById('p-orient').textContent = orient;
+        const pOrient = document.getElementById('p-orient');
+        pOrient.textContent = '';
+        if (orient) pOrient.appendChild(nodo('b', null, orient));
         unidadAsol = u;
         actualizarAsoleamiento();
         // Alquiler: precio mensual en UYU (u.precioAlquiler), igual que en el
-        // tooltip. Si no, el de venta, como siempre.
-        const alquilerUYU = esAlquiler(u) ? u.precioAlquiler : null;
-        document.getElementById('p-precio-wrap').hidden = u.precio == null && !alquilerUYU;
-        document.getElementById('p-precio').textContent = alquilerUYU
-          ? fmtAlquiler.format(alquilerUYU) + ' / mes'
-          : u.precio != null ? formatearPrecio(u.precio, proyecto.moneda, proyecto.locale) : '';
+        // tooltip; sin él, ninguno (nunca el de venta). Si no, el de venta,
+        // como siempre.
+        // Moneda en segundo plano y precio por m² debajo, como en la tarjeta.
+        const alquiler = esAlquiler(u);
+        const alquilerUYU = alquiler ? u.precioAlquiler : null;
+        const venta = !alquiler && u.precio != null;
+        document.getElementById('p-precio-wrap').hidden = alquilerUYU == null && !venta;
+        const pPrecio = document.getElementById('p-precio');
+        pPrecio.textContent = '';
+        if (alquilerUYU != null) {
+          pintarPrecio(pPrecio, fmtAlquiler, alquilerUYU);
+          pPrecio.appendChild(nodo('small', null, ' / mes'));
+        } else if (venta) pintarPrecio(pPrecio, fmtVenta, u.precio);
+        const pPrecioM2 = document.getElementById('p-precio-m2');
+        pPrecioM2.hidden = !tienePrecioM2(u);
+        pPrecioM2.textContent = tienePrecioM2(u) ? precioPorM2(u) : '';
 
         const terraza = document.getElementById('p-terraza');
         terraza.hidden = !u.m2Terraza;
-        if (u.m2Terraza) terraza.textContent = '+ ' + u.m2Terraza + ' m² terraza';
+        if (u.m2Terraza) terraza.textContent = '+ ' + formatearM2(u.m2Terraza, proyecto.locale) + ' m² terraza';
 
         // Cochera: debajo del precio, en el pie — es parte de lo que cuesta.
         const cochera = document.getElementById('p-cochera');
