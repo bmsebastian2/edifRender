@@ -15,7 +15,10 @@ try {
   T = require('./_tarjeta.js');
 } catch (e) { console.error('compartir: sin _compartido.js / _tarjeta.js', e); }
 
-const CACHE_OK = 's-maxage=600, stale-while-revalidate';
+// Corta y con stale acotado: una tarjeta de antes de un cambio de estado dura
+// en la CDN a lo sumo ~2 min. Es barata (solo la piden los crawlers); la
+// imagen sí va con caché larga, porque su URL lleva v=.
+const CACHE_OK = 's-maxage=60, stale-while-revalidate=60';
 // Una falla de Supabase no se guarda 10 minutos en la CDN.
 const CACHE_FALLA = 's-maxage=60, stale-while-revalidate';
 

@@ -510,10 +510,15 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
 - **`api/compartir.js`**: Node sin dependencias. Lee `public_projects` + `public_units`
   por la REST de Supabase (`_tarjeta.js`, timeout de 4 s) y nunca devuelve 500: unidad
   inexistente → tarjeta del proyecto; slug inexistente o falla de red → tarjeta neutra
-  ("Cota · Visor 3D de disponibilidad", imagen `/api/og?marca=1`; ante una falla, caché
-  de 60 s en vez de 600). Pone sus propios headers (`Cache-Control: s-maxage=600,
-  stale-while-revalidate`; al cliente le llega `public, max-age=0, must-revalidate`
-  porque la CDN de Vercel consume el `s-maxage`).
+  ("Cota · Visor 3D de disponibilidad", imagen `/api/og?marca=1`). Pone sus propios
+  headers: `Cache-Control: s-maxage=60, stale-while-revalidate=60` (ante una falla,
+  `s-maxage=60, stale-while-revalidate`). Es corta y con stale acotado a propósito: con
+  `s-maxage=600` + `stale-while-revalidate` sin límite, la CDN devolvía la tarjeta de
+  antes de un cambio de estado hasta 10 min, y una vez más al vencer. La imagen
+  (`api/og.mjs`) sí va con `s-maxage=600`, porque su URL lleva `v=`. Al cliente le llega
+  `public, max-age=0, must-revalidate` porque la CDN de Vercel consume el `s-maxage`.
+  Facebook y WhatsApp tienen además su propia caché por URL: para ver un cambio en el
+  Facebook Debugger hay que usar "Volver a extraer".
 - **Tarjeta de unidad**: `og:title` = "Unidad `numeroDe(u)` · `proyecto.nombre`";
   `og:description` = tipología · m² · orientación · precio · estado, cada dato omitido si
   falta. Mismas reglas que el visor: tipología de `tipologiaDe()` o dormitorios;
