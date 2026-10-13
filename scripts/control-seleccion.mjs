@@ -42,7 +42,9 @@ function clickLienzo() {
 const enfocar = cuerpo('enfocar'), mover = cuerpo('moverCamara'), seleccionar = cuerpo('seleccionar');
 const animar = cuerpo('animar'), click = clickLienzo();
 const ms = Number((html.match(/const MS_CAMARA_UNIDAD\s*=\s*(\d+)/) || [])[1]);
-const iU = html.indexOf("get('u')");
+// La lectura de ?u= al cargar (no cualquier get('u') del archivo: el de
+// compartir de la barra también lee u, de la URL que copia).
+const iU = html.indexOf("URLSearchParams(location.search).get('u')");
 
 const controles = [
   ['El clic en una unidad la selecciona (tarjeta) en vez de abrir el panel directo',

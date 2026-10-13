@@ -80,6 +80,12 @@ No hay dev server ni build. Abrir `index.html` directo o servir la carpeta
 para probarlo con curl hace falta el header `x-vercel-protection-bypass` (Settings →
 Deployment Protection → Protection Bypass for Automation).
 
+Rollback: Vercel → Deployments → el deploy de producción anterior → ⋯ → **Promote to
+Production** (vuelve en segundos, sin rebuild). Ojo: después de un Promote manual Vercel
+**deja de promover solo** los pushes siguientes a `main`. Después de arreglar o revertir
+en git (`git revert` + push), hay que volver a promover a mano el deploy bueno; recién
+ahí los pushes vuelven a ir a producción solos.
+
 El hook `.githooks/pre-commit` corre dos controles sobre las versiones en stage. Se
 activa una vez por clon con `git config core.hooksPath .githooks` (ya activo en la
 máquina de Sebastian).
