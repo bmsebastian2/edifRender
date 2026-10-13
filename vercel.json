@@ -3,6 +3,7 @@
   "framework": null,
   "buildCommand": "",
   "outputDirectory": ".",
+  "regions": ["pdx1"],
   "routes": [
     {
       "src": "^/(index\\.html)?$",
