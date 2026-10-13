@@ -21,8 +21,8 @@ const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SALIDA = join(raiz, 'api', '_compartido.js');
 
 // Funciones puras del visor (sin THREE, DOM ni variables de iniciar()).
-const FUNCIONES = ['aspectoDe', 'normalizarUnidad', 'numeroDe', 'tipologiaDe', 'torreDe', 'etiquetaDorms',
-  'formatoMoneda', 'formatearPrecio', 'formatearM2', 'unirConY', 'areaConSigno'];
+const FUNCIONES = ['aspectoDe', 'normalizarUnidad', 'versionCompartir', 'numeroDe', 'tipologiaDe', 'torreDe',
+  'etiquetaDorms', 'formatoMoneda', 'formatearPrecio', 'formatearM2', 'unirConY', 'areaConSigno'];
 
 export function generar(html, cfg) {
   // CRLF/LF no cuenta (core.autocrlf en Windows): todo se compara en LF.

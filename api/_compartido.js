@@ -60,6 +60,16 @@ function normalizarUnidad(r) {
   };
 }
 
+function versionCompartir(unidades) {
+  let h = 0x811c9dc5;
+  for (const u of unidades) {
+    for (const c of [u.id, u.estado, u.precio, u.precioAlquiler, u.estimado].join('|') + ';') {
+      h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+    }
+  }
+  return h.toString(36);
+}
+
 function numeroDe(u) {
   return u.geom && u.geom.numero ? u.geom.numero : u.id;
 }
@@ -182,6 +192,7 @@ module.exports = {
   fmtAlquiler,
   aspectoDe,
   normalizarUnidad,
+  versionCompartir,
   numeroDe,
   tipologiaDe,
   torreDe,

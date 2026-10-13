@@ -5438,6 +5438,23 @@
       };
     }
 
+    // Versión corta de lo que muestra la vista previa al compartir (estado,
+    // precios y si son estimados) de una lista de unidades — la unidad, o el
+    // proyecto entero. Va como &v= en los links que se comparten: WhatsApp y
+    // Facebook guardan la vista previa por URL, así que si algo cambia el link
+    // nuevo trae una vista previa nueva. El visor ignora v= al abrir un link.
+    // FNV-1a de 32 bits en base 36. scripts/generar-compartido.mjs la copia a
+    // api/_compartido.js: el visor y la tarjeta calculan exactamente lo mismo.
+    function versionCompartir(unidades) {
+      let h = 0x811c9dc5;
+      for (const u of unidades) {
+        for (const c of [u.id, u.estado, u.precio, u.precioAlquiler, u.estimado].join('|') + ';') {
+          h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+        }
+      }
+      return h.toString(36);
+    }
+
     function formatoMoneda(moneda, locale) {
       return new Intl.NumberFormat(locale, { style: 'currency', currency: moneda, maximumFractionDigits: 0 });
     }
@@ -6029,8 +6046,11 @@
       clearTimeout(avisoCompartirTimeout);
       avisoCompartirTimeout = setTimeout(() => avisoCompartir.classList.remove('visible'), 1800);
     }
+    // La arma iniciar() cuando ya hay unidades: le suma a la URL el v= de lo
+    // que se está viendo (ver versionCompartir()). Antes de eso, la URL tal cual.
+    let conVersion = url => url;
     btnCompartir.addEventListener('click', async () => {
-      const url = location.protocol.startsWith('http') ? location.href : BASE;
+      const url = conVersion(location.protocol.startsWith('http') ? location.href : BASE);
       // El share nativo del SO (navigator.share) es poco confiable en desktop
       // (en Windows la hoja de "Compartir" puede fallar sin apps registradas),
       // así que copiamos el link directamente en vez de depender de él.
@@ -8620,8 +8640,10 @@
         : BASE) {
         return propia + '?p=' + encodeURIComponent(proyecto.slug);
       }
+      // Con v= (ver versionCompartir()): lo usan el botón copiar del panel y el
+      // mensaje de WhatsApp. El QR del showroom no pasa por acá: no lleva v=.
       function linkDe(u) {
-        return linkProyecto() + '&u=' + u.id;
+        return linkProyecto() + '&u=' + u.id + '&v=' + versionCompartir([u]);
       }
 
       // En previsualizaciones (about:srcdoc) el historial no se puede tocar.
@@ -9445,6 +9467,16 @@
         activarSol(true);
       }
 
+      // Compartir de la barra (#red-compartir): la URL de la barra tal cual
+      // (con ?sol=, ?src=… si los trae) más el v= de la unidad de ?u= o, sin
+      // ella, del proyecto entero (ver versionCompartir()).
+      conVersion = url => {
+        const x = new URL(url);
+        const u = UNIDADES.find(y => String(y.id) === x.searchParams.get('u'));
+        x.searchParams.set('v', versionCompartir(u ? [u] : UNIDADES));
+        return x.toString();
+      };
+
       /* ============================================================
          KIOSCO — modo showroom: el edificio solo, girando, para una
          pantalla o tablet en la sala de ventas que funciona todo el día
@@ -9623,6 +9655,8 @@
         const u = elegida || (cajaTarjeta && cajaTarjeta.userData.unidad) || null;
         // Siempre la URL pública (BASE), no la de esta pestaña: abierto desde
         // localhost o una copia local, el celular no podría abrir el link.
+        // Sin v= a propósito (no usa linkDe()): un QR fotografiado o impreso
+        // tiene que seguir sirviendo aunque cambie el estado de la unidad.
         const url = linkProyecto(BASE) + (u ? '&u=' + u.id : '') + '&src=qr-showroom';
         if (url === urlQR || performance.now() - falloQR < 30000) return;
         urlQR = url;

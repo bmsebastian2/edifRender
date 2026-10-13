@@ -288,7 +288,8 @@ ventas sin nadie que la atienda. Sección `KIOSCO` del script (al final de `inic
 - **QR** (`#kiosco-qr`, arriba a la izquierda; `actualizarQR()` desde el mismo reloj):
   `linkProyecto(BASE)` (siempre la URL pública, aunque el visor se abra desde localhost o
   una copia local), más `&u=<id>` si hay una unidad destacada (demo, tarjeta o panel),
-  siempre sin `kiosco` y con `&src=qr-showroom`. La librería (`qrcode-generator` 1.4.4,
+  siempre sin `kiosco` ni `v=` (un QR fotografiado tiene que seguir sirviendo aunque
+  cambie el estado) y con `&src=qr-showroom`. La librería (`qrcode-generator` 1.4.4,
   cdnjs) se carga recién en el modo; el svg se arma a mano (`pintarQR()`). Sin red no
   hay QR y reintenta cada 30 s. Es la única tarjeta blanca del modo: el QR necesita
   fondo y margen para leerse.
@@ -332,6 +333,12 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   para `about:srcdoc`); `BASE` es la URL canónica para los links compartidos desde
   contextos no-http. Al cargar, `?u=<id>` reabre esa unidad y enfoca la cámara en ella
   (`enfocar(u)`).
+- Los links que se comparten llevan `&v=`: `linkDe(u)` (botón copiar del panel y mensaje
+  de WhatsApp) y `#red-compartir` (la URL de la barra tal cual + `v` de la unidad de
+  `?u=` o del proyecto, vía `conVersion`, que arma `iniciar()`). `v` =
+  `versionCompartir(unidades)`: FNV-1a de id, estado, precio, precio de alquiler y
+  `estimado`, el mismo cálculo que hace `api/compartir.js` (ver "Vista previa al
+  compartir"). El visor ignora `v=` al abrir un link; los links sin `v=` andan igual.
 - Cada `abrir(u)` registra un click en `events` (`registrarEvento`), que alimenta la
   pestaña Demanda del admin.
 
@@ -512,7 +519,12 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
   `muestra_totales` y si `CONTADOR_EN_TARJETA` (en `_tarjeta.js`, por slug, default
   `true`) no lo apaga.
 - `og:url` y el link visible del HTML van siempre con `?p=` (también ROSSO), sin `src`
-  ni `kiosco`, como `linkDe()`.
+  ni `kiosco`, como `linkDe()`. `og:url` y `og:image` llevan el `v=` **vigente**
+  (`versionCompartir()` de la unidad, o de todo el proyecto en la tarjeta sin `?u=`),
+  aunque el link pedido traiga uno viejo o ninguno. WhatsApp guarda la vista previa por
+  URL y Facebook por `og:url`: cuando cambia el estado, el precio o `estimado`, el link
+  copiado de nuevo trae otro `v` y una vista previa nueva. `api/og.mjs` ignora `v` (solo
+  separa la caché).
 - **`api/og.mjs`** (`?p=&u=` / `?p=` / `?marca=1`): con `@vercel/og` en Node, sin JSX.
   - Unidad: elevación del lado que le queda más cerca (`ladoDe()`: frente o
     contrafrente, con rótulo "Vista frente" / "Vista contrafrente"), la unidad en el color
@@ -538,7 +550,8 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
   - Tamaño: lo nuestro (código + Inter 400/600/700 + marca) ~230 KB; la librería suma
     ~2,4 MB (casi todo `resvg.wasm`).
 - **`api/_compartido.js`** se genera desde `index.html` (`DEFAULT_SLUG`, `ESTADOS`,
-  `fmtAlquiler`, `aspectoDe`, `normalizarUnidad`, `numeroDe`, `tipologiaDe`, `torreDe`,
+  `fmtAlquiler`, `aspectoDe`, `normalizarUnidad`, `versionCompartir`, `numeroDe`,
+  `tipologiaDe`, `torreDe`,
   `etiquetaDorms`, `formatoMoneda`, `formatearPrecio`, `formatearM2`, `unirConY`,
   `areaConSigno`, `calcularFachadas` + sus constantes, las medidas por defecto de la
   torre como `dimensionesDe(geo)` y los colores de `:root` como `COLORES`) y
@@ -559,6 +572,10 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
 - El contador de la tarjeta del proyecto se configura con `CONTADOR_EN_TARJETA` en
   `api/_tarjeta.js` (por slug). Pasarlo a una columna de `settings` / `public_settings`
   necesita migración.
+- Región: el proyecto de Supabase está en `us-west-2` (Oregón; verificado el
+  2026-10-13 por la IP de `db.<ref>.supabase.co` contra los rangos de AWS) y las
+  funciones corren en `iad1` (Washington, el default de Vercel). `"regions": ["pdx1"]`
+  en `vercel.json` (compatible con `routes`) las pondría al lado de la base.
 
 ## Dar de alta un edificio nuevo
 

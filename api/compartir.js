@@ -51,12 +51,15 @@ module.exports = async (req, res) => {
 function tarjetaUnidad(origen, proyecto, unidades, u) {
   const d = T.datosUnidad(proyecto, unidades, u);
   const titulo = 'Unidad ' + d.numero + ' · ' + proyecto.nombre;
+  // El v= de ahora, aunque el link pedido traiga uno viejo o ninguno: así
+  // og:url (la clave de caché de Facebook) y la imagen siempre son las vigentes.
+  const v = C.versionCompartir([u]);
   return {
     titulo,
     descripcion: [d.tipologia, d.m2, d.orientacion, T.precioConMarca(d), d.estado && d.estado.nombre]
       .filter(Boolean).join(' · '),
-    url: linkVisor(origen, proyecto.slug, u.id),
-    imagen: origen + '/api/og?p=' + encodeURIComponent(proyecto.slug) + '&u=' + u.id,
+    url: linkVisor(origen, proyecto.slug, u.id, v),
+    imagen: origen + '/api/og?p=' + encodeURIComponent(proyecto.slug) + '&u=' + u.id + '&v=' + v,
     imagenAlt: titulo + ' resaltada en la fachada del edificio',
     locale: proyecto.locale,
     textoLink: 'Ver la unidad en el visor 3D',
@@ -66,11 +69,12 @@ function tarjetaUnidad(origen, proyecto, unidades, u) {
 // Sin ?u= o con un id que no existe: dirección · entrega · contador.
 function tarjetaProyecto(origen, proyecto, unidades) {
   const d = T.datosProyecto(proyecto, unidades);
+  const v = C.versionCompartir(unidades);
   return {
     titulo: proyecto.nombre,
     descripcion: [d.lugar, d.entrega, ...d.contador.map(c => c.texto)].filter(Boolean).join(' · '),
-    url: linkVisor(origen, proyecto.slug, null),
-    imagen: origen + '/api/og?p=' + encodeURIComponent(proyecto.slug),
+    url: linkVisor(origen, proyecto.slug, null, v),
+    imagen: origen + '/api/og?p=' + encodeURIComponent(proyecto.slug) + '&v=' + v,
     imagenAlt: 'Fachada de ' + proyecto.nombre,
     locale: proyecto.locale,
     textoLink: 'Ver el edificio en el visor 3D',
@@ -91,9 +95,10 @@ function tarjetaNeutra(origen, slug, pedida) {
   };
 }
 
-// Como linkDe() del visor: siempre con ?p= (también ROSSO), sin src ni kiosco.
-function linkVisor(origen, slug, id) {
-  return origen + '/' + (slug ? '?p=' + encodeURIComponent(slug) + (id != null ? '&u=' + id : '') : '');
+// Como linkDe() del visor: siempre con ?p= (también ROSSO), sin src ni kiosco,
+// y con v= (versionCompartir()) salvo en la tarjeta neutra.
+function linkVisor(origen, slug, id, v) {
+  return origen + '/' + (slug ? '?p=' + encodeURIComponent(slug) + (id != null ? '&u=' + id : '') + (v ? '&v=' + v : '') : '');
 }
 
 function esc(s) {
