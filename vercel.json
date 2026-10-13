@@ -3,9 +3,9 @@
   "framework": null,
   "buildCommand": "",
   "outputDirectory": ".",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/",
+      "src": "^/$",
       "has": [
         {
           "type": "header",
@@ -13,7 +13,7 @@
           "value": ".*(WhatsApp/|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|SkypeUriPreview|Pinterestbot|redditbot|Embedly|Cardyb|vkShare|Iframely).*"
         }
       ],
-      "destination": "/api/compartir"
+      "dest": "/api/compartir"
     }
   ]
 }
