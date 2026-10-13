@@ -1,0 +1,8 @@
+# Lo que no se publica en Vercel: documentación interna, SQL, scripts y datos
+# de trabajo (ni el visor ni el admin cargan nada de datos/).
+CLAUDE.md
+*.sql
+scripts/
+datos/
+.githooks/
+node_modules/
