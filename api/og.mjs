@@ -26,7 +26,7 @@ function marca() {
 
 export default async function handler(req, res) {
   const pedido = new URL(req.url, 'http://localhost');
-  let imagen, cache = CACHE_OK;
+  let imagen, cache = CACHE_OK, falla = null;
   try {
     if (pedido.searchParams.has('marca')) {
       imagen = marca();
@@ -44,12 +44,16 @@ export default async function handler(req, res) {
       }
     }
   } catch (e) {
-    console.error('og:', req.url, e && e.message);
+    console.error('og:', req.url, e);
     imagen = marca();
     cache = CACHE_FALLA;
+    falla = String((e && e.message) || e);
   }
   res.statusCode = 200;
   res.setHeader('Content-Type', 'image/png');
   res.setHeader('Cache-Control', cache);
+  // Para diagnosticar con curl sin abrir los logs de Vercel: qué falló
+  // cuando la imagen es la de marca por una falla (sin datos sensibles).
+  if (falla) res.setHeader('X-Og-Falla', falla.replace(/[^\x20-\x7e]/g, '?').slice(0, 300));
   res.end(imagen);
 }
