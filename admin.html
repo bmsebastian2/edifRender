@@ -108,7 +108,13 @@
   /* Jerarquía: número de unidad y estado son lo que se busca; piso, dorms,
      m² y orientación son apoyo y van en --suave. El precio queda en tinta:
      es el otro dato que se lee en vertical. */
-  #tabla-unidades .col-id{font-size:14px;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  #tabla-unidades .col-id{font-size:14px;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums;
+    line-height:1.25}
+  /* ID interno debajo del número de venta (solo si son distintos, hoy
+     BRUSCO): dos líneas apretadas que entran en los 44px de la fila, como
+     Modificado. */
+  #tabla-unidades .unidad-id{display:block;font-size:11px;font-weight:500;line-height:1.3;letter-spacing:0;
+    color:var(--suave)}
   #tabla-unidades .apoyo,#tabla-unidades .vacio{color:var(--suave)}
   #tabla-unidades tbody tr:has(.check-unidad:checked){background:var(--verde-suave)}
   /* La celda con input recorta su padding derecho por el padding interno
@@ -202,6 +208,7 @@
     #tabla-unidades td{display:block;height:auto;padding:0;border:0}
     #tabla-unidades td:nth-child(1){order:0;width:30px}
     #tabla-unidades td:nth-child(2){order:1;font-size:16px}
+    #tabla-unidades .unidad-id{display:inline;margin-left:8px}
     #tabla-unidades td:nth-child(12){order:2;margin-left:auto}
     #tabla-unidades tr::before{content:"";order:3;flex-basis:100%}
     #tabla-unidades td:is(:nth-child(3),:nth-child(4),:nth-child(5),:nth-child(8),:nth-child(9)){
@@ -792,6 +799,29 @@ function formatearNumero(valor){
   return new Intl.NumberFormat(PROYECTO_ACTUAL.locale, { maximumFractionDigits:2 }).format(valor);
 }
 
+// Número de venta, el mismo que muestra el visor (numeroDe en index.html).
+// u.id sigue siendo la clave (?u=, leads, events); geom.numero existe cuando
+// el id no es presentable — BRUSCO: Torre B es 10000 + número y en el
+// basamento el id no sigue el número (A201 es el 207).
+function numeroDe(u){
+  return u.geom && u.geom.numero ? u.geom.numero : u.id;
+}
+
+// Orden de venta: torre, piso, posición. La torre y la posición salen del
+// número de venta ("B1106" → B, 1106), no de geom.torre ni de pos: en el
+// basamento de BRUSCO geom.torre dice "Basamento" y pos sigue al id. Sin
+// geom.numero (ROSSO, Altamira) el número es el id: queda el orden de siempre.
+function ordenarUnidades(unidades){
+  const partes = u => {
+    const m = String(numeroDe(u)).match(/^(\D*)(\d+)/);
+    return m ? [m[1].trim().toUpperCase(), Number(m[2])] : [String(numeroDe(u)), 0];
+  };
+  return unidades.sort((a, b) => {
+    const [ta, na] = partes(a), [tb, nb] = partes(b);
+    return ta.localeCompare(tb) || a.piso - b.piso || na - nb || a.id - b.id;
+  });
+}
+
 // Lee lo escrito en un campo numérico con las convenciones del locale del
 // proyecto: "212037", "212.037", "US$ 212.037", "12,5" o "12.5" (el punto del
 // teclado numérico: un solo separador que no forma grupos de 3 es decimal).
@@ -1026,9 +1056,9 @@ async function cargarUnidades(){
       'No se pudo conectar con Supabase: ' + error.message;
     return;
   }
-  UNIDADES_ACTUALES = data;
+  UNIDADES_ACTUALES = ordenarUnidades(data);
   llenarSelectorTipologiaLote(tipologias);
-  pintarUnidades(data);
+  pintarUnidades(UNIDADES_ACTUALES);
 }
 
 // Cachea las tipologías del proyecto — las usan tanto la tabla de unidades
@@ -1090,7 +1120,7 @@ function pintarUnidades(unidades){
     const tr = document.createElement('tr');
     tr.innerHTML =
       '<td class="col-check"></td>' +
-      '<td class="col-id">' + u.id + '</td>' +
+      '<td class="col-id"></td>' +
       '<td class="num apoyo">' + u.piso + '</td>' +
       '<td class="num apoyo">' + u.dorms + '</td>' +
       '<td class="num apoyo">' + formatearNumero(u.m2) + '</td>' +
@@ -1112,6 +1142,19 @@ function pintarUnidades(unidades){
     check.type = 'checkbox'; check.className = 'check-unidad'; check.dataset.unidadId = u.id;
     check.addEventListener('change', actualizarBarraLote);
     checkTd.appendChild(check);
+
+    // Unidad: el número de venta. Si el id es otro (BRUSCO), va debajo en
+    // chico: es el que aparece en los links compartidos (?u=). Sin
+    // geom.numero la celda es el id solo, como siempre.
+    const unidadTd = tr.children[1];
+    unidadTd.textContent = numeroDe(u);
+    if (String(numeroDe(u)) !== String(u.id)){
+      const idEl = document.createElement('span');
+      idEl.className = 'unidad-id';
+      idEl.textContent = 'ID ' + u.id;
+      idEl.title = 'ID interno: el que va en los links compartidos (?u=' + u.id + ')';
+      unidadTd.appendChild(idEl);
+    }
 
     const terrazaTd = tr.children[5];
     const terrazaInput = document.createElement('input');
