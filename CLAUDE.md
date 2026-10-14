@@ -234,7 +234,8 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
 - **Tooltip / tarjeta de unidad**: `pintarResumenUnidad()` (número, estado, torre/piso,
   tipología, m², precio — alquiler en UYU/mes, vendidas sin precio). Desktop: hover =
   tooltip. Click o tap = `seleccionar(caja)`: la cámara va hasta la unidad (`enfocar(u)`,
-  vía `moverCamara()`, 750 ms), la unidad queda resaltada como elegida y aparece
+  vía `moverCamara()`, 750 ms), la unidad queda resaltada como elegida (contorno, ver
+  "Selección de unidad", punto 2) y aparece
   `#tarjeta-unidad`. En desktop la tarjeta va `.anclada` a la unidad (aspecto de
   tooltip, la sigue si se gira el edificio; `ubicarTarjeta()` en el bucle) con "Click
   para ver la unidad"; en táctil (`matchMedia('(hover: none)')`) sube sobre la barra
@@ -369,8 +370,21 @@ modifica, se actualizan el script y esta sección en el mismo commit.
 1. Click o tap en una unidad → la cámara va hasta quedar frente a ella con recorrido
    suavizado (`moverCamara()`, `MS_CAMARA_UNIDAD` = 750 ms, ease-out cúbico), nunca un
    salto. Con `prefers-reduced-motion`, inmediato.
-2. La unidad queda resaltada como elegida (emissive en su propio color, opacidad ≥ 0,92,
-   borde marcado), distinta del hover, y vuelve a la normalidad al cerrar.
+2. La unidad queda resaltada como elegida, distinta del hover, y vuelve a la normalidad
+   al cerrar: **contorno** sobre sus aristas reales (`CONTORNO`: halo oscuro de 5 px +
+   núcleo blanco de 2,5 px, líneas gruesas de r128 con ancho fijo en pantalla), opacidad
+   ≥ 0,92 y emissive bajo (0,2) en su propio color. El contorno entra desde el clic en
+   ~450 ms (fundido + crecimiento del trazo) y después queda quieto, sin pulsos: la
+   selección dura lo que dura la lectura del panel. Al cambiar de unidad, fundido cruzado
+   de ~200 ms sin crecimiento; al cerrar sale en ~180 ms; con `prefers-reduced-motion`,
+   inmediato. Lo tapa solo lo que está adelante (profundidad + un sesgo del ancho del
+   trazo): nunca se ve a través de una fachada. Por qué no el emissive 0,6 de antes:
+   aclaraba hacia blanco y lavaba el color del estado, así que de costado, de lejos o en
+   estados claros (vendida, sin estado) la elegida casi no se distinguía, y un verde de
+   disponible aclarado se acercaba al salvia de alquiler. Con 0 las caras a la sombra
+   quedaban apagadas (la reservada, barrosa); con 0,2 cada estado queda cerca del color
+   de su leyenda (comparado en BRUSCO el 2026-10-14). Si los scripts de las líneas no
+   cargan, vuelve el resaltado anterior (emissive 0,6 + borde fino).
 3. Aparece la tarjeta chica, no el panel: en desktop anclada a la unidad con "Click para
    ver la unidad →"; en táctil, abajo, con "Ver unidad". Una línea guía la une con un
    punto sobre la fachada de la unidad.

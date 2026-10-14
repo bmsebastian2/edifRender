@@ -70,6 +70,9 @@ const controles = [
   ['La unidad de la tarjeta o del panel se resalta como elegida en el bucle',
     /cajaTarjeta/.test(cuerpo('esElegidaCaja')) && /elegida/.test(cuerpo('esElegidaCaja')) &&
     animar.includes('esElegidaCaja(')],
+  ['La elegida lleva contorno: CONTORNO sigue a la tarjeta y al panel en el bucle y respeta prefers-reduced-motion',
+    animar.includes('CONTORNO.actualizar(') && /const CONTORNO =[\s\S]*?cajaTarjeta \|\| cajaElegida\(\)/.test(html) &&
+    /REDUCIR_MOVIMIENTO \? 0 : ms/.test(html)],
   ['Desktop: la tarjeta va anclada a la unidad y la sigue en cada cuadro',
     html.includes("classList.add('anclada')") && animar.includes('ubicarTarjeta(')],
   ['Desktop: "Click para ver la unidad" es un botón en la tarjeta',

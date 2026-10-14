@@ -5392,6 +5392,14 @@
        uno — con meshopt bajan a ~40 KB. Este decoder (~20 KB, JS puro, sin
        WASM aparte) sale más a cuenta que subir 3 archivos 4x más pesados. -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
+  <!-- Líneas gruesas de r128 (mismo patrón clásico que GLTFLoader), para el
+       contorno de la unidad elegida: `linewidth` de LineBasicMaterial se
+       ignora y queda en 1 px físico. ~21 KB entre los tres; el orden importa
+       (LineSegments2 usa los otros dos). Si no cargan, el visor resalta la
+       elegida como antes (ver CONTORNO en el script). -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegmentsGeometry.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegments2.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="supabase-config.js"></script>
   <script src="amenities-iconos.js"></script>
@@ -9956,8 +9964,150 @@
             !filtrosEl.classList.contains('pop') && !solPanel.classList.contains('abierto') && !capaAbierta()));
       }
 
-      // Resaltado (ver el fundido de cajas en animar()).
-      const OPACIDAD_ELEGIDA = 0.92, BORDE_ELEGIDA = 0.9, EMISIVO_ELEGIDA = 0.6;
+      /* Contorno de la unidad elegida (la de la tarjeta o la del panel): un
+         trazo grueso sobre sus aristas reales — la misma EdgesGeometry del
+         borde fino, así que sigue el contorno de BRUSCO y no una caja. El
+         borde fino es LineBasicMaterial, cuyo `linewidth` se ignora: 1 px
+         físico, medio px CSS en un celular con DPR 2, y no se leía. Las
+         líneas de r128 tienen ancho fijo en px de pantalla (igual de cerca
+         que de lejos) sin postprocesado. Doble trazo, halo oscuro + núcleo
+         blanco, para leerse sobre cualquier estado y contra cielo o pasto.
+         Profundidad: va en el grupo del piso, en la posición de su unidad, y
+         se dibuja después de todas las unidades (renderOrder 1 y 2) con
+         depthTest: lo tapa solo lo que de verdad está adelante — losas,
+         núcleo, cualquier unidad, también una vendida — y sus aristas
+         traseras quedan detrás de sus caras. Dibujado en el orden de las
+         transparentes (justo después de su unidad), una vecina con la pared
+         compartida lo pintaba encima al 86–94% aunque no estuviera delante:
+         una unidad entre dos vecinas, vista de frente, perdía las verticales.
+         Ver también el sesgo de profundidad en conSesgo().
+         Dos trazos para toda la escena, no uno por unidad: al cambiar de
+         unidad uno se apaga mientras el otro se enciende. Entra con fundido
+         y crecimiento del ancho y después queda quieto: la selección dura lo
+         que dura la lectura del panel y nada se mueve en bucle. Sin los
+         scripts de las líneas CONTORNO es null y la elegida se resalta como
+         antes (emissive + borde fino). */
+      const CONTORNO = THREE.LineSegments2 && THREE.LineMaterial && THREE.LineSegmentsGeometry ? (() => {
+        const MS_ENTRA = 450, MS_CAMBIO = 200, MS_SALE = 180, MS_SALE_CAMBIO = 150;
+        const ANCHO_HALO = 5, ANCHO_NUCLEO = 2.5, OP_HALO = 0.85, CRECE_DESDE = 0.4;
+        // Por EdgesGeometry: en ROSSO todas las unidades comparten una.
+        const geos = new Map();
+        function geoDe(caja) {
+          const bordes = caja.userData.borde.geometry;
+          if (!geos.has(bordes)) geos.set(bordes, new THREE.LineSegmentsGeometry().fromEdgesGeometry(bordes));
+          return geos.get(bordes);
+        }
+        // Sesgo de profundidad: el trazo tiene el ancho de varios px pero la
+        // profundidad de la arista, y en una esquina cóncava (la base de la
+        // unidad contra el balcón de la losa, una unidad en L) la mitad cae
+        // sobre una cara más cercana y queda tapada. Cada punto se acerca a
+        // la cámara sobre su propio rayo (no cambia dónde cae en pantalla)
+        // lo que mide ANCHO_HALO px a esa distancia: nunca atraviesa nada
+        // más grueso que el propio trazo, a cualquier zoom. Un
+        // polygonOffset fijo, en cambio, a 190 m equivalía a casi un metro.
+        function conSesgo(sh) {
+          sh.uniforms.sesgoPx = { value: ANCHO_HALO };
+          sh.vertexShader = 'uniform float sesgoPx;\n' + sh.vertexShader.replace(
+            'vec4 end = modelViewMatrix * vec4( instanceEnd, 1.0 );',
+            `$&
+            float sesgo = 1.0 - sesgoPx * 2.0 / ( projectionMatrix[ 1 ][ 1 ] * resolution.y );
+            start.xyz *= sesgo;
+            end.xyz *= sesgo;`);
+        }
+        const materiales = [];
+        function material(color, ancho) {
+          const m = new THREE.LineMaterial({
+            color, linewidth: ancho, transparent: true, opacity: 0, depthWrite: false, toneMapped: false,
+          });
+          m.onBeforeCompile = conSesgo;
+          m.resolution.set(innerWidth, innerHeight);
+          materiales.push(m);
+          return m;
+        }
+        // Después de todas las unidades (renderOrder 0); el núcleo después
+        // del halo.
+        function linea(color, ancho, orden) {
+          const l = new THREE.LineSegments2(undefined, material(color, ancho));
+          l.renderOrder = orden;
+          return l;
+        }
+        const trazos = [0, 1].map(() => ({
+          halo: linea(0x1A2124, ANCHO_HALO, 1),
+          nucleo: linea(0xFFFFFF, ANCHO_NUCLEO, 2),
+          caja: null, op: 0, ancho: 1, op0: 0, op1: 0, ancho0: 1, ancho1: 1, inicio: 0, dur: 0,
+        }));
+        function asignar(t, caja) {
+          soltar(t);
+          t.caja = caja;
+          const geo = geoDe(caja);
+          for (const l of [t.halo, t.nucleo]) {
+            l.geometry = geo;
+            l.position.copy(caja.position);
+            caja.parent.add(l); // el grupo del piso: acompaña "separar pisos"
+          }
+        }
+        function soltar(t) {
+          t.caja = null;
+          for (const l of [t.halo, t.nucleo]) if (l.parent) l.parent.remove(l);
+        }
+        function animarA(t, op, ancho, ms, ahora) {
+          Object.assign(t, { op0: t.op, ancho0: t.ancho, op1: op, ancho1: ancho, inicio: ahora,
+            dur: REDUCIR_MOVIMIENTO ? 0 : ms });
+        }
+        function avanzar(t, ahora) {
+          const p = t.dur ? Math.min(1, (ahora - t.inicio) / t.dur) : 1;
+          const e = 1 - Math.pow(1 - p, 3); // ease-out cúbico, como la cámara
+          t.op = t.op0 + (t.op1 - t.op0) * e;
+          t.ancho = t.ancho0 + (t.ancho1 - t.ancho0) * e;
+          t.halo.material.opacity = t.op * OP_HALO;
+          t.nucleo.material.opacity = t.op;
+          t.halo.material.linewidth = ANCHO_HALO * t.ancho;
+          t.nucleo.material.linewidth = ANCHO_NUCLEO * t.ancho;
+          if (p >= 1 && t.op1 === 0) soltar(t);
+        }
+        let actual = trazos[0], otro = trazos[1], marcada = null, uCache = null, cajaCache = null;
+        function cajaElegida() {
+          if (elegida !== uCache) {
+            uCache = elegida;
+            cajaCache = elegida ? cajas.find(c => c.userData.unidad.id === elegida.id) || null : null;
+          }
+          return cajaCache;
+        }
+        return {
+          actualizar(ahora) {
+            const objetivo = cajaTarjeta || cajaElegida();
+            if (objetivo !== marcada) {
+              // De una unidad a otra: sin el crecimiento, solo fundido cruzado.
+              const cambio = !!marcada && !!objetivo;
+              if (objetivo && actual.caja === objetivo) animarA(actual, 1, 1, MS_CAMBIO, ahora); // volvió a la que se iba
+              else {
+                if (actual.caja) animarA(actual, 0, actual.ancho, cambio ? MS_SALE_CAMBIO : MS_SALE, ahora);
+                if (objetivo) {
+                  [actual, otro] = [otro, actual];
+                  if (actual.caja !== objetivo) {
+                    asignar(actual, objetivo);
+                    actual.op = 0;
+                    actual.ancho = cambio ? 1 : CRECE_DESDE;
+                  }
+                  animarA(actual, 1, 1, cambio ? MS_CAMBIO : MS_ENTRA, ahora);
+                }
+              }
+              marcada = objetivo;
+            }
+            for (const t of trazos) if (t.caja) avanzar(t, ahora);
+          },
+          resolucion(w, h) { for (const m of materiales) m.resolution.set(w, h); },
+        };
+      })() : null;
+
+      // Resaltado (ver el fundido de cajas en animar()). Con CONTORNO la
+      // marca es el trazo y el emissive de la elegida baja de 0.6 a 0.2: el
+      // 0.6 aclaraba hacia blanco y lavaba el color del estado (un verde de
+      // disponible aclarado se acerca al salvia de alquiler); sin nada, las
+      // caras a la sombra quedaban apagadas (reservada barrosa). Con 0.2 cada
+      // estado queda cerca del color de su leyenda (ver "Selección de
+      // unidad" en CLAUDE.md). Sin CONTORNO, el resaltado de antes.
+      const OPACIDAD_ELEGIDA = 0.92, BORDE_ELEGIDA = 0.9, EMISIVO_ELEGIDA = 0.6, EMISIVO_CON_CONTORNO = 0.2;
       const BLANCO = new THREE.Color(1, 1, 1);
       const EMISIVO_HOVER = new THREE.Color(0.22, 0.22, 0.22), EMISIVO_NADA = new THREE.Color(0, 0, 0);
 
@@ -10006,13 +10156,16 @@
           if (opObj != null) m.opacity = Math.abs(opObj - m.opacity) < 0.003 ? opObj : m.opacity + (opObj - m.opacity) * kF;
           const colorObj = esElegida ? d.colorBase : d.colorObj;
           if (colorObj) m.color.lerp(colorObj, kF);
-          const bordeObj = esElegida ? BORDE_ELEGIDA : d.bordeObj;
+          // Con CONTORNO el trazo grueso reemplaza al borde fino de la elegida
+          // (quedaría como una línea suelta adentro del trazo).
+          const bordeObj = esElegida ? (CONTORNO ? 0 : BORDE_ELEGIDA) : d.bordeObj;
           if (bordeObj != null) {
             const bm = d.borde.material;
             bm.opacity = Math.abs(bordeObj - bm.opacity) < 0.003 ? bordeObj : bm.opacity + (bordeObj - bm.opacity) * kF;
           }
           const emObj = esElegida
-            ? (d.emElegida ||= d.colorBase.clone().lerp(BLANCO, 0.3).multiplyScalar(EMISIVO_ELEGIDA))
+            ? (d.emElegida ||= d.colorBase.clone().lerp(BLANCO, 0.3)
+              .multiplyScalar(CONTORNO ? EMISIVO_CON_CONTORNO : EMISIVO_ELEGIDA))
             : c === sobre ? EMISIVO_HOVER : EMISIVO_NADA;
           if (!m.emissive.equals(emObj)) {
             m.emissive.lerp(emObj, kH);
@@ -10020,6 +10173,7 @@
             if (Math.abs(e.r - emObj.r) + Math.abs(e.g - emObj.g) + Math.abs(e.b - emObj.b) < 0.01) e.copy(emObj);
           }
         }
+        if (CONTORNO) CONTORNO.actualizar(ahora);
         actualizarBrujula();
         const girando = String(rampaGiro > 0);
         if (btnOrbita.getAttribute('aria-pressed') !== girando) btnOrbita.setAttribute('aria-pressed', girando);
@@ -10084,6 +10238,7 @@
         camara.aspect = innerWidth / innerHeight;
         camara.updateProjectionMatrix();
         render.setSize(innerWidth, innerHeight);
+        if (CONTORNO) CONTORNO.resolucion(innerWidth, innerHeight);
         pintarFondo();
       });
 
