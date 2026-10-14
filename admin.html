@@ -164,6 +164,9 @@
     background:transparent;font:inherit;font-size:13px;color:var(--tinta);text-align:right;
     font-variant-numeric:tabular-nums;-moz-appearance:textfield;
     transition:background-color .8s var(--ease),border-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+  /* Precio, alquiler y cochera se leen formateados ("US$ 212.037",
+     "UYU 55.000/mes"): necesitan más ancho que terraza ("12,5 m²"). */
+  input.input-campo.input-moneda{width:calc(14ch + 18px)}
   input.input-campo::-webkit-inner-spin-button,input.input-campo::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
   input.input-campo::placeholder{color:var(--suave);opacity:.55}
   tr:hover input.input-campo{border-color:var(--linea)}
@@ -789,6 +792,58 @@ function formatearNumero(valor){
   return new Intl.NumberFormat(PROYECTO_ACTUAL.locale, { maximumFractionDigits:2 }).format(valor);
 }
 
+// Lee lo escrito en un campo numérico con las convenciones del locale del
+// proyecto: "212037", "212.037", "US$ 212.037", "12,5" o "12.5" (el punto del
+// teclado numérico: un solo separador que no forma grupos de 3 es decimal).
+// Devuelve el número, null si quedó vacío o NaN si no es un número: así los
+// separadores y el símbolo del formato nunca llegan a la base.
+function leerNumero(texto, decimales){
+  if (!texto.trim()) return null;
+  if (texto.includes('-')) return NaN;
+  const dec = new Intl.NumberFormat(PROYECTO_ACTUAL.locale).formatToParts(1.5)
+    .find(p => p.type === 'decimal').value;
+  const otro = dec === ',' ? '.' : ',';
+  let t = texto.replace(/[^\d.,]/g, '');
+  if (!t) return NaN;
+  if (t.includes(dec) || new RegExp('^\\d{1,3}(\\' + otro + '\\d{3})+$').test(t)) t = t.split(otro).join('');
+  else t = t.replace(otro, dec);
+  const n = Number(t.replace(dec, '.'));
+  return Number.isFinite(n) ? Number(n.toFixed(decimales)) : NaN;
+}
+
+// Campo numérico editable que en reposo se lee formateado como en el visor
+// ("US$ 212.037", "12,5 m²") y con foco muestra el número limpio ("212037",
+// "12,5") para escribir cómodo. guardar(n) recibe siempre el número (o null),
+// nunca el texto formateado. Si lo escrito no es un número, no se guarda y
+// vuelve el valor anterior.
+function campoNumero(input, valor, formato, decimales, guardar){
+  let actual = valor != null ? Number(valor) : null;
+  const limpio = new Intl.NumberFormat(PROYECTO_ACTUAL.locale,
+    { useGrouping:false, maximumFractionDigits:decimales });
+  const pintar = conFoco => {
+    input.value = actual == null ? '' : conFoco ? limpio.format(actual) : formato(actual);
+  };
+  input.type = 'text';
+  input.inputMode = decimales ? 'decimal' : 'numeric';
+  input.autocomplete = 'off';
+  input.addEventListener('focus', () => pintar(true));
+  input.addEventListener('blur', () => pintar(false));
+  input.addEventListener('change', async () => {
+    const n = leerNumero(input.value, decimales);
+    if (Number.isNaN(n)){
+      marcarGuardado(input, { message:'"' + input.value + '" no es un número' });
+      pintar(document.activeElement === input);
+      return;
+    }
+    actual = n;
+    await guardar(n);
+    // Con Enter el campo puede perder el foco al deshabilitarse mientras
+    // guarda, sin blur: se vuelve a formatear acá.
+    if (document.activeElement !== input) pintar(false);
+  });
+  pintar(false);
+}
+
 async function mostrarApp(){
   document.getElementById('login-envoltorio').style.display = 'none';
   document.getElementById('app-envoltorio').style.display = 'block';
@@ -1010,11 +1065,9 @@ function celdaPrecio(td, u, campo, formato){
   if (valor == null) td.classList.add('vacio');
   if (!PUEDE_ADMINISTRAR_ACCESOS) return;
   const input = document.createElement('input');
-  input.type = 'number'; input.step = '1'; input.min = '0';
-  input.className = 'input-campo';
+  input.className = 'input-campo input-moneda';
   input.placeholder = '—';
-  input.value = valor != null ? valor : '';
-  input.addEventListener('change', () => guardarCampo(u.id, campo, input.value, input));
+  campoNumero(input, valor, formato, 0, n => guardarCampo(u.id, campo, n == null ? '' : String(n), input));
   td.classList.add('con-input');
   td.appendChild(input);
 }
@@ -1062,22 +1115,20 @@ function pintarUnidades(unidades){
 
     const terrazaTd = tr.children[5];
     const terrazaInput = document.createElement('input');
-    terrazaInput.type = 'number'; terrazaInput.step = '0.01'; terrazaInput.min = '0';
     terrazaInput.className = 'input-campo';
     terrazaInput.placeholder = '—';
-    terrazaInput.value = u.m2_terraza != null ? u.m2_terraza : '';
-    terrazaInput.addEventListener('change', () =>
-      guardarCampo(u.id, 'm2_terraza', terrazaInput.value, terrazaInput));
+    campoNumero(terrazaInput, u.m2_terraza, v => formatearNumero(v) + ' m²', 2, n =>
+      guardarCampo(u.id, 'm2_terraza', n == null ? '' : String(n), terrazaInput));
     terrazaTd.appendChild(terrazaInput);
 
+    // Cochera: en la moneda del proyecto, como "Cochera opcional" en el visor.
     const cocheraTd = tr.children[9];
     const cocheraInput = document.createElement('input');
-    cocheraInput.type = 'number'; cocheraInput.step = '1'; cocheraInput.min = '0';
-    cocheraInput.className = 'input-campo';
+    cocheraInput.className = 'input-campo input-moneda';
     cocheraInput.placeholder = '—';
-    cocheraInput.value = u.cochera_precio != null ? u.cochera_precio : '';
-    cocheraInput.addEventListener('change', () =>
-      guardarCampo(u.id, 'cochera_precio', cocheraInput.value, cocheraInput));
+    campoNumero(cocheraInput, u.cochera_precio,
+      v => formatearPrecio(v, PROYECTO_ACTUAL.moneda, PROYECTO_ACTUAL.locale), 0, n =>
+      guardarCampo(u.id, 'cochera_precio', n == null ? '' : String(n), cocheraInput));
     cocheraTd.appendChild(cocheraInput);
 
     const tipologiaTd = tr.children[10];
