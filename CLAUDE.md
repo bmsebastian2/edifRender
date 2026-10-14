@@ -191,7 +191,7 @@ El script está organizado en secciones numeradas:
 2. **ESCENA** — renderer, luces, cielo, entorno. Las dimensiones salen de
    `proyecto.geometria` con los valores de ROSSO como fallback (`ancho` 5.4, `prof` 6.4,
    `alto` 3, `losa_espesor`, `sep_x`/`sep_z`, `losa_*`, `nucleo_*`). Entorno: calle
-   (`geometria.calle`), cartel con el nombre de la calle anclado al mundo
+   (`geometria.calle`, ver "La calle" más abajo), cartel con el nombre de la calle anclado al mundo
    (`geometria.calle_nombre` o extraído de `direccion`), árboles con random por semilla
    (estables entre recargas), autos GLB cargados una vez y reutilizados con `.clone()`,
    faroles, bancos.
@@ -481,6 +481,27 @@ El `id` de la unidad es el número de venta: normalmente `piso*100 + pos`, únic
 **dentro de un proyecto**. No siempre se deduce de `pos` (ver
 `supabase-migration-altamira-piso5-numeracion.sql`: en el piso 5 de Altamira se
 fusionaron dos posiciones).
+
+### La calle: `geometria.calle`
+
+Objeto opcional con las medidas de la calle, en metros. Hoy ningún proyecto lo define:
+los tres usan los valores por defecto. Se arma en coordenadas "de frente" (calle sobre el
+eje X, en −Z) y después gira con `frente_eje`.
+
+- **`ancho`** (8) — ancho de la calzada. También el de las calles laterales
+  (`geometria.calles`). El cartel con el nombre escala con él.
+- **`largo`** (44) — largo del tramo del frente: calzada, guiones, árboles, faroles.
+  Las laterales no lo usan (van de esquina a esquina de la manzana). Ojo: autos, bancos,
+  cesto, bicicletero y cartel de tránsito tienen `x` fijas (entre −17 y 10), así que con
+  `largo` menor que ~36 quedan fuera de la calle.
+- **`vereda`** (2) — ancho de la vereda, en el frente y en las laterales. Los árboles van
+  a 0,4 m del cordón; el mobiliario, a 0,65 del ancho de la vereda desde el cordón.
+- **`vereda_alto`** (0,12) — altura del cordón (la vereda es un escalón real). Árboles y
+  mobiliario se apoyan a esa altura y la sombra de contacto del edificio va 1,5 cm arriba.
+
+La línea del mobiliario se mide desde la vereda, no desde la calzada. Hasta 2026-10-14
+era `Z_CALLE + 5,3`: con un `ancho` de 12 m caía sobre el asfalto. Sin contornos (ROSSO) el disco de base
+queda fijo en 30 m de radio; con contornos crece para que entren la calle y las esquinas.
 
 ## Simulador solar: `projects.lat`/`lon`, `paises.tz_offset_horas`, `geometria.norte_grados`
 

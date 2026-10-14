@@ -7494,13 +7494,19 @@
       // cartel de tránsito genérico — mismo criterio que los árboles
       // (geometría esquemática, pocos objetos por tipo, sin InstancedMesh
       // salvo las farolas que si se vuelven muchas). Todo sobre la vereda,
-      // más adentro que la fila de árboles pegada al cordón (Z_CALLE+4.4)
-      // para no pisarla. Las farolas y los bancos van de punta a punta de
+      // más adentro que la fila de árboles pegada al cordón para no
+      // pisarla. Las farolas y los bancos van de punta a punta de
       // la calle (LARGO_CALLE completo); el cesto/bicicletero/cartel se
       // quedaron en el tramo donde están los autos (x entre -1 y -14.5),
       // el que se confirmó visible desde el ángulo que se está usando para
       // mirar la maqueta.
-      const Z_VEREDA_MOBILIARIO = Z_CALLE + 5.3;
+      // Apoyado en VEREDA_ALTO, como los árboles: hasta 2026-10-14 iba en
+      // y = 0,02 fijo y quedaba 10 cm hundido en la vereda. La Z se mide
+      // desde la vereda (a 0,65 de su ancho desde el cordón) y no desde la
+      // calzada: con las medidas por defecto da lo mismo que antes
+      // (Z_CALLE + 5,3), pero con geometria.calle.ancho mayor no se sale
+      // de la vereda y queda flotando sobre el asfalto.
+      const Z_VEREDA_MOBILIARIO = BORDE_FRENTE - VEREDA * 0.35;
 
       const geoPosteFarol = new THREE.CylinderGeometry(0.06, 0.08, 4.2, 8);
       const geoBrazoFarol = new THREE.CylinderGeometry(0.04, 0.04, 0.7, 6);
@@ -7528,7 +7534,7 @@
       const MARGEN_FAROL = 2.5;
       for (let x = -LARGO_CALLE / 2 + MARGEN_FAROL; x <= LARGO_CALLE / 2 - MARGEN_FAROL; x += 8) {
         const farol = crearFarol();
-        farol.position.set(x, 0.02, Z_VEREDA_MOBILIARIO);
+        farol.position.set(x, VEREDA_ALTO, Z_VEREDA_MOBILIARIO);
         grupoCalle.add(farol);
       }
 
@@ -7553,7 +7559,7 @@
       }
       [-17, -5.5, 10].forEach(x => {
         const banco = crearBanco();
-        banco.position.set(x, 0.02, Z_VEREDA_MOBILIARIO);
+        banco.position.set(x, VEREDA_ALTO, Z_VEREDA_MOBILIARIO);
         grupoCalle.add(banco);
       });
 
@@ -7563,7 +7569,7 @@
           new THREE.CylinderGeometry(0.22, 0.18, 0.55, 10),
           new THREE.MeshStandardMaterial({ color: 0x3C4044, roughness: 0.7 })
         );
-        cesto.position.set(-10.5, 0.02 + 0.275, Z_VEREDA_MOBILIARIO);
+        cesto.position.set(-10.5, VEREDA_ALTO + 0.275, Z_VEREDA_MOBILIARIO);
         cesto.castShadow = CIELO_ALTA; cesto.receiveShadow = true;
         grupoCalle.add(cesto);
       }
@@ -7581,7 +7587,7 @@
         arco.rotation.z = Math.PI / 2;
         arco.position.set(0, 0.7, 0);
         bici.add(arco);
-        bici.position.set(-14.5, 0.02, Z_VEREDA_MOBILIARIO);
+        bici.position.set(-14.5, VEREDA_ALTO, Z_VEREDA_MOBILIARIO);
         grupoCalle.add(bici);
       }
 
@@ -7603,7 +7609,7 @@
         );
         panel.position.y = 2.15;
         cartel.add(panel);
-        cartel.position.set(-1, 0.02, Z_VEREDA_MOBILIARIO);
+        cartel.position.set(-1, VEREDA_ALTO, Z_VEREDA_MOBILIARIO);
         grupoCalle.add(cartel);
       }
 
