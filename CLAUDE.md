@@ -55,11 +55,16 @@ Archivos:
 - `supabase-migration-*.sql` — cada cambio posterior, corridos a mano en orden (ver más
   abajo).
 - `modelos/autos/*.glb` — modelos low-poly de autos (CC0, comprimidos con meshopt vía
-  `gltf-transform optimize`) usados como utilería en la calle.
+  `gltf-transform optimize`) usados como utilería en la calle. Se sirven con caché de un
+  año (`immutable`, ver `vercel.json`): **un modelo que cambia va con nombre nuevo**;
+  si se pisa el archivo, quien ya lo tenía en caché sigue viendo el viejo hasta un año.
 - `README.md` — runbook: alta de edificio paso a paso, acceso de plataforma, revocar
   accesos.
 - `vercel.json` — sin build ni framework (`framework: null`, `buildCommand: ""`,
-  `outputDirectory: "."`) + la ruta de los crawlers a `api/compartir`.
+  `outputDirectory: "."`) + la ruta de los crawlers a `api/compartir` + una ruta con
+  `continue` que pone caché larga a `modelos/*.glb`. El resto de los estáticos (HTML,
+  `supabase-config.js`, `amenities-iconos.js`) queda con el default de Vercel
+  (`max-age=0, must-revalidate`) a propósito: cambian en cada deploy con la misma URL.
 - `.vercelignore` — no se publican `CLAUDE.md`, `*.sql`, `scripts/`, `datos/`,
   `.githooks/` ni `node_modules/`.
 - `api/compartir.js` — HTML con las etiquetas Open Graph para los crawlers.
@@ -193,8 +198,12 @@ El script está organizado en secciones numeradas:
    `alto` 3, `losa_espesor`, `sep_x`/`sep_z`, `losa_*`, `nucleo_*`). Entorno: calle
    (`geometria.calle`, ver "La calle" más abajo), cartel con el nombre de la calle anclado al mundo
    (`geometria.calle_nombre` o extraído de `direccion`), árboles con random por semilla
-   (estables entre recargas), autos GLB cargados una vez y reutilizados con `.clone()`,
-   faroles, bancos.
+   (estables entre recargas), autos GLB cargados una vez y reutilizados con `.clone()`
+   (la malla del pack, con sus materiales reemplazados por dos tonos: carrocería y
+   oscuro; sin faros ni luces de color), faroles, bancos. GLTFLoader y el decoder de
+   meshopt no son `<script>` del HTML: `pedirCargadorGLTF()` los pide con el primer
+   auto, mientras los `.glb` se bajan en paralelo con `fetch()`. Si algo falla, no hay
+   autos (o falta uno) y el visor sigue igual.
 3. **TORRE** — `for (let piso = 1; piso <= PISOS; piso++)` con `PISOS = proyecto.pisos`:
    losa, núcleo, y un mesh por unidad, coloreado con `aspectoDe(u).color`, con
    `userData.unidad` apuntando al objeto de la unidad (así el raycasting mapea un mesh a
@@ -562,7 +571,7 @@ Cuando se comparte un link del visor por WhatsApp, Facebook, LinkedIn, etc., el 
 recibe un HTML con las etiquetas OG de la unidad (`?u=`) o del proyecto. Los visitantes
 no pasan por ningún código nuevo: reciben el `index.html` estático de siempre.
 
-- **Ruteo** (`vercel.json`): una sola ruta, `^/(index\.html)?$` con `has` sobre el
+- **Ruteo** (`vercel.json`): la ruta de la vista previa es `^/(index\.html)?$` con `has` sobre el
   `user-agent` (WhatsApp/, facebookexternalhit, Facebot, Twitterbot, LinkedInBot,
   TelegramBot, Slackbot, Discordbot, SkypeUriPreview, Pinterestbot, redditbot, Embedly,
   Cardyb, vkShare, Iframely) → `api/compartir`. Solo tokens que no aparecen en el UA de

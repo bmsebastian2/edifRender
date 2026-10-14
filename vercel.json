@@ -6,6 +6,11 @@
   "regions": ["pdx1"],
   "routes": [
     {
+      "src": "^/modelos/.+\\.glb$",
+      "headers": { "Cache-Control": "public, max-age=31536000, immutable" },
+      "continue": true
+    },
+    {
       "src": "^/(index\\.html)?$",
       "has": [
         {

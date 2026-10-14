@@ -5383,20 +5383,8 @@
   </aside>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- Build "clásica" (no ES module) de GLTFLoader, misma versión r128 que
-       three.min.js de arriba — este proyecto no tiene importmap ni
-       <script type="module">, así que el paquete three/addons (módulo ES)
-       no serviría acá. Cuelga THREE.GLTFLoader del global, igual patrón
-       que el script anterior. -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-  <!-- Decoder de meshopt: los .glb de modelos/autos/ salen de
-       `gltf-transform optimize` con --compress meshopt (default de ese
-       comando). Probado sin compresión primero (para no sumar esta
-       dependencia) y el ahorro no daba: estos modelos no tienen texturas,
-       todo el peso es geometría, y sin comprimir quedaban ~160-175 KB cada
-       uno — con meshopt bajan a ~40 KB. Este decoder (~20 KB, JS puro, sin
-       WASM aparte) sale más a cuenta que subir 3 archivos 4x más pesados. -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
+  <!-- GLTFLoader y el decoder de meshopt no van acá: solo sirven para los
+       autos y se piden a pedido (ver cargadorGLTF en el script). -->
   <!-- Líneas gruesas de r128 (mismo patrón clásico que GLTFLoader), para el
        contorno de la unidad elegida: `linewidth` de LineBasicMaterial se
        ignora y queda en 1 px físico. ~21 KB entre los tres; el orden importa
@@ -7395,64 +7383,91 @@
       // de ~20 repeticiones del mismo modelo sí valdría la pena).
       const LARGO_AUTO_OBJETIVO = 4.5; // metros — mismo target que tenía la geometría procedural que reemplaza
 
-      const cargadorGLTF = new THREE.GLTFLoader();
-      cargadorGLTF.setMeshoptDecoder(MeshoptDecoder); // ver <script> de meshopt_decoder.js
-      const modelosAutoCache = {}; // ruta -> Group ya escalado/centrado (fuente para .clone())
-
-      function cargarModeloAuto(ruta, materialCarroceria, colorCarroceria) {
-        if (modelosAutoCache[ruta]) return Promise.resolve(modelosAutoCache[ruta]);
-        return new Promise(resolve => {
-          cargadorGLTF.load(
-            ruta,
-            gltf => {
-              const bruto = gltf.scene;
-
-              // Escala uniforme: la dimensión más larga del bounding box (se
-              // asume el largo del auto, siempre la mayor de las tres en
-              // cualquier vehículo) pasa a medir LARGO_AUTO_OBJETIVO. No
-              // asumimos un tamaño fijo de antemano: no sabemos qué pack ni
-              // qué modelo puntual termine en modelos/autos/.
-              const tam = new THREE.Box3().setFromObject(bruto).getSize(new THREE.Vector3());
-              bruto.scale.setScalar(LARGO_AUTO_OBJETIVO / Math.max(tam.x, tam.y, tam.z));
-              bruto.updateMatrixWorld(true);
-
-              // Recentrar en X/Z y apoyar en y=0 — no todos los packs
-              // exportan con el pivote centrado en el piso del auto. Este
-              // offset va en `bruto` (hijo), no en el envoltorio: el
-              // envoltorio es lo que se clona y reposiciona por instancia
-              // más abajo (auto.position.set(...) pisaría este offset si
-              // estuviera en el mismo nodo).
-              const caja = new THREE.Box3().setFromObject(bruto);
-              const centro = caja.getCenter(new THREE.Vector3());
-              bruto.position.x -= centro.x;
-              bruto.position.z -= centro.z;
-              bruto.position.y -= caja.min.y;
-
-              bruto.traverse(n => {
-                if (!n.isMesh) return;
-                n.castShadow = CIELO_ALTA; // mismo criterio que ya usaban árboles/autos: se recorta en celular
-                n.receiveShadow = true;
-                // Retinte de carrocería: el pack trae colores de fábrica
-                // (azules saturados, blanco puro) que no eran el "neutro
-                // desaturado" pedido — se busca el material por nombre (cada
-                // modelo trae la carrocería como material aparte, ej. "Blue")
-                // y se le pisa el color, sin tocar vidrios/luces/ruedas.
-                const mats = Array.isArray(n.material) ? n.material : [n.material];
-                mats.forEach(m => { if (m && m.name === materialCarroceria) m.color.setHex(colorCarroceria); });
-              });
-
-              const envoltorio = new THREE.Group();
-              envoltorio.add(bruto);
-              modelosAutoCache[ruta] = envoltorio;
-              resolve(envoltorio);
-            },
-            undefined,
-            error => {
-              console.warn(`No se pudo cargar el modelo de auto "${ruta}":`, error);
-              resolve(null); // la escena sigue sin este auto, no se rompe nada
-            }
-          );
+      // GLTFLoader y el decoder de meshopt se piden recién acá y no como
+      // <script> en el HTML: solo sirven para los autos y eran 28 KB
+      // (Brotli) bloqueantes antes del primer cuadro (~0,3 s en 3G). Los
+      // .glb se bajan en paralelo con fetch() y se parsean cuando llegaron
+      // los scripts. Si algo falla no hay autos y el resto sigue igual, como
+      // con las líneas gruesas del contorno.
+      // GLTFLoader: build "clásica" (no ES module) de r128, como three.min.js
+      // — sin importmap ni <script type="module"> el paquete three/addons no
+      // serviría. Meshopt: los .glb salen de `gltf-transform optimize` con
+      // --compress meshopt; sin comprimir pesaban ~160-175 KB cada uno, con
+      // meshopt ~45 KB, y el decoder es JS puro (sin WASM aparte).
+      function cargarScript(src) {
+        return new Promise((ok, mal) => {
+          const s = document.createElement('script');
+          s.src = src;
+          s.onload = ok;
+          s.onerror = () => mal(new Error('No cargó ' + src));
+          document.head.appendChild(s);
         });
+      }
+      let cargadorGLTF = null; // se pide con el primer auto
+      function pedirCargadorGLTF() {
+        return cargadorGLTF ||= Promise.all([
+          cargarScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'),
+          cargarScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js'),
+        ]).then(() => new THREE.GLTFLoader().setMeshoptDecoder(MeshoptDecoder));
+      }
+      const modelosAutoCache = {}; // ruta -> promesa del Group ya escalado/centrado (fuente para .clone())
+
+      // Dos tonos por auto, carrocería y oscuro, como el resto del contexto
+      // (primitivas de uno o dos colores). El pack trae 6-7 materiales por
+      // modelo, con faros naranjas, luces traseras rojas y vidrios casi
+      // negros: el auto quedaba mucho más detallado que árboles y faroles.
+      // Se reemplazan todos; la malla del GLB queda tal cual. Al oscuro van
+      // vidrios, gomas y paragolpes, llantas y bajos (nombres de material de
+      // los tres .glb); el resto, faros y luces incluidos, a la carrocería.
+      const MATERIALES_OSCUROS_AUTO = new Set(['Windows', 'Black', 'Grey']);
+      const matOscuroAuto = new THREE.MeshStandardMaterial({ color: 0x24292C, roughness: 0.6 });
+
+      function cargarModeloAuto(ruta, colorCarroceria) {
+        return modelosAutoCache[ruta] ||= Promise.all([
+          pedirCargadorGLTF(),
+          fetch(ruta).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }),
+        ])
+          .then(([cargador, datos]) => new Promise((ok, mal) => cargador.parse(datos, '', ok, mal)))
+          .then(gltf => {
+            const bruto = gltf.scene;
+
+            // Escala uniforme: la dimensión más larga del bounding box (se
+            // asume el largo del auto, siempre la mayor de las tres en
+            // cualquier vehículo) pasa a medir LARGO_AUTO_OBJETIVO. No
+            // asumimos un tamaño fijo de antemano: no sabemos qué pack ni
+            // qué modelo puntual termine en modelos/autos/.
+            const tam = new THREE.Box3().setFromObject(bruto).getSize(new THREE.Vector3());
+            bruto.scale.setScalar(LARGO_AUTO_OBJETIVO / Math.max(tam.x, tam.y, tam.z));
+            bruto.updateMatrixWorld(true);
+
+            // Recentrar en X/Z y apoyar en y=0 — no todos los packs
+            // exportan con el pivote centrado en el piso del auto. Este
+            // offset va en `bruto` (hijo), no en el envoltorio: el
+            // envoltorio es lo que se clona y reposiciona por instancia
+            // más abajo (auto.position.set(...) pisaría este offset si
+            // estuviera en el mismo nodo).
+            const caja = new THREE.Box3().setFromObject(bruto);
+            const centro = caja.getCenter(new THREE.Vector3());
+            bruto.position.x -= centro.x;
+            bruto.position.z -= centro.z;
+            bruto.position.y -= caja.min.y;
+
+            const matCarroceria = new THREE.MeshStandardMaterial({ color: colorCarroceria, roughness: 0.7 });
+            bruto.traverse(n => {
+              if (!n.isMesh) return;
+              n.castShadow = CIELO_ALTA; // mismo criterio que ya usaban árboles/autos: se recorta en celular
+              n.receiveShadow = true;
+              n.material = MATERIALES_OSCUROS_AUTO.has(n.material.name) ? matOscuroAuto : matCarroceria;
+            });
+
+            const envoltorio = new THREE.Group();
+            envoltorio.add(bruto);
+            return envoltorio;
+          })
+          .catch(error => {
+            console.warn(`No se pudo cargar el modelo de auto "${ruta}":`, error);
+            return null; // la escena sigue sin este auto, no se rompe nada
+          });
       }
 
       [
@@ -7466,16 +7481,15 @@
         // cámara girada/acercada y ese carril se ve bien ahí, que es el
         // ángulo real que se está usando para mirar la maqueta.
         //
-        // materialCarroceria/colorCarroceria: nombre real del material de
-        // carrocería en cada .glb (revisado cargando cada archivo y
-        // listando sus materiales) y el color de reemplazo — grises +
-        // un azul apagado, ninguno repetido, ninguno compite con
-        // disponible/reservada/vendida.
-        { modelo: 'modelos/autos/sedan.glb', x: -2, materialCarroceria: 'Blue', colorCarroceria: 0x3F4245 },
-        { modelo: 'modelos/autos/suv.glb', x: -8, materialCarroceria: 'White', colorCarroceria: 0x9BA1A4 },
-        { modelo: 'modelos/autos/hatchback.glb', x: -14, materialCarroceria: 'LightBlue', colorCarroceria: 0x5A6B78 },
+        // colorCarroceria: grises + un azul apagado, ninguno repetido,
+        // ninguno compite con disponible/reservada/vendida. El sedán era
+        // 0x3F4245 y con el vidrio oscuro quedaba un bulto sin ventanas; más
+        // claro que 0x5D6367 se confunde con el asfalto (0x686F72).
+        { modelo: 'modelos/autos/sedan.glb', x: -2, colorCarroceria: 0x5D6367 },
+        { modelo: 'modelos/autos/suv.glb', x: -8, colorCarroceria: 0x9BA1A4 },
+        { modelo: 'modelos/autos/hatchback.glb', x: -14, colorCarroceria: 0x5A6B78 },
       ].forEach(c => {
-        cargarModeloAuto(c.modelo, c.materialCarroceria, c.colorCarroceria).then(modelo => {
+        cargarModeloAuto(c.modelo, c.colorCarroceria).then(modelo => {
           if (!modelo) return; // ver el warn del onError de arriba
           const auto = modelo.clone();
           auto.position.set(c.x, 0.02, Z_CALLE + 2.5);
