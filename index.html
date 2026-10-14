@@ -842,6 +842,11 @@
       transition: color var(--t) var(--ease), background-color var(--t) var(--ease), border-color var(--t) var(--ease)
     }
 
+    /* Un chip de estado que se quedó sin unidades (ver actualizarCifrasEstado()). */
+    .chip[hidden] {
+      display: none
+    }
+
     .chip:hover {
       color: var(--tinta);
       border-color: rgba(20, 40, 35, .22)
@@ -5464,6 +5469,20 @@
       return controller.signal;
     }
 
+    // Unidades, tipologías y su media: las pide cargarProyecto() y las vuelve
+    // a pedir refrescarDatos() (en iniciar).
+    function consultaUnidades(projectId) {
+      return sb.from('public_units').select('*').eq('project_id', projectId).order('id').abortSignal(timeoutSignal());
+    }
+    function consultaMediaTipologias(projectId) {
+      return sb.from('public_media').select('*').eq('project_id', projectId).eq('scope', 'typology').order('orden').abortSignal(timeoutSignal());
+    }
+    // select('*') y no ('id, nombre_publico'): sin supabase-migration-nombre-publico.sql
+    // la columna no existe y pedirla por nombre haría fallar la consulta.
+    function consultaTipologias(projectId) {
+      return sb.from('public_typologies').select('*').eq('project_id', projectId).order('id').abortSignal(timeoutSignal());
+    }
+
     async function cargarProyecto() {
       let proyecto, eProyecto;
       try {
@@ -5478,14 +5497,17 @@
       if (eProyecto) return { error: 'red' };
       if (!proyecto) return { error: 'no-encontrado' };
 
-      let unidades, eUnidades, settings, amenities, renders, mediaTipologias, pais, hitosObra, fotosObra;
+      let unidades, eUnidades, settings, amenities, renders, mediaTipologias, tipologias, pais, hitosObra, fotosObra;
       try {
-        ([{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }, { data: pais }, { data: hitosObra }, { data: fotosObra }] = await Promise.all([
-          sb.from('public_units').select('*').eq('project_id', proyecto.id).order('id').abortSignal(timeoutSignal()),
+        ([{ data: unidades, error: eUnidades }, { data: settings }, { data: amenities }, { data: renders }, { data: mediaTipologias }, { data: tipologias }, { data: pais }, { data: hitosObra }, { data: fotosObra }] = await Promise.all([
+          consultaUnidades(proyecto.id),
           sb.from('public_settings').select('*').eq('project_id', proyecto.id).abortSignal(timeoutSignal()).maybeSingle(),
           sb.from('public_amenities').select('*').eq('project_id', proyecto.id).order('orden').abortSignal(timeoutSignal()),
           sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'project').eq('tipo', 'render').order('orden').abortSignal(timeoutSignal()),
-          sb.from('public_media').select('*').eq('project_id', proyecto.id).eq('scope', 'typology').order('orden').abortSignal(timeoutSignal()),
+          consultaMediaTipologias(proyecto.id),
+          // Solo por nombre_publico (tipologiaDe()); si falla, el visor sigue
+          // con geom.tipologia o los dormitorios.
+          consultaTipologias(proyecto.id),
           // La hora del simulador solar sale de acá, nunca del navegador del
           // visitante (ver CLAUDE.md). `paises` es de lectura pública directa.
           sb.from('paises').select('tz_offset_horas').eq('codigo', proyecto.pais).abortSignal(timeoutSignal()).maybeSingle(),
@@ -5504,6 +5526,7 @@
         amenities: amenities || [],
         renders: renders || [],
         mediaTipologias: mediaTipologias || [],
+        tipologias: tipologias || [],
         hitosObra: hitosObra || [],
         fotosObra: fotosObra || [],
         unidades: unidades.map(normalizarUnidad),
@@ -5578,10 +5601,29 @@
       return u.geom && u.geom.numero ? u.geom.numero : u.id;
     }
 
-    // Nombre de tipología cargado en el propio geom ("Estudio", "Flex"...)
-    // para unidades sin typology_id asignada. null = seguir mostrando dorms.
-    function tipologiaDe(u) {
-      return !u.typologyId && u.geom && u.geom.tipologia ? u.geom.tipologia : null;
+    // public_typologies → { typology_id: nombre_publico }, solo las que tienen
+    // uno cargado. Sin supabase-migration-nombre-publico.sql la columna no
+    // viene y queda vacío. Lo usa tipologiaDe().
+    function nombresPublicosDe(tipologias) {
+      const nombres = {};
+      (tipologias || []).forEach(t => {
+        const n = typeof t.nombre_publico === 'string' ? t.nombre_publico.trim() : '';
+        if (n) nombres[t.id] = n;
+      });
+      return nombres;
+    }
+
+    // Nombre de tipología que ve el comprador, en este orden:
+    // 1. typologies.nombre_publico de la tipología asignada (nombresPublicos,
+    //    de nombresPublicosDe()). typologies.nombre NO: es el rótulo interno
+    //    del admin ("MONO-A", "1D-frente-A").
+    // 2. geom.tipologia de la unidad ("Estudio", "Flex"...), también con
+    //    typology_id: asignar una tipología por su planta no puede cambiar
+    //    "Estudio", la palabra con la que se vende, por "Monoambiente".
+    // 3. null = mostrar los dormitorios.
+    function tipologiaDe(u, nombresPublicos) {
+      const publico = u.typologyId && nombresPublicos ? nombresPublicos[u.typologyId] : null;
+      return publico || (u.geom && u.geom.tipologia ? u.geom.tipologia : null);
     }
 
     // Torre de la unidad en proyectos con geometria.torres (null si no tiene).
@@ -6224,16 +6266,24 @@
     // Todo lo que sigue (escena, torre, cámara, interacción, bucle) queda
     // adentro de iniciar() porque necesita esperar a que lleguen el proyecto y
     // las unidades desde Supabase antes de construir nada.
-    function iniciar(proyecto, settingsRow, UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra) {
+    function iniciar(proyecto, settingsRow, UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra, tipologias) {
 
       // Media real por tipología (planta/renders subidos desde admin.html),
       // agrupada por typology_id y tipo — así abrir(u) resuelve en O(1) qué
       // mostrarle a cada unidad según su u.typologyId. Ver pintarPlantaUnidad().
+      // refrescarDatos() lo vuelve a armar con la media nueva.
       const MEDIA_POR_TIPOLOGIA = {};
-      (mediaTipologias || []).forEach(m => {
-        const grupo = MEDIA_POR_TIPOLOGIA[m.typology_id] || (MEDIA_POR_TIPOLOGIA[m.typology_id] = { planta: [], render: [] });
-        (grupo[m.tipo] || (grupo[m.tipo] = [])).push(m);
-      });
+      function agruparMediaTipologias(lista) {
+        for (const k in MEDIA_POR_TIPOLOGIA) delete MEDIA_POR_TIPOLOGIA[k];
+        (lista || []).forEach(m => {
+          const grupo = MEDIA_POR_TIPOLOGIA[m.typology_id] || (MEDIA_POR_TIPOLOGIA[m.typology_id] = { planta: [], render: [] });
+          (grupo[m.tipo] || (grupo[m.tipo] = [])).push(m);
+        });
+      }
+      agruparMediaTipologias(mediaTipologias);
+      // typology_id → nombre para el comprador (ver tipologiaDe()). Lo
+      // reemplaza refrescarDatos().
+      let NOMBRES_TIPOLOGIA = nombresPublicosDe(tipologias);
 
       // Barra superior: "BRUSCO" + "by IXOU". Varios nombres ya traen el
       // "by X" adentro ("ROSSO by Block"); se parte ahí para no duplicarlo
@@ -6383,37 +6433,41 @@
       function nombreEstado(u) {
         return u.estado === 'disponible' && hayAlquiler ? 'En venta' : aspectoDe(u).nombre;
       }
-      if (proyecto.muestra_totales) {
-        const conteos = [ESTADOS.disponible, ESTADOS.alquiler, ESTADOS.reservado, ESTADOS.vendido, ESTADOS.sin_dato]
-          .map(e => {
-            const venta = e === ESTADOS.disponible && hayAlquiler;
-            const cantidad = UNIDADES.filter(u => aspectoDe(u) === e).length;
-            return {
-              nombre: venta ? 'En venta' : e.nombre,
-              corto: venta ? 'en venta' : cantidad === 1 ? (e.singular || e.nombre.toLowerCase()) : e.plural,
-              color: e.color,
-              cantidad
-            };
-          })
-          .filter(e => e.cantidad > 0);
-        document.getElementById('aviso').innerHTML =
-          '<div class="aviso-barra">' + conteos.map(e =>
-            '<span style="flex:' + e.cantidad + ';background:' + e.color + '"></span>'
-          ).join('') + '</div>' +
-          '<div class="aviso-lista">' + conteos.map(e =>
-            '<div class="aviso-fila"><span class="punto" style="background:' + e.color + '"></span>' +
-            '<span class="aviso-label">' + e.nombre + '</span><span class="aviso-cant">' + e.cantidad + '</span></div>'
-          ).join('') + '</div>';
-        document.getElementById('ficha-resumen').innerHTML = conteos.map(e =>
-          '<span class="aviso-item" aria-label="' + e.nombre + ': ' + e.cantidad + ' unidades">' +
-          '<span class="punto" style="background:' + e.color + '"></span>' + e.cantidad +
-          '<span class="aviso-item-txt">' + e.corto + '</span></span>'
-        ).join('');
-      } else {
-        document.getElementById('aviso').hidden = true;
-        document.getElementById('ficha-resumen').textContent = 'Ver ficha';
+      // refrescarDatos() la vuelve a llamar si cambió algún estado.
+      function pintarDisponibilidad() {
+        if (proyecto.muestra_totales) {
+          const conteos = [ESTADOS.disponible, ESTADOS.alquiler, ESTADOS.reservado, ESTADOS.vendido, ESTADOS.sin_dato]
+            .map(e => {
+              const venta = e === ESTADOS.disponible && hayAlquiler;
+              const cantidad = UNIDADES.filter(u => aspectoDe(u) === e).length;
+              return {
+                nombre: venta ? 'En venta' : e.nombre,
+                corto: venta ? 'en venta' : cantidad === 1 ? (e.singular || e.nombre.toLowerCase()) : e.plural,
+                color: e.color,
+                cantidad
+              };
+            })
+            .filter(e => e.cantidad > 0);
+          document.getElementById('aviso').innerHTML =
+            '<div class="aviso-barra">' + conteos.map(e =>
+              '<span style="flex:' + e.cantidad + ';background:' + e.color + '"></span>'
+            ).join('') + '</div>' +
+            '<div class="aviso-lista">' + conteos.map(e =>
+              '<div class="aviso-fila"><span class="punto" style="background:' + e.color + '"></span>' +
+              '<span class="aviso-label">' + e.nombre + '</span><span class="aviso-cant">' + e.cantidad + '</span></div>'
+            ).join('') + '</div>';
+          document.getElementById('ficha-resumen').innerHTML = conteos.map(e =>
+            '<span class="aviso-item" aria-label="' + e.nombre + ': ' + e.cantidad + ' unidades">' +
+            '<span class="punto" style="background:' + e.color + '"></span>' + e.cantidad +
+            '<span class="aviso-item-txt">' + e.corto + '</span></span>'
+          ).join('');
+        } else {
+          document.getElementById('aviso').hidden = true;
+          document.getElementById('ficha-resumen').textContent = 'Ver ficha';
+        }
+        medirFinFicha(); // ficha ya pintada: el riel y Filtros se acomodan debajo
       }
-      medirFinFicha(); // ficha ya pintada: el riel y Filtros se acomodan debajo
+      pintarDisponibilidad();
 
       /* ============================================================
          2. ESCENA
@@ -8190,6 +8244,17 @@
         chipsEstado[k] = chip(document.getElementById('f-estado'), nombre + cifra(deEstado.length), e.color,
           on => on ? fEstado.add(k) : fEstado.delete(k), deEstado.length);
       });
+      // Cifras al día después de refrescarDatos(). Un chip que queda en 0 se
+      // oculta, como los que no tenían unidades al cargar; un estado que no
+      // tenía chip al cargar no lo suma (su filtro sigue prendido).
+      function actualizarCifrasEstado() {
+        Object.entries(chipsEstado).forEach(([k, b]) => {
+          const n = UNIDADES.filter(u => u.estado === k).length;
+          b.hidden = !n;
+          if (n) b.style.setProperty('--n', n);
+          b.querySelector('.chip-n').textContent = n;
+        });
+      }
       if (torresDisponibles.length) {
         document.getElementById('f-torre-grupo').hidden = false;
         document.querySelector('.fb-drop[data-grupo="torre"]').hidden = false;
@@ -8467,6 +8532,20 @@
       const tienePB = proyecto.tiene_pb !== false;
       const filasPiso = [];
 
+      // Disponibles = venta + alquiler: "hay algo que puedo tomar en este piso".
+      // Sin ninguna, la fila no lleva cifra. refrescarDatos() la vuelve a llamar.
+      function pintarCuentaPiso(b, p) {
+        const disponibles = UNIDADES.filter(u => u.piso === p && esOfertable(u)).length;
+        let cuenta = b.querySelector('.pf-count');
+        if (!disponibles) { if (cuenta) cuenta.remove(); return; }
+        if (!cuenta) {
+          cuenta = document.createElement('span');
+          cuenta.className = 'pf-count';
+          b.appendChild(cuenta);
+        }
+        cuenta.textContent = disponibles;
+      }
+
       for (let p = PISOS; p >= 1; p--) {
         const tieneUnidades = UNIDADES.some(u => u.piso === p);
         const b = document.createElement('button');
@@ -8482,14 +8561,7 @@
           const num = document.createElement('span');
           num.textContent = p;
           b.appendChild(num);
-          // Disponibles = venta + alquiler: "hay algo que puedo tomar en este piso".
-          const disponibles = UNIDADES.filter(u => u.piso === p && esOfertable(u)).length;
-          if (disponibles) {
-            const cuenta = document.createElement('span');
-            cuenta.className = 'pf-count';
-            cuenta.textContent = disponibles;
-            b.appendChild(cuenta);
-          }
+          pintarCuentaPiso(b, p);
           if (pisosConstruidos.size > 0 && !pisosConstruidos.has(p)) b.classList.add('piso-sin-construir');
           b.addEventListener('click', () => {
             pisoAislado = pisoAislado === p ? null : p;
@@ -8851,7 +8923,7 @@
       // conversación sabiendo el presupuesto del visitante.
       function actualizarLinkWA(u) {
         let texto = 'Hola, quiero consultar por la unidad ' + numeroDe(u) + ' de ' + proyecto.nombre + ' (' +
-          [(tipologiaDe(u) || etiquetaDorms(u.dorms)).toLowerCase(), u.m2 != null ? formatearM2(u.m2, proyecto.locale) + ' m²' : null]
+          [(tipologiaDe(u, NOMBRES_TIPOLOGIA) || etiquetaDorms(u.dorms)).toLowerCase(), u.m2 != null ? formatearM2(u.m2, proyecto.locale) + ' m²' : null]
             .filter(Boolean).join(', ') + '). ' + linkDe(u);
         if (finActual) {
           texto += ' Simulé una entrega del ' + finActual.entregaPct + '% (' +
@@ -8889,7 +8961,7 @@
           unidad: numeroDe(u),
           torre: torreDe(u) || '',
           piso: u.piso,
-          tipologia: tipologiaDe(u) || etiquetaDorms(u.dorms),
+          tipologia: tipologiaDe(u, NOMBRES_TIPOLOGIA) || etiquetaDorms(u.dorms),
           proyecto: partesNombre ? partesNombre[1] : proyecto.nombre,
         };
         // split/join y no replace(): un "$" en un valor no se interpreta.
@@ -9105,7 +9177,7 @@
         if (u.piso != null) datos.appendChild(u.piso === 0
           ? datoResumen('piso', 'PB')
           : datoResumen('piso', String(u.piso), 'Piso', true));
-        const tipologia = tipologiaDe(u);
+        const tipologia = tipologiaDe(u, NOMBRES_TIPOLOGIA);
         if (tipologia || u.dorms === 0) datos.appendChild(datoResumen('dorms', tipologia || etiquetaDorms(0)));
         else if (u.dorms > 0) datos.appendChild(datoResumen('dorms', String(u.dorms), 'dorm.'));
         if (u.m2 != null) datos.appendChild(datoResumen('m2', formatearM2(u.m2, proyecto.locale), 'm²'));
@@ -9522,6 +9594,23 @@
         registrarEvento(proyecto.id, u.id);
         elegida = u;
         tooltip.classList.remove('visible'); // en touch queda pegado en la última posición tocada
+        pintarPanel(u);
+
+        marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
+        panel.classList.add('abierto');
+        actualizarSolUnidad();
+        // Mobile: el panel es una hoja de hasta 74vh; con la ficha desplegada
+        // arriba no quedaba lugar para el edificio. (Tocar la unidad no la
+        // pliega; abrir el panel sí.)
+        if (matchMedia('(max-width: 860px)').matches) cerrarFicha();
+        // Al final: enfocar() encuadra en lo que el panel deja libre y en
+        // mobile necesita la altura real de la hoja ya con su contenido.
+        if (mover) enfocar(u);
+      }
+
+      // El contenido del panel, sin efectos: abrir() lo usa y refrescarDatos()
+      // lo repinta con el panel abierto (sin registrar otro evento en Demanda).
+      function pintarPanel(u) {
         const e = aspectoDe(u);
         const torreU = torresDisponibles.length ? torreDe(u) : null;
         document.getElementById('p-eyebrow').textContent =
@@ -9537,7 +9626,7 @@
         pEstado.style.color = 'var(--tinta)';
         actualizarTiraPiso(u);
         pintarPlantaUnidad(u);
-        const tipologia = tipologiaDe(u);
+        const tipologia = tipologiaDe(u, NOMBRES_TIPOLOGIA);
         const comoCifra = !tipologia && u.dorms > 0;
         // Sin tipología ni dormitorios cargados, la celda no va (si no,
         // "null dormitorios").
@@ -9598,17 +9687,6 @@
         actualizarLinkWA(u);
         actualizarConsulta(u);
         actualizarEsperaPanel(u);
-
-        marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
-        panel.classList.add('abierto');
-        actualizarSolUnidad();
-        // Mobile: el panel es una hoja de hasta 74vh; con la ficha desplegada
-        // arriba no quedaba lugar para el edificio. (Tocar la unidad no la
-        // pliega; abrir el panel sí.)
-        if (matchMedia('(max-width: 860px)').matches) cerrarFicha();
-        // Al final: enfocar() encuadra en lo que el panel deja libre y en
-        // mobile necesita la altura real de la hoja ya con su contenido.
-        if (mover) enfocar(u);
       }
 
       function cerrar() {
@@ -9703,6 +9781,97 @@
       };
 
       /* ============================================================
+         DATOS AL DÍA AL VOLVER A LA PESTAÑA (visibilitychange)
+         El visor pide los datos una sola vez, al cargar. Para la demo (el
+         visor en una pestaña o ventana y el admin en otra), al volver a la
+         pestaña se piden de nuevo las unidades, las tipologías y su media,
+         y lo que cambió se actualiza en el lugar, sin recargar. El showroom
+         llama a lo mismo cada minuto (ver MS_CONSULTA_KIOSCO, en KIOSCO).
+         - Cubre lo que se edita desde el admin en Unidades y Tipologías:
+           estado (color del volumen con fundido, ficha, riel, chips de
+           estado), precio de venta y de alquiler, estimado, m², terraza,
+           cochera, orientación y la tipología asignada con su nombre para
+           el comprador (nombre_publico), su planta y sus renders. La
+           tarjeta y el panel abiertos se repintan solo si cambió su unidad
+           o su tipología: repintar el panel reinicia el simulador de
+           financiación y el formulario de lista de espera.
+         - NO cubre, sigue necesitando recargar la página: unidades nuevas o
+           borradas, cambios de geom (contorno, número, torre,
+           geom.tipologia), dormitorios, piso o posición, y todo lo que no son
+           unidades (proyecto, settings, renders del proyecto, amenities,
+           avance de obra). La torre y los chips de dormitorios y de torre se
+           arman una sola vez; también "En venta" (hayAlquiler) se decide al
+           cargar.
+         Si una consulta falla queda lo que había, y se reintenta en la
+         próxima vuelta.
+         ============================================================ */
+      const CAMPOS_AL_DIA = ['estado', 'precio', 'precioAlquiler', 'estimado', 'm2', 'm2Terraza', 'cocheraPrecio', 'orient', 'typologyId'];
+      // Media de tipologías + nombres para el comprador, para saber si algo cambió.
+      const firmaTipologias = (media, nombres) =>
+        (media || []).map(m => [m.id, m.typology_id, m.tipo, m.url, m.orden].join(' ')).join('|') +
+        '#' + JSON.stringify(Object.entries(nombres).sort());
+      let firmaTip = firmaTipologias(mediaTipologias, NOMBRES_TIPOLOGIA), refrescando = false;
+      async function refrescarDatos() {
+        if (refrescando) return;
+        refrescando = true;
+        let rU = null, rM = null, rT = null;
+        try {
+          [rU, rM, rT] = await Promise.all([
+            consultaUnidades(proyecto.id), consultaMediaTipologias(proyecto.id), consultaTipologias(proyecto.id)]);
+        } catch { rU = null; } finally { refrescando = false; }
+        if (!rU || rU.error || !rU.data || rM.error) return;
+
+        const nuevas = new Map(rU.data.map(r => [r.id, normalizarUnidad(r)]));
+        const cambiadas = new Set();
+        let cambioEstado = false;
+        UNIDADES.forEach(u => {
+          const n = nuevas.get(u.id);
+          if (!n) return; // borrada o despublicada: queda como estaba hasta recargar
+          CAMPOS_AL_DIA.forEach(k => {
+            if (u[k] === n[k]) return;
+            if (k === 'estado') cambioEstado = true;
+            u[k] = n[k];
+            cambiadas.add(u);
+          });
+        });
+        // Si falla solo esta, quedan los nombres que había (como en la carga).
+        const nombres = rT.error ? NOMBRES_TIPOLOGIA : nombresPublicosDe(rT.data);
+        const firma = firmaTipologias(rM.data, nombres);
+        const cambioTipologias = firma !== firmaTip;
+        if (cambioTipologias) {
+          firmaTip = firma;
+          agruparMediaTipologias(rM.data);
+          NOMBRES_TIPOLOGIA = nombres;
+        }
+        if (!cambiadas.size && !cambioTipologias) return;
+
+        if (cambioEstado) {
+          cajas.forEach(c => {
+            const d = c.userData;
+            if (!cambiadas.has(d.unidad)) return;
+            // colorObj apunta a colorBase (salvo filtrada): el bucle hace el
+            // fundido al color nuevo. El resplandor de la elegida sale de colorBase.
+            d.colorBase.set(aspectoDe(d.unidad).color);
+            d.emElegida = null;
+          });
+          pintarDisponibilidad();
+          filasPiso.forEach((b, i) => { if (!b.disabled) pintarCuentaPiso(b, PISOS - i); });
+          actualizarInfoPiso();
+          actualizarCifrasEstado();
+          aplicar(); // opacidad del estado nuevo y filtros (cierra el panel si la unidad ya no pasa)
+        }
+        const tocada = u => cambiadas.has(u) || (cambioTipologias && !!u.typologyId);
+        if (cajaTarjeta && tocada(cajaTarjeta.userData.unidad)) {
+          pintarResumenUnidad(document.getElementById('tarjeta-resumen'), cajaTarjeta.userData.unidad, esTactil ? false : 'boton');
+        }
+        if (elegida && tocada(elegida)) {
+          pintarPanel(elegida);
+          actualizarSolUnidad();
+        }
+      }
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) refrescarDatos(); });
+
+      /* ============================================================
          KIOSCO — modo showroom: el edificio solo, girando, para una
          pantalla o tablet en la sala de ventas que funciona todo el día
          sin que nadie la atienda.
@@ -9772,6 +9941,7 @@
         if (kiosco === activo) return;
         kiosco = activo;
         document.body.classList.toggle('kiosco', activo);
+        programarConsultaKiosco();
         if (activo) {
           volverAlGiro();
           pedirWakeLock();
@@ -9801,6 +9971,22 @@
         wakeLock = null;
       }
       document.addEventListener('visibilitychange', () => { if (!document.hidden) pedirWakeLock(); });
+
+      /* Datos al día en el showroom: la pantalla de la sala nunca se oculta,
+         así que el visibilitychange de refrescarDatos() no le llega. Mientras
+         dure el modo, la misma consulta cada MS_CONSULTA_KIOSCO. Con la
+         pestaña oculta se detiene; al volver, el visibilitychange de
+         refrescarDatos() trae lo último y el intervalo arranca de nuevo.
+         Fuera del modo no corre. Sin conexiones abiertas ni migración (el
+         tiempo real se descartó: en una campaña, el tope de conexiones
+         simultáneas de Supabase es un riesgo que esto no tiene). */
+      const MS_CONSULTA_KIOSCO = 60000;
+      let consultaKiosco = 0;
+      function programarConsultaKiosco() {
+        clearInterval(consultaKiosco);
+        consultaKiosco = kiosco && !document.hidden ? setInterval(refrescarDatos, MS_CONSULTA_KIOSCO) : 0;
+      }
+      document.addEventListener('visibilitychange', programarConsultaKiosco);
 
       /* Reloj del showroom (cada 0,5 s), para una pantalla que nadie atiende:
          - Una tarjeta o un panel que quedaron abiertos no pueden frenar el
@@ -10278,7 +10464,7 @@
       pintarLegal(resultado.settings.textos);
       pintarRenders(resultado.renders);
       pintarAvance(resultado.proyecto, resultado.hitosObra, resultado.fotosObra);
-      iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias, resultado.tzOffsetHoras, resultado.hitosObra);
+      iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias, resultado.tzOffsetHoras, resultado.hitosObra, resultado.tipologias);
       ocultarCarga();
     }
 

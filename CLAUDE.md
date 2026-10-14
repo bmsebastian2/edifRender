@@ -112,6 +112,12 @@ posteriores:
 - Por proyecto (`project_id`): `units`, `typologies`, `media`, `amenities`, `settings`
   (instagram/youtube/sitio_web/whatsapp, `textos` jsonb, `financiacion` jsonb), `leads`,
   `events`, `obra_hitos`, `obra_fotos`.
+- **`typologies` tiene dos nombres a propósito, no es un duplicado.** `nombre` es el
+  rótulo interno con el que el admin distingue plantas: en Altamira "MONO-A" y "MONO-B"
+  son dos plantas distintas que para el comprador son las dos "Monoambiente".
+  `nombre_publico` (opcional, `supabase-migration-nombre-publico.sql`) es lo que ve el
+  comprador en el visor y en la tarjeta de compartir. Vacío → `geom.tipologia` de la
+  unidad → dormitorios (`tipologiaDe()`). `nombre` nunca se muestra fuera del admin.
 - Accesos: `memberships` (user_id, project_id, rol `admin` | `vendedor`) y
   `plataforma_admins` (acceso global — Sebastian). Los usuarios se crean a mano en el
   dashboard de Supabase; no hay registro propio.
@@ -147,7 +153,8 @@ Cada archivo es idempotente o tiene guardas. Orden histórico: `schema` → `aut
 `lista-espera` → `pisos` → `precio-opcional` → `accesos` → `autores-unidades` →
 `grants-explicitos` (grants de tabla para `authenticated`; no depender de los defaults
 de Supabase — una tabla nueva editable desde admin necesita su propio `grant`) →
-`alquiler` (estado `'alquiler'` + `units.precio_alquiler`, UYU/mes). Migraciones nuevas: archivo nuevo
+`alquiler` (estado `'alquiler'` + `units.precio_alquiler`, UYU/mes) → `nombre-publico`
+(`typologies.nombre_publico` + `public_typologies` recreada). Migraciones nuevas: archivo nuevo
 `supabase-migration-<tema>.sql`, comentario de cabecera en español explicando el porqué,
 idempotente (`if not exists`, `drop policy if exists`, `on conflict`), puramente aditiva
 cuando se pueda (un proyecto sin el dato nuevo tiene que verse exactamente igual que
@@ -163,8 +170,14 @@ horario del país, e hitos/fotos de obra. Cada consulta tiene un timeout de 15s 
 `abortSignal`. Error de red → el overlay muestra "Reintentar"; slug inexistente o no
 publicado → mensaje amable sin reintentar. Cada fila de unidad pasa por
 `normalizarUnidad(r)` (que también usa la vista previa al compartir). Si sale bien,
-`iniciar(proyecto, settings, UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra)` arma
-todo.
+`iniciar(proyecto, settings, UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra, tipologias)`
+arma todo. Las respuestas de Supabase no traen encabezados de caché (verificado el
+2026-10-14: sin `Cache-Control`/`ETag`, `CF-Cache-Status: DYNAMIC`), así que cada carga
+trae datos frescos. Al volver a la pestaña (`visibilitychange`), `refrescarDatos()`
+(antes de la sección KIOSCO) vuelve a pedir unidades, tipologías y su media y actualiza
+en el lugar estado, precios, m², tipología asignada, su nombre para el comprador y su
+planta; unidades nuevas y cambios de `geom` siguen necesitando recarga (detalle en el
+comentario del código).
 
 El script está organizado en secciones numeradas:
 
@@ -297,6 +310,13 @@ ventas sin nadie que la atienda. Sección `KIOSCO` del script (al final de `inic
   —una sola sesión para todos—, copiar link); el cartel de calle no abre Maps.
 - Marca abajo a la izquierda (`#kiosco-marca`). Wake Lock mientras dure el modo (se
   vuelve a pedir al volver a la pestaña; sin soporte se ignora).
+- **Datos al día**: la pantalla nunca se oculta, así que no le llega el
+  `visibilitychange`. Mientras dure el modo, `refrescarDatos()` cada
+  `MS_CONSULTA_KIOSCO` (60 s; `programarConsultaKiosco()`); se detiene con la pestaña
+  oculta y se reanuda al volver. Es la misma consulta de la carga (~10 KB comprimidos
+  en BRUSCO), sin conexiones abiertas. El tiempo real de Supabase se descartó
+  (2026-10-14): en una campaña, el tope de conexiones simultáneas (200 en Free) es un
+  riesgo que esto no tiene.
 - **QR** (`#kiosco-qr`, arriba a la izquierda; `actualizarQR()` desde el mismo reloj):
   `linkProyecto(BASE)` (siempre la URL pública, aunque el visor se abra desde localhost o
   una copia local), más `&u=<id>` si hay una unidad destacada (demo, tarjeta o panel),
@@ -328,6 +348,10 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
 - **Planta / renders**: imágenes reales subidas por tipología (`media` con
   `scope='typology'`, vía `mediaDeUnidad(u)` / `pintarPlantaUnidad(u)`). El viejo esquema
   procedural `plantaSVG()` / `ambientes()` ya no existe.
+- **Tipología** (`tipologiaDe(u, NOMBRES_TIPOLOGIA)`): `nombre_publico` de la tipología
+  asignada; si no hay, `geom.tipologia` ("Estudio", "Flex"), aunque la unidad tenga
+  `typology_id`; si no, los dormitorios. `typologies.nombre` no se muestra (ver los dos
+  nombres en "Modelo de datos").
 - Precio, m², terraza (`m2_terraza`), precio de cochera opcional (`cochera_precio`),
   unidades similares (`mostrarSimilares`), tira de pisos.
 - Link de **WhatsApp** armado con `settings.whatsapp` + mensaje con plantilla +
@@ -408,7 +432,9 @@ tiene uno solo). Pestañas:
   avisos de lista de espera.
 - **Demanda** — clicks por unidad/tipología/piso + leads de lista de espera.
 - **Amenities** — alta/baja/edición + orden.
-- **Tipologías** — alta/baja/edición + imágenes de planta/render por tipología.
+- **Tipologías** — alta/baja/edición + imágenes de planta/render por tipología. El
+  título de cada tarjeta es el nombre interno; "Nombre para el comprador"
+  (`nombre_publico`) aparece recién con la migración `nombre-publico` aplicada.
 - **Imágenes** — galería de renders del proyecto (se comprime del lado del cliente a
   ~2000px antes de subir al bucket `renders`; con tope por proyecto).
 - **Avance de obra** — toggle `avance_habilitado`, hitos (`obra_hitos`: fechas, peso,
@@ -540,7 +566,9 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
   Facebook Debugger hay que usar "Volver a extraer".
 - **Tarjeta de unidad**: `og:title` = "Unidad `numeroDe(u)` · `proyecto.nombre`";
   `og:description` = tipología · m² · orientación · precio · estado, cada dato omitido si
-  falta. Mismas reglas que el visor: tipología de `tipologiaDe()` o dormitorios;
+  falta. Mismas reglas que el visor: tipología de `tipologiaDe()` (con
+  `proyecto.nombresTipologia`, que arma `cargar()` desde `public_typologies`) o
+  dormitorios;
   orientación = `units.orientacion` tal cual, o "Orientación norte y este" /
   "Interior de manzana" solo si sale de `calcularFachadas()` (BRUSCO); precio de
   `formatearPrecio()` ("US$ 210.000"), con "(estimado)" si `units.estimado`, alquiler
@@ -591,7 +619,7 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
     ~2,4 MB (casi todo `resvg.wasm`).
 - **`api/_compartido.js`** se genera desde `index.html` (`DEFAULT_SLUG`, `ESTADOS`,
   `fmtAlquiler`, `aspectoDe`, `normalizarUnidad`, `versionCompartir`, `numeroDe`,
-  `tipologiaDe`, `torreDe`,
+  `nombresPublicosDe`, `tipologiaDe`, `torreDe`,
   `etiquetaDorms`, `formatoMoneda`, `formatearPrecio`, `formatearM2`, `unirConY`,
   `areaConSigno`, `calcularFachadas` + sus constantes, las medidas por defecto de la
   torre como `dimensionesDe(geo)` y los colores de `:root` como `COLORES`) y

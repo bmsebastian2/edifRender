@@ -21,7 +21,7 @@ const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SALIDA = join(raiz, 'api', '_compartido.js');
 
 // Funciones puras del visor (sin THREE, DOM ni variables de iniciar()).
-const FUNCIONES = ['aspectoDe', 'normalizarUnidad', 'versionCompartir', 'numeroDe', 'tipologiaDe', 'torreDe',
+const FUNCIONES = ['aspectoDe', 'normalizarUnidad', 'versionCompartir', 'numeroDe', 'nombresPublicosDe', 'tipologiaDe', 'torreDe',
   'etiquetaDorms', 'formatoMoneda', 'formatearPrecio', 'formatearM2', 'unirConY', 'areaConSigno'];
 
 export function generar(html, cfg) {

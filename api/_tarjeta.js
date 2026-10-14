@@ -29,12 +29,20 @@ async function leer(consulta, signal) {
 
 // Proyecto + todas sus unidades normalizadas como en el visor. null si el
 // slug no existe o no está publicado; tira error si falla la red.
+// proyecto.nombresTipologia (no es columna): { typology_id: nombre_publico },
+// lo que tipologiaDe() necesita. Si falla esa consulta queda vacío y la
+// tarjeta sigue con geom.tipologia o los dormitorios, como el visor.
 async function cargar(slug) {
   if (!slugValido(slug)) return null;
   const signal = AbortSignal.timeout(TIMEOUT_MS);
   const [proyecto] = await leer('public_projects?slug=eq.' + encodeURIComponent(slug) + '&select=*&limit=1', signal);
   if (!proyecto) return null;
-  const filas = await leer('public_units?project_id=eq.' + proyecto.id + '&select=*&order=id', signal);
+  // select=* y no nombre_publico: sin la migración la columna no existe.
+  const [filas, tipologias] = await Promise.all([
+    leer('public_units?project_id=eq.' + proyecto.id + '&select=*&order=id', signal),
+    leer('public_typologies?project_id=eq.' + proyecto.id + '&select=*', signal).catch(() => []),
+  ]);
+  proyecto.nombresTipologia = C.nombresPublicosDe(tipologias);
   return { proyecto, unidades: filas.map(C.normalizarUnidad) };
 }
 
@@ -53,7 +61,7 @@ function datosUnidad(proyecto, unidades, u) {
     numero: C.numeroDe(u),
     ubicacion: [torre ? (torre === 'Basamento' ? torre : 'Torre ' + torre) : null,
       u.piso === 0 ? 'PB' : u.piso != null ? 'Piso ' + u.piso : null].filter(Boolean).join(' · ') || null,
-    tipologia: C.tipologiaDe(u) || (u.dorms != null ? C.etiquetaDorms(u.dorms) : null),
+    tipologia: C.tipologiaDe(u, proyecto.nombresTipologia) || (u.dorms != null ? C.etiquetaDorms(u.dorms) : null),
     m2: u.m2 != null ? C.formatearM2(u.m2, proyecto.locale) + ' m²' : null,
     orientacion: orientacionDe(proyecto, unidades, u),
     precio: precioDe(proyecto, u),

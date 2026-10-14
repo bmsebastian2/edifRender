@@ -74,8 +74,18 @@ function numeroDe(u) {
   return u.geom && u.geom.numero ? u.geom.numero : u.id;
 }
 
-function tipologiaDe(u) {
-  return !u.typologyId && u.geom && u.geom.tipologia ? u.geom.tipologia : null;
+function nombresPublicosDe(tipologias) {
+  const nombres = {};
+  (tipologias || []).forEach(t => {
+    const n = typeof t.nombre_publico === 'string' ? t.nombre_publico.trim() : '';
+    if (n) nombres[t.id] = n;
+  });
+  return nombres;
+}
+
+function tipologiaDe(u, nombresPublicos) {
+  const publico = u.typologyId && nombresPublicos ? nombresPublicos[u.typologyId] : null;
+  return publico || (u.geom && u.geom.tipologia ? u.geom.tipologia : null);
 }
 
 function torreDe(u) {
@@ -194,6 +204,7 @@ module.exports = {
   normalizarUnidad,
   versionCompartir,
   numeroDe,
+  nombresPublicosDe,
   tipologiaDe,
   torreDe,
   etiquetaDorms,

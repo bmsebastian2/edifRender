@@ -449,6 +449,13 @@
   #panel-tipologias .tipologia-cabeza input.tipologia-nombre:focus{border-color:var(--verde);background:#fff}
   .tipologia-cabeza input.tipologia-num{width:64px}
   .tipologia-cabeza input.tipologia-orient{width:130px}
+  /* Nombre para el comprador: fila propia dentro de la cabeza (toma los
+     estilos de campo de .tipologia-cabeza), con la ayuda debajo. */
+  .tipologia-publico{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:4px;
+    font-size:12.5px;color:var(--suave)}
+  .tipologia-publico .etq{font-weight:600;color:var(--tinta)}
+  .tipologia-cabeza .tipologia-publico input{width:220px;max-width:100%}
+  .tipologia-publico small{flex-basis:100%;font-size:12px;line-height:1.45}
   /* "2 dorm." / "74 m²": el sufijo dice qué es cada número. */
   .campo-sufijo{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--suave)}
   .tipologia-unidades{margin:0 0 18px;font-size:12.5px;color:var(--suave)}
@@ -2379,6 +2386,7 @@ function crearTarjetaTipologia(t, media, unidadesAsignadas){
 
   const nombre = document.createElement('input');
   nombre.className = 'tipologia-nombre'; nombre.value = t.nombre;
+  nombre.title = 'Nombre interno: identifica la planta en este panel';
   nombre.addEventListener('change', () => guardarTipologia(t.id, { nombre: nombre.value.trim() }, nombre, t.nombre));
 
   const dorms = document.createElement('input');
@@ -2408,6 +2416,29 @@ function crearTarjetaTipologia(t, media, unidadesAsignadas){
     return l;
   };
   cabeza.append(nombre, conSufijo(dorms, 'dorm.'), conSufijo(m2, 'm²'), orient, btnBorrar);
+
+  // Nombre para el comprador (typologies.nombre_publico): el título de la
+  // tarjeta es el nombre interno ("MONO-A"), este es el que muestran el
+  // visor y la vista previa al compartir. Sin
+  // supabase-migration-nombre-publico.sql la columna no viene y el campo no
+  // se muestra. Vacío se guarda null (la base no acepta un texto en blanco).
+  if ('nombre_publico' in t) {
+    const fila = document.createElement('label');
+    fila.className = 'tipologia-publico';
+    const etq = document.createElement('span');
+    etq.className = 'etq'; etq.textContent = 'Nombre para el comprador';
+    const publico = document.createElement('input');
+    publico.type = 'text'; publico.value = t.nombre_publico || ''; publico.placeholder = 'Ej. Estudio';
+    publico.addEventListener('change', () => {
+      publico.value = publico.value.trim();
+      guardarTipologia(t.id, { nombre_publico: publico.value || null }, publico, t.nombre_publico || '');
+    });
+    const ayuda = document.createElement('small');
+    ayuda.textContent = 'Es el nombre que ve el comprador en el visor y al compartir una unidad. ' +
+      'Si lo dejás vacío, cada unidad muestra la tipología que tiene cargada (p. ej. «Estudio») o sus dormitorios.';
+    fila.append(etq, publico, ayuda);
+    cabeza.appendChild(fila);
+  }
   tarjeta.appendChild(cabeza);
 
   const unidadesEl = document.createElement('p');
