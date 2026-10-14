@@ -1218,6 +1218,15 @@
       transform: none
     }
 
+    /* Panel que llega desde la tarjeta (ver viajarAlPanel()): ya en su
+       lugar, sin deslizarse; aparece con un fundido al final del recorrido
+       de la tarjeta. Gana también al translateY(100%) de la hoja mobile. */
+    #panel.desde-tarjeta {
+      transform: none;
+      transition: none;
+      pointer-events: none;
+    }
+
     /* Cabecera: tira de elevación · piso y número + estado · copiar/cerrar.
        Todo en una fila: el número es lo primero que se lee. */
     .p-cabeza {
@@ -2584,6 +2593,83 @@
 
     #tarjeta-guia.llego .guia-punto {
       transform: scale(1)
+    }
+
+    /* Marca de la unidad abierta en el panel (ver actualizarMarca()): el
+       mismo trazo que la línea guía, pero más marcada (punto más grande con
+       anillo) y une la unidad con el borde del panel (desktop) o de la hoja
+       (mobile) mientras el panel esté abierto. Si la unidad queda detrás de
+       otro volumen, línea punteada y punto hueco: arista oculta, como en un
+       plano. Mismo z-index que la guía: debajo del panel y de la interfaz. */
+    #marca-unidad {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 9;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--t) var(--ease);
+    }
+
+    #marca-unidad.visible {
+      opacity: 1
+    }
+
+    .marca-halo {
+      stroke: rgba(255, 255, 255, .9);
+      stroke-width: 4.5;
+      stroke-linecap: round;
+    }
+
+    .marca-linea {
+      stroke: var(--tinta);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+    }
+
+    .marca-anillo-halo {
+      fill: none;
+      stroke: rgba(255, 255, 255, .9);
+      stroke-width: 5;
+    }
+
+    .marca-anillo {
+      fill: none;
+      stroke: var(--tinta);
+      stroke-width: 2;
+    }
+
+    .marca-punto {
+      fill: var(--tinta);
+      stroke: #fff;
+      stroke-width: 2;
+    }
+
+    /* Anillo y punto aparecen cuando la línea llega a la unidad. */
+    #marca-unidad circle {
+      transform-box: fill-box;
+      transform-origin: center;
+      transform: scale(0);
+      transition: transform var(--t) var(--ease);
+    }
+
+    #marca-unidad.llego circle {
+      transform: scale(1)
+    }
+
+    #marca-unidad.tapada .marca-linea {
+      stroke-dasharray: 4 4
+    }
+
+    #marca-unidad.tapada .marca-anillo {
+      stroke-dasharray: 3 3
+    }
+
+    #marca-unidad.tapada .marca-punto {
+      fill: #fff;
+      stroke: var(--tinta);
+      stroke-width: 1.5;
     }
 
     /* Toolbar + brújula, abajo a la derecha. Misma altura (48px), mismo
@@ -4784,6 +4870,14 @@
     <line class="guia-halo"></line>
     <line class="guia-linea"></line>
     <circle class="guia-punto" r="4"></circle>
+  </svg>
+  <!-- Marca de la unidad abierta en el panel (ver actualizarMarca()). -->
+  <svg id="marca-unidad" aria-hidden="true">
+    <line class="marca-halo"></line>
+    <line class="marca-linea"></line>
+    <circle class="marca-anillo-halo" r="10"></circle>
+    <circle class="marca-anillo" r="10"></circle>
+    <circle class="marca-punto" r="5"></circle>
   </svg>
 
   <!-- Controles de vista, abajo a la derecha: brújula (solo con
@@ -9084,6 +9178,7 @@
         enfocar(caja.userData.unidad);
       }
       function ocultarTarjeta() {
+        terminarViaje();
         clearTimeout(esperaTarjeta);
         cajaTarjeta = null;
         tarjeta.classList.remove('visible');
@@ -9092,8 +9187,66 @@
       }
       function verUnidadTarjeta() {
         const u = cajaTarjeta && cajaTarjeta.userData.unidad;
+        if (u && !REDUCIR_MOVIMIENTO && !viaje) { viajarAlPanel(u); return; }
         ocultarTarjeta();
         if (u) abrir(u, true);
+      }
+
+      /* De la tarjeta al panel: la tarjeta no desaparece, viaja y se
+         convierte en el panel. Su caja se desplaza y crece hasta el lugar
+         final del panel (columna derecha en desktop, hoja inferior en
+         mobile) en MS_VIAJE, con el easing de la interfaz (--ease); el
+         contenido se funde en el primer tercio, y el panel, ya en su lugar
+         sin deslizarse (.desde-tarjeta), aparece en el último 40%: acompaña
+         el final del movimiento, no antes. El panel se abre con abrir(u,
+         true) de siempre (evento, contenido, encuadre). La tarjeta queda
+         debajo del panel (z-index 11 < 12) y al terminar vuelve a su estado
+         oculto sin fundido. Con prefers-reduced-motion no hay viaje (ver
+         verUnidadTarjeta()); con el panel ya abierto tampoco: el clic en
+         otra unidad va directo a abrir() y la marca salta a la nueva. */
+      const MS_VIAJE = 360;
+      let viaje = null;
+      function viajarAlPanel(u) {
+        const desde = tarjeta.getBoundingClientRect();
+        clearTimeout(esperaTarjeta);
+        cajaTarjeta = null; // ubicarTarjeta() y la guía dejan de seguirla
+        sobre = null;
+        guia.classList.add('sin-linea');
+        guia.classList.remove('llego');
+        Object.assign(tarjeta.style, {
+          transition: 'none', transform: 'none', right: 'auto', bottom: 'auto',
+          boxSizing: 'border-box', overflow: 'hidden', pointerEvents: 'none',
+          left: desde.left + 'px', top: desde.top + 'px',
+          width: desde.width + 'px', height: desde.height + 'px',
+        });
+        panel.classList.add('desde-tarjeta');
+        abrir(u, true);
+        const hasta = panel.getBoundingClientRect();
+        const caja = tarjeta.animate([
+          { left: desde.left + 'px', top: desde.top + 'px', width: desde.width + 'px', height: desde.height + 'px',
+            borderRadius: '16px' },
+          { left: hasta.left + 'px', top: hasta.top + 'px', width: hasta.width + 'px', height: hasta.height + 'px',
+            borderRadius: hasta.left < 1 ? '12px 12px 0 0' : '0px' },
+        ], { duration: MS_VIAJE, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' });
+        const contenido = [...tarjeta.children].map(n =>
+          n.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MS_VIAJE / 3, fill: 'forwards' }));
+        const aparece = panel.animate([{ opacity: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1 }],
+          { duration: MS_VIAJE });
+        viaje = { animaciones: [caja, aparece, ...contenido] };
+        caja.finished.then(() => { if (viaje && viaje.animaciones[0] === caja) terminarViaje(); }, () => {});
+      }
+      function terminarViaje() {
+        if (!viaje) return;
+        viaje.animaciones.forEach(a => a.cancel());
+        viaje = null;
+        panel.classList.remove('desde-tarjeta');
+        tarjeta.style.transition = 'none';
+        tarjeta.classList.remove('visible');
+        for (const p of ['transform', 'right', 'bottom', 'boxSizing', 'overflow', 'pointerEvents', 'left', 'top', 'width', 'height']) {
+          tarjeta.style[p] = '';
+        }
+        void tarjeta.offsetWidth; // aplica el estado oculto antes de devolverle la transición
+        tarjeta.style.transition = '';
       }
       document.getElementById('tarjeta-ver').addEventListener('click', verUnidadTarjeta);
       document.getElementById('tarjeta-cerrar').addEventListener('click', ocultarTarjeta);
@@ -9181,6 +9334,67 @@
         guiaPunto.setAttribute('cx', ux);
         guiaPunto.setAttribute('cy', uy);
         guia.classList.toggle('llego', p >= 1);
+      }
+
+      /* Marca de la unidad abierta en el panel: mientras el panel esté
+         abierto, un punto con anillo sobre la fachada de la unidad (el mismo
+         puntoFachada() de la guía) y una línea hasta el borde del panel que
+         mira a ella: horizontal hasta el borde izquierdo en desktop, vertical
+         hasta el borde de arriba de la hoja en mobile. Se proyecta en cada
+         cuadro, así que sigue a la unidad al girar o hacer zoom. Como la
+         guía, crece cuando la cámara ya casi llegó (si no, barre la pantalla)
+         y vuelve a crecer al pasar a otra unidad.
+         Unidad del otro lado: un rayo de la cámara al punto contra
+         ocludoresSol (losas, núcleo, PB y el resto de las cajas); si algo lo
+         corta antes, la marca pasa a punteada con el punto hueco (.tapada)
+         en vez de dibujarse como si estuviera adelante. Tapada por el panel
+         o la hoja, o fuera de cuadro: no se dibuja. */
+      const marca = document.getElementById('marca-unidad');
+      const [marcaHalo, marcaLinea] = marca.querySelectorAll('line');
+      const marcaCirculos = marca.querySelectorAll('circle');
+      const puntoMarca = new THREE.Vector3(), sentidoMarca = new THREE.Vector3();
+      const rayoMarca = new THREE.Raycaster();
+      let unidadMarca = null, cajaMarca = null, ocludoresMarca = [], inicioMarca = 0;
+      function ocultarMarca() {
+        marca.classList.remove('visible', 'llego');
+      }
+      function actualizarMarca(ahora) {
+        if (elegida !== unidadMarca) {
+          unidadMarca = elegida;
+          cajaMarca = elegida ? cajas.find(c => c.userData.unidad.id === elegida.id) || null : null;
+          ocludoresMarca = ocludoresSol.filter(o => o !== cajaMarca);
+          inicioMarca = ahora + (REDUCIR_MOVIMIENTO ? 0 : MS_CAMARA_UNIDAD * 0.6);
+          marca.classList.remove('llego');
+        }
+        const c = cajaMarca;
+        const p = REDUCIR_MOVIMIENTO ? 1 : Math.min(1, (ahora - inicioMarca) / 260);
+        if (!c || p <= 0 || !panel.classList.contains('abierto')) { ocultarMarca(); return; }
+        puntoFachada(c, puntoMarca);
+        const dist = camara.position.distanceTo(puntoMarca);
+        rayoMarca.set(camara.position, sentidoMarca.subVectors(puntoMarca, camara.position).normalize());
+        rayoMarca.far = dist - 0.05;
+        const tapada = rayoMarca.intersectObjects(ocludoresMarca, false).length > 0;
+        puntoMarca.project(camara);
+        const W = innerWidth, H = innerHeight;
+        const ux = (puntoMarca.x + 1) / 2 * W, uy = (1 - puntoMarca.y) / 2 * H;
+        const r = panel.getBoundingClientRect();
+        const hoja = r.left < 1; // mobile: el panel ocupa todo el ancho, abajo
+        if (puntoMarca.z > 1 || ux < 0 || ux > W || uy < 0 || uy > H ||
+          (hoja ? uy > r.top - 12 : ux > r.left - 12)) { ocultarMarca(); return; }
+        // La línea sale del borde del panel y crece hasta el anillo (no
+        // entra en él: el punto queda limpio).
+        const sx = hoja ? ux : r.left, sy = hoja ? r.top : uy;
+        const largo = Math.hypot(ux - sx, uy - sy);
+        const e = (1 - Math.pow(1 - p, 3)) * Math.max(0, 1 - 10 / largo);
+        const ex = sx + (ux - sx) * e, ey = sy + (uy - sy) * e;
+        for (const l of [marcaHalo, marcaLinea]) {
+          l.setAttribute('x1', sx); l.setAttribute('y1', sy);
+          l.setAttribute('x2', ex); l.setAttribute('y2', ey);
+        }
+        for (const ci of marcaCirculos) { ci.setAttribute('cx', ux); ci.setAttribute('cy', uy); }
+        marca.classList.add('visible');
+        marca.classList.toggle('llego', p >= 1);
+        marca.classList.toggle('tapada', tapada);
       }
 
       // Después de un clic que mueve la cámara el puntero queda quieto sobre
@@ -9862,6 +10076,7 @@
         // Después del render: cámara y edificio ya están en su lugar de este cuadro.
         if (cajaTarjeta && cajaAncla && !esTactil) ubicarTarjeta();
         if (cajaTarjeta) actualizarGuia(ahora);
+        if (elegida || unidadMarca) actualizarMarca(ahora);
       }
       animar();
 

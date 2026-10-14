@@ -241,7 +241,12 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   inferior con "Ver unidad". En los dos casos una línea guía (`#tarjeta-guia`,
   `actualizarGuia()`) une la tarjeta con un punto en el centro de la fachada de la unidad
   que mira a la cámara. Recién el botón de la tarjeta llama a `abrir(u)`, que es lo que registra el
-  evento: Demanda cuenta aperturas de ficha, no clicks. Con el panel ya abierto, un
+  evento: Demanda cuenta aperturas de ficha, no clicks. Ese botón no esconde la tarjeta:
+  `viajarAlPanel()` la lleva hasta el lugar del panel y la convierte en él (`MS_VIAJE` 360 ms,
+  `--ease`; el panel aparece al final con `.desde-tarjeta`, sin deslizarse); con
+  `prefers-reduced-motion` el panel aparece directo. Con el panel abierto, `#marca-unidad`
+  (`actualizarMarca()`) marca la unidad con punto y anillo y una línea al borde del panel o de
+  la hoja; si otro volumen la tapa (rayo contra `ocludoresSol`) va punteada. Con el panel ya abierto, un
   click en otra unidad cambia el panel directo; `?u=` también abre el panel directo.
   `enfocar()` encuadra la unidad en lo que dejan libre la tarjeta o el panel. Un
   arrastre que termina sobre una unidad no la selecciona.
