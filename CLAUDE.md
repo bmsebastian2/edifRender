@@ -520,6 +520,8 @@ con `frente_eje`.
   y vuelve la vista de antes, igual píxel a píxel: disco que se desvanece, fondo fijo a la
   pantalla y niebla.
 - **`cuadra`** (90) — distancia entre ejes de calles de la grilla (cuadra montevideana).
+- **`manzanas`** (`true`) — `false` saca las manzanas vecinas (bloques bajos); el resto del
+  entorno extendido queda igual.
 - **`cruce_x`** — eje de una calle transversal, en metros sobre el frente desde el centro
   del edificio. Parado en la calle mirando la fachada, negativo = a la derecha (−X). Las
   demás transversales salen cada `cuadra`. Sin el dato, el edificio queda a mitad de cuadra
@@ -538,13 +540,48 @@ filtro de árboles y dónde empieza el fundido.
 
 - **Grilla** (`EJES_X` / `EJES_Z`, en coordenadas de `grupoCalle`): paralelas al frente
   (la del frente y, si existe, la de atrás) y transversales, cada `cuadra` hacia afuera de
-  las calles reales, hasta `extension`. Toda la calzada es una sola malla
-  (`geometriaRectangulos()`); la del frente y las laterales de BRUSCO ya no se arman
-  aparte. Veredas, líneas, carteles, árboles, autos y mobiliario de cerca siguen como
-  antes, salvo lo que cae en una transversal (`enCruce()` / `tramosLibres()`, hoy solo
-  ROSSO): la vereda y el borde se cortan, los guiones, faroles, bancos y el bicicletero
-  de ese tramo no se ponen, el auto pasa al primer lugar libre y el cartel se corre a la
-  cuadra del edificio.
+  las calles reales, hasta `extension`. Cada pieza es una sola malla por material
+  (`geometriaPiezas()`: rectángulos horizontales y caras verticales):
+  - **Calzada** con textura de canvas generada (`texturaAsfalto()`: grano, manchas
+    suaves y árido, de lejos el `#686F72` de siempre; mipmaps y anisotropía máxima). La
+    **línea central** va en la textura, no como geometría: miles de guiones finos
+    titilaban al girar. Se corta 5 m antes de cada esquina (`TOPE`: esos tramos y los
+    cruces usan la variante lisa).
+  - **Veredas**: un anillo de `vereda` por manzana a `vereda_alto`, con el cordón (cara
+    hacia la calle, `#F2F3F4`) y el borde interior. La de la manzana del edificio cae
+    donde iban las veredas sueltas de antes.
+  - **Cebras** en las cuatro esquinas de la manzana del edificio (la que contiene el
+    origen), una por brazo: franja de 3 m (`CEBRA_ANCHO`) a 0,3 m del borde de la calzada
+    que cruza, barras de 0,5 m cada 1 m.
+
+  Las veredas, guiones y borde sueltos de cerca del edificio (frente y laterales de
+  BRUSCO) solo se arman con `extension` 0. Carteles, árboles, autos y mobiliario siguen
+  como antes, salvo lo que cae en una transversal o su cebra (`enCruce()`, hoy solo ROSSO
+  por Paullier): faroles, bancos y el bicicletero de ese tramo no se ponen, el auto pasa
+  al primer lugar libre y el cartel se corre a la cuadra del edificio. Los carteles
+  también esquivan la cebra de su esquina (en BRUSCO el del frente y el de cada lateral se
+  corrieron unos metros hacia el medio de la cuadra).
+- **Contexto** (al final del entorno, antes de CÁMARA): árboles (cada ~11 m), faroles
+  (cada ~32 m) y autos estacionados contra el cordón en toda la grilla, con InstancedMesh
+  (`instanciar()`: un InstancedMesh por parte, `frustumCulled = false` porque r128
+  recorta con la esfera de la geometría base). Geometría más simple que la de cerca:
+  árbol de dos lóbulos y auto de tres cajas en los dos tonos de siempre (un `.glb` tiene
+  ~3000 triángulos). La densidad baja con la distancia (`densidadContexto`, la mitad en
+  pantallas chicas) y no hay nada más allá de `HASTA_CONTEXTO` (fundido > 93 %). No
+  repite lo que ya existe cerca (`yaEsta()`: el tramo de 44 m del frente y, en BRUSCO,
+  las veredas de su manzana) y no hay autos de contexto a menos de `RADIO_DISCO` + 6 m.
+  Dentro de ~1,5 × `RADIO_DISCO` proyectan sombra (solo `CIELO_ALTA`, como lo de
+  siempre); más allá no. Semilla propia: los árboles de siempre no cambian.
+- **Manzanas vecinas** (`manzanas`): cada manzana menos la del edificio, retirada 3 m de
+  la vereda y partida en cuatro lotes. Las ocho de al lado miden 4–5 m (a ≥ 15 m del
+  edificio no le tapan la fachada ni en la vista inicial, 24°, ni al enfocar una
+  unidad, 14°, salvo el primer metro de la PB); las demás 6–14 m. Gris claro
+  (`#CDD0CD`) con fundido y **sin sombra propia**: el simulador solar no considera
+  vecinos, y una sombra suya sobre la fachada contradiría el "recibe sol". A ras del
+  piso con el radio grande sí tapan los pisos bajos, como en la calle.
+- **Orden de dibujo**: el piso va con `renderOrder` 1 (después de calles, veredas y
+  losas: lo tapado ni se sombrea) y el cielo con 2 y profundidad máxima (`z = w`: solo
+  pinta lo vacío). Con eso se recupera ~¼ del costo por cuadro que sumó el piso.
 - **Fundido** (`conFundido(material)`): mezcla el color final de piso, calzada, veredas y
   pintura con `COLOR_HORIZONTE` según la distancia horizontal al eje de giro, con una
   curva ease-out cúbica entre `RADIO_DISCO` y 0,8 × `extension`. **Nunca va en materiales
@@ -555,7 +592,7 @@ filtro de árboles y dónde empieza el fundido.
   de su cámara (`radioSombraSol`, que no cambió) y más allá ni se lee el mapa. Sin esto la
   punta de una sombra larga (sol bajo) se cortaba en una línea recta.
 - **Cielo** (`cielo`): domo que sigue a la cámara (`ubicarCamara()`), con degradé por
-  altura sobre el horizonte. Debajo del horizonte es `COLOR_HORIZONTE` parejo, el mismo al
+  altura sobre el horizonte, dibujado último entre lo opaco. Debajo del horizonte es `COLOR_HORIZONTE` parejo, el mismo al
   que se funde el piso: el borde del piso no se ve desde ningún ángulo. `far` pasa de
   600 a 1100.
 - **Cámara**: `phi` se limita según el radio para que la cámara quede siempre ≥ 2 m sobre el

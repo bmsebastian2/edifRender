@@ -6687,21 +6687,27 @@
           new THREE.SphereGeometry(LEJOS - 100, 16, 8),
           new THREE.ShaderMaterial({
             uniforms: { uHorizonte: { value: COLOR_HORIZONTE }, uCenit: { value: COLOR_CENIT } },
+            // z = w: profundidad máxima (como el fondo de three), así se pinta
+            // solo donde no hay nada adelante.
             vertexShader: `varying vec3 vDir;
               void main() {
                 vDir = position;
                 gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                gl_Position.z = gl_Position.w;
               }`,
             fragmentShader: `uniform vec3 uHorizonte, uCenit;
               varying vec3 vDir;
               void main() {
                 gl_FragColor = vec4( mix( uHorizonte, uCenit, smoothstep( 0.0, 0.5, normalize( vDir ).y ) ), 1.0 );
               }`,
-            side: THREE.BackSide, depthWrite: false, depthTest: false,
+            side: THREE.BackSide, depthWrite: false,
           })
         );
-        // Primero que todo, detrás de todo; sigue a la cámara en ubicarCamara().
-        cielo.renderOrder = -1000;
+        // Último de lo opaco (antes de las unidades, que son transparentes y se
+        // mezclan con lo de atrás): con el test de profundidad solo pinta los
+        // píxeles vacíos, no la pantalla entera debajo del piso. Sigue a la
+        // cámara en ubicarCamara().
+        cielo.renderOrder = 2;
         cielo.frustumCulled = false;
         escena.add(cielo);
       }
@@ -6754,22 +6760,54 @@
         return mat;
       }
 
-      // Una sola malla con muchos rectángulos horizontales ([x0, x1, z0, z1] a
-      // altura y): toda la grilla de un material es un draw call, no un Mesh
-      // por tramo. UV en metros (para texturas de mundo).
-      function geometriaRectangulos(rects, y) {
+      // Piezas del entorno en una sola malla por material: toda la grilla de un
+      // material es un draw call, no un Mesh por tramo.
+      // - rects: rectángulos horizontales [x0, x1, z0, z1, uv?] a altura y;
+      //   uv(x, z) → [u, v] (por defecto, en metros).
+      // - caras: verticales [ax, az, bx, bz], de 0 a `alto`, con la normal
+      //   (bz − az, 0, −(bx − ax)): para una normal n, ir de A a B en (−nz, nx).
+      function geometriaPiezas({ rects = [], y = 0, caras = [], alto = 0 }) {
         const pos = [], nor = [], uv = [], idx = [];
-        rects.forEach(([x0, x1, z0, z1], i) => {
-          pos.push(x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1);
-          nor.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0);
-          uv.push(x0, z0, x1, z0, x1, z1, x0, z1);
-          const b = i * 4;
+        for (const [x0, x1, z0, z1, f = (x, z) => [x, z]] of rects) {
+          const b = pos.length / 3;
+          for (const [x, z] of [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]) {
+            pos.push(x, y, z); nor.push(0, 1, 0); uv.push(...f(x, z));
+          }
           idx.push(b, b + 2, b + 1, b, b + 3, b + 2); // cara hacia +Y
-        });
+        }
+        for (const [ax, az, bx, bz] of caras) {
+          const b = pos.length / 3, l = Math.hypot(bx - ax, bz - az);
+          pos.push(ax, 0, az, bx, 0, bz, bx, alto, bz, ax, alto, az);
+          for (let i = 0; i < 4; i++) nor.push((bz - az) / l, 0, -(bx - ax) / l);
+          uv.push(0, 0, l, 0, l, alto, 0, alto);
+          idx.push(b, b + 3, b + 2, b, b + 2, b + 1); // (A, A', B') y (A, B', B)
+        }
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
         g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
         g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        g.setIndex(idx);
+        return g;
+      }
+      // Cajas [x0, x1, y0, y1, z0, z1] en una malla: tapa y cuatro lados (la base
+      // nunca se ve). Cada cara, con sus esquinas antihorarias vistas desde afuera.
+      function geometriaCajas(cajas) {
+        const pos = [], nor = [], idx = [];
+        const cara = (n, ...esquinas) => {
+          const b = pos.length / 3;
+          for (const p of esquinas) { pos.push(...p); nor.push(...n); }
+          idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+        };
+        for (const [x0, x1, y0, y1, z0, z1] of cajas) {
+          cara([0, 1, 0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]);
+          cara([0, 0, 1], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]);
+          cara([0, 0, -1], [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]);
+          cara([1, 0, 0], [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]);
+          cara([-1, 0, 0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
         g.setIndex(idx);
         return g;
       }
@@ -6847,7 +6885,10 @@
         : new THREE.CircleGeometry(RADIO_TERRENO, 96), matTerreno);
       terreno.rotation.x = -Math.PI / 2;
       terreno.receiveShadow = true;
-      if (!EXTENSION) terreno.renderOrder = -2;
+      // Con EXTENSION, después del resto de lo opaco (calles, veredas, losas):
+      // lo que lo tapa ya escribió la profundidad y esos píxeles del piso ni se
+      // sombrean. Cubre casi toda la pantalla, así que es lo que más pesa.
+      terreno.renderOrder = EXTENSION ? 1 : -2;
       grupoEdificio.add(terreno);
 
       // Calle: franja de asfalto frente al edificio (lado "frente", ver NOMBRE_CALLE
@@ -6895,31 +6936,166 @@
       // ¿Algo de ±medio a lo largo del frente, en x, cae en una transversal?
       // Hoy solo ROSSO (esquina Paullier) tiene una dentro del tramo de 44 m:
       // lo de la calle del frente que cae ahí se corta o se saca.
+      // Intervalos libres entre las calzadas de unos ejes: a lo largo de una
+      // paralela, los tramos entre transversales (y al revés). También son los
+      // lados de las manzanas; MANZANA_EDIFICIO, la que contiene el origen.
+      const L_GRILLA = EXTENSION + 10;
+      const libresEntre = ejes => {
+        const cortes = [-L_GRILLA, ...ejes.flatMap(e => [e - ANCHO_CALLE / 2, e + ANCHO_CALLE / 2]), L_GRILLA], r = [];
+        for (let i = 0; i < cortes.length; i += 2) if (cortes[i + 1] > cortes[i]) r.push([cortes[i], cortes[i + 1]]);
+        return r;
+      };
+      const TRAMOS_X = EXTENSION ? libresEntre(EJES_X) : [], TRAMOS_Z = EXTENSION ? libresEntre(EJES_Z) : [];
+      const MANZANA_EDIFICIO = EXTENSION
+        ? { x: TRAMOS_X.find(([a, b]) => a < 0 && b > 0), z: TRAMOS_Z.find(([a, b]) => a < 0 && b > 0) } : null;
       const enCruce = (x, medio) => EJES_X.some(e => Math.abs(x - e) < ANCHO_CALLE / 2 + medio);
-      // Lo que queda libre de [xa, xb] fuera de las calzadas transversales.
-      function tramosLibres(xa, xb) {
-        let tramos = [[xa, xb]];
-        for (const e of EJES_X) {
-          const c0 = e - ANCHO_CALLE / 2, c1 = e + ANCHO_CALLE / 2;
-          tramos = tramos.flatMap(([a, b]) => (b <= c0 || a >= c1) ? [[a, b]]
-            : [[a, c0], [c1, b]].filter(([p, q]) => q - p > 0));
-        }
-        return tramos.filter(([a, b]) => b - a >= 1);
-      }
+      // Sendas peatonales (cebras): franja de CEBRA_ANCHO que arranca a
+      // CEBRA_DESDE del borde de la calzada que cruza. Lo que se corre por un
+      // cruce (cartel, autos) deja libre también esta franja.
+      const CEBRA_DESDE = 0.3, CEBRA_ANCHO = 3, ZONA_CEBRA = EXTENSION ? CEBRA_DESDE + CEBRA_ANCHO : 0;
 
       const matCalle = conFundido(new THREE.MeshStandardMaterial({ color: 0x686F72, roughness: 0.95 }));
+      // Vereda + cordón: el escalón es volumen real (cara de arriba = vereda,
+      // cara que mira a la calzada = cordón), así la diferencia de altura
+      // proyecta sombra real, no un color plano fingiéndola.
+      const matVereda = conFundido(new THREE.MeshStandardMaterial({ color: 0xCBCFCF, roughness: 0.9 }));
+      const matCordonCara = conFundido(new THREE.MeshStandardMaterial({ color: 0xF2F3F4, roughness: 0.8 }));
+      const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
+      // polygonOffset: la pintura está a 1 cm del asfalto — le gana en
+      // profundidad aunque la cámara esté lejos o rasante.
+      const matGuion = conFundido(new THREE.MeshStandardMaterial({
+        color: 0xEDEFEF, roughness: 0.6,
+        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+      }));
+
+      // Textura de asfalto: un canvas generado una vez, sin archivos. Grano
+      // fino, manchas suaves y algo de árido claro, todo muy bajo: de lejos
+      // (mipmaps) se lee el mismo gris de siempre (#686F72). Dos variantes:
+      // - con línea central discontinua (guiones de 1,6 m cada 2,8 m, como
+      //   los de siempre): u a lo largo de la calle (repite cada
+      //   TRAMO_TEXTURA), v a lo ancho de la calzada (0 a 1). La línea va en
+      //   la textura y no como geometría: miles de guiones finos titilaban al
+      //   girar el edificio; filtrada (mipmaps + anisotropía) no, y no suma
+      //   draw calls.
+      // - lisa, para los cruces y los primeros metros de cada cuadra (la
+      //   línea se corta antes de la esquina y de la cebra), en metros.
+      const TRAMO_TEXTURA = 2.8 * 4, LADO_TEXTURA_LISA = 8;
+      function texturaAsfalto(conLinea) {
+        const W = conLinea ? 1024 : 512, H = 512;
+        const mU = conLinea ? TRAMO_TEXTURA : LADO_TEXTURA_LISA, mV = conLinea ? ANCHO_CALLE : LADO_TEXTURA_LISA;
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const ctx = cv.getContext('2d');
+        const rnd = prngSemilla(conLinea ? 7 : 11); // fija: misma textura en cada carga
+        ctx.fillStyle = '#686F72';
+        ctx.fillRect(0, 0, W, H);
+        // Manchas (desgaste, bacheo), repetidas del otro lado de cada borde que
+        // repite, para que empalme sin costura.
+        for (let i = 0; i < 16; i++) {
+          const x = rnd() * W, y = rnd() * H, r = (1 + rnd() * 2) * W / mU;
+          const c = rnd() < 0.45 ? 'rgba(255,255,255,0.014)' : 'rgba(0,0,0,0.02)';
+          for (const dx of [-W, 0, W]) for (const dy of conLinea ? [0] : [-H, 0, H]) {
+            const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+            g.addColorStop(0, c);
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(x + dx - r, y + dy - r, 2 * r, 2 * r);
+          }
+        }
+        if (conLinea) {
+          const pxU = W / mU, pxV = H / mV;
+          ctx.fillStyle = '#E4E7E7';
+          for (let k = 0; k < TRAMO_TEXTURA / 2.8; k++)
+            ctx.fillRect((k * 2.8 + 0.6) * pxU, H / 2 - 0.1 * pxV, 1.6 * pxU, 0.2 * pxV);
+        }
+        // Grano por píxel (±6) y árido claro suelto; también sobre la pintura,
+        // que así no queda como un plano liso.
+        const img = ctx.getImageData(0, 0, W, H), d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const n = (rnd() - 0.5) * 12 + (rnd() < 0.012 ? 22 : 0);
+          d[i] += n; d[i + 1] += n; d[i + 2] += n;
+        }
+        ctx.putImageData(img, 0, 0);
+        const t = new THREE.CanvasTexture(cv); // potencia de 2: mipmaps por defecto
+        t.wrapS = THREE.RepeatWrapping;
+        t.wrapT = conLinea ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
+        t.anisotropy = render.capabilities.getMaxAnisotropy();
+        return t;
+      }
+
       if (EXTENSION) {
-        // Toda la calzada de la grilla en una malla. Paralelas de punta a
-        // punta; transversales cortadas entre paralelas (sin pisar los cruces).
-        const L = EXTENSION + 10, m = ANCHO_CALLE / 2, rects = [];
-        for (const z of EJES_Z) rects.push([-L, L, z - m, z + m]);
-        const cortes = [-L, ...EJES_Z.flatMap(z => [z - m, z + m]), L];
-        for (const x of EJES_X)
-          for (let i = 0; i < cortes.length; i += 2)
-            if (cortes[i + 1] > cortes[i]) rects.push([x - m, x + m, cortes[i], cortes[i + 1]]);
-        const calzadas = new THREE.Mesh(geometriaRectangulos(rects, 0.02), matCalle);
-        calzadas.receiveShadow = true;
-        grupoCalle.add(calzadas);
+        const m = ANCHO_CALLE / 2, V = VEREDA, tramosX = TRAMOS_X, tramosZ = TRAMOS_Z;
+
+        // Calzada: cada cuadra con línea central salvo sus primeros y últimos
+        // TOPE metros, que van lisos como los cruces.
+        const TOPE = 5;
+        const uvLinea = (enX, centro) => (x, z) => enX
+          ? [x / TRAMO_TEXTURA, (z - centro + m) / ANCHO_CALLE]
+          : [z / TRAMO_TEXTURA, (x - centro + m) / ANCHO_CALLE];
+        const uvLiso = (x, z) => [x / LADO_TEXTURA_LISA, z / LADO_TEXTURA_LISA];
+        const conLinea = [], lisos = [];
+        const cuadra = (a, b, rect) => {
+          if (b - a > 2 * TOPE + 1) {
+            lisos.push(rect(a, a + TOPE), rect(b - TOPE, b));
+            conLinea.push(rect(a + TOPE, b - TOPE, true));
+          } else lisos.push(rect(a, b));
+        };
+        for (const z of EJES_Z) for (const [a, b] of tramosX)
+          cuadra(a, b, (p, q, linea) => [p, q, z - m, z + m, linea ? uvLinea(true, z) : uvLiso]);
+        for (const x of EJES_X) for (const [a, b] of tramosZ)
+          cuadra(a, b, (p, q, linea) => [x - m, x + m, p, q, linea ? uvLinea(false, x) : uvLiso]);
+        for (const x of EJES_X) for (const z of EJES_Z) lisos.push([x - m, x + m, z - m, z + m, uvLiso]);
+        for (const [rects, conTextura] of [[conLinea, true], [lisos, false]]) {
+          const malla = new THREE.Mesh(geometriaPiezas({ rects, y: 0.02 }),
+            conFundido(new THREE.MeshStandardMaterial({ map: texturaAsfalto(conTextura), roughness: 0.95 })));
+          malla.receiveShadow = true;
+          grupoCalle.add(malla);
+        }
+
+        // Veredas: un anillo de VEREDA por manzana, a VEREDA_ALTO, con el cordón
+        // hacia la calle y el borde de adentro (hacia el interior de la
+        // manzana) del color de la vereda. La de la manzana del edificio cae
+        // justo donde iban las veredas sueltas de antes (BORDE_FRENTE y, en
+        // BRUSCO, el borde de cada lateral).
+        const veredas = [], bordesInternos = [], cordones = [];
+        for (const [xa, xb] of tramosX) for (const [za, zb] of tramosZ) {
+          veredas.push([xa, xb, za, za + V], [xa, xb, zb - V, zb], [xa, xa + V, za + V, zb - V], [xb - V, xb, za + V, zb - V]);
+          cordones.push([xa, za, xb, za], [xb, zb, xa, zb], [xa, zb, xa, za], [xb, za, xb, zb]);
+          const ia = xa + V, ib = xb - V, ja = za + V, jb = zb - V;
+          bordesInternos.push([ib, ja, ia, ja], [ia, jb, ib, jb], [ia, ja, ia, jb], [ib, jb, ib, ja]);
+        }
+        const mallaVereda = new THREE.Mesh(
+          geometriaPiezas({ rects: veredas, y: VEREDA_ALTO, caras: bordesInternos, alto: VEREDA_ALTO }), matVereda);
+        const mallaCordon = new THREE.Mesh(geometriaPiezas({ caras: cordones, alto: VEREDA_ALTO }), matCordonCara);
+        for (const malla of [mallaVereda, mallaCordon]) {
+          malla.castShadow = malla.receiveShadow = true;
+          grupoCalle.add(malla);
+        }
+
+        // Cebras en las cuatro esquinas de la manzana del edificio (la que
+        // contiene el origen): en cada cruce, una por brazo, de cordón a
+        // cordón — barras de 0,5 m a lo largo de la calle, cada 1 m.
+        const i = EJES_X.findIndex(e => e > 0), j = EJES_Z.findIndex(e => e > 0);
+        const BARRA = 0.5, MARGEN = 0.4;
+        const nBarras = Math.floor((ANCHO_CALLE - 2 * MARGEN + BARRA) / (2 * BARRA));
+        const inicio = -(2 * nBarras - 1) * BARRA / 2;
+        const barras = [];
+        if (i > 0 && j > 0) for (const x of [EJES_X[i - 1], EJES_X[i]]) for (const z of [EJES_Z[j - 1], EJES_Z[j]]) {
+          for (const s of [-1, 1]) {
+            const xa = s > 0 ? x + m + CEBRA_DESDE : x - m - CEBRA_DESDE - CEBRA_ANCHO;
+            const za = s > 0 ? z + m + CEBRA_DESDE : z - m - CEBRA_DESDE - CEBRA_ANCHO;
+            for (let k = 0; k < nBarras; k++) {
+              const t = inicio + 2 * k * BARRA;
+              barras.push([xa, xa + CEBRA_ANCHO, z + t, z + t + BARRA]); // brazo de la paralela
+              barras.push([x + t, x + t + BARRA, za, za + CEBRA_ANCHO]); // brazo de la transversal
+            }
+          }
+        }
+        if (barras.length) {
+          const cebras = new THREE.Mesh(geometriaPiezas({ rects: barras, y: 0.03 }), matGuion);
+          cebras.receiveShadow = true;
+          grupoCalle.add(cebras);
+        }
       } else {
         const calle = new THREE.Mesh(new THREE.PlaneGeometry(LARGO_CALLE, ANCHO_CALLE), matCalle);
         calle.rotation.x = -Math.PI / 2;
@@ -6949,44 +7125,31 @@
           Z_CALLE, 0.018);
       }
 
-      // Vereda + cordón en una sola malla: el volumen del box ES el escalón (cara
-      // de arriba = vereda, cara que mira a la calzada = cordón, vía material por
-      // cara) — así la diferencia de altura proyecta sombra real, no un color
-      // plano fingiéndola.
-      // Cortada donde la cruza una transversal (tramosLibres).
-      const matVereda = conFundido(new THREE.MeshStandardMaterial({ color: 0xCBCFCF, roughness: 0.9 }));
-      const matCordonCara = conFundido(new THREE.MeshStandardMaterial({ color: 0xF2F3F4, roughness: 0.8 }));
-      for (const [xa, xb] of tramosLibres(-LARGO_CALLE / 2, LARGO_CALLE / 2)) {
+      // Sin EXTENSION, las piezas de siempre: vereda del frente (una sola malla:
+      // el box ES el escalón, material por cara), guiones y borde. Con
+      // EXTENSION las pone la grilla (veredas en anillo, línea en la textura);
+      // el borde continuo marcaba el lado sin vereda y ya no hay ninguno.
+      if (!EXTENSION) {
         const vereda = new THREE.Mesh(
-          new THREE.BoxGeometry(xb - xa, VEREDA_ALTO, VEREDA),
+          new THREE.BoxGeometry(LARGO_CALLE, VEREDA_ALTO, VEREDA),
           [matVereda, matVereda, matVereda, matVereda, matVereda, matCordonCara]
         );
-        vereda.position.set((xa + xb) / 2, VEREDA_ALTO / 2, BORDE_FRENTE - VEREDA / 2);
+        vereda.position.set(0, VEREDA_ALTO / 2, BORDE_FRENTE - VEREDA / 2);
         vereda.castShadow = vereda.receiveShadow = true;
         grupoCalle.add(vereda);
-      }
 
-      const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
-      // polygonOffset: la pintura está a 1 cm del asfalto — le gana en
-      // profundidad aunque la cámara esté lejos o rasante.
-      const matGuion = conFundido(new THREE.MeshStandardMaterial({
-        color: 0xEDEFEF, roughness: 0.6,
-        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
-      }));
-      for (let x = -LARGO_CALLE / 2 + 2; x < LARGO_CALLE / 2 - 2; x += 2.8) {
-        if (enCruce(x, 0.8)) continue; // las líneas se cortan en el cruce
-        const guion = new THREE.Mesh(geoGuion, matGuion);
-        guion.rotation.x = -Math.PI / 2;
-        guion.position.set(x, 0.03, Z_CALLE);
-        grupoCalle.add(guion);
-      }
+        for (let x = -LARGO_CALLE / 2 + 2; x < LARGO_CALLE / 2 - 2; x += 2.8) {
+          const guion = new THREE.Mesh(geoGuion, matGuion);
+          guion.rotation.x = -Math.PI / 2;
+          guion.position.set(x, 0.03, Z_CALLE);
+          grupoCalle.add(guion);
+        }
 
-      // Línea de borde del lado opuesto a la vereda (el que no tiene cordón) —
-      // continua, no discontinua, como el borde real de una calzada.
-      for (const [xa, xb] of tramosLibres(-LARGO_CALLE / 2, LARGO_CALLE / 2)) {
-        const bordeCalzada = new THREE.Mesh(new THREE.PlaneGeometry(xb - xa, 0.12), matGuion);
+        // Línea de borde del lado opuesto a la vereda (el que no tiene cordón) —
+        // continua, no discontinua, como el borde real de una calzada.
+        const bordeCalzada = new THREE.Mesh(new THREE.PlaneGeometry(LARGO_CALLE, 0.12), matGuion);
         bordeCalzada.rotation.x = -Math.PI / 2;
-        bordeCalzada.position.set((xa + xb) / 2, 0.03, Z_CALLE - ANCHO_CALLE / 2 + 0.15);
+        bordeCalzada.position.set(0, 0.03, Z_CALLE - ANCHO_CALLE / 2 + 0.15);
         grupoCalle.add(bordeCalzada);
       }
 
@@ -7403,12 +7566,13 @@
 
       if (NOMBRE_CALLE) {
         cartelCalle = crearCartelCalle(NOMBRE_CALLE);
-        // Si una transversal cruza donde iría (ROSSO, esquina Paullier), pasa
-        // a la cuadra del edificio: 1 m después de la esquina.
+        // Si una transversal o su cebra caen donde iría (ROSSO: Paullier;
+        // BRUSCO: la cebra de la esquina), pasa a la cuadra del edificio, 1 m
+        // después de la cebra.
         const medioCartel = cartelCalle.geometry.parameters.width / 2;
-        const cruceCartel = EJES_X.find(e => Math.abs(CARTEL_X - e) < ANCHO_CALLE / 2 + medioCartel + 1);
-        if (cruceCartel != null)
-          CARTEL_X = cruceCartel + (cruceCartel < 0 ? 1 : -1) * (ANCHO_CALLE / 2 + medioCartel + 1);
+        const despejeCartel = ANCHO_CALLE / 2 + ZONA_CEBRA + medioCartel + 1;
+        const cruceCartel = EJES_X.find(e => Math.abs(CARTEL_X - e) < despejeCartel);
+        if (cruceCartel != null) CARTEL_X = cruceCartel + (cruceCartel < 0 ? 1 : -1) * despejeCartel;
         // Corrido hacia el borde del disco (mismo costado que ya despejaba el
         // rayo cámara→cartel de la propia torre, ver debajo) y apoyado unos
         // milímetros sobre la calzada — el polygonOffset de arriba hace el
@@ -7435,39 +7599,46 @@
         g.rotation.y = c.giro;
         grupoEdificio.add(g);
         const zc = c.borde - VEREDA - ANCHO_CALLE / 2, ext = VEREDA + ANCHO_CALLE;
-        if (!EXTENSION) tramoCalzada(g, // con EXTENSION, la calzada es de la grilla
-          hayCalleEn(c.ladoMenosX) ? c.x0 - ext : c.x0,
-          hayCalleEn(c.ladoMasX) ? c.x1 + ext : c.x1,
-          zc, 0.019);
+        // Con EXTENSION, calzada, vereda y línea son de la grilla: acá queda
+        // solo el cartel.
+        if (!EXTENSION) {
+          tramoCalzada(g,
+            hayCalleEn(c.ladoMenosX) ? c.x0 - ext : c.x0,
+            hayCalleEn(c.ladoMasX) ? c.x1 + ext : c.x1,
+            zc, 0.019);
 
-        const va = c.x0 - VEREDA, vb = c.x1 + VEREDA;
-        const vereda = new THREE.Mesh(
-          new THREE.BoxGeometry(vb - va, VEREDA_ALTO, VEREDA),
-          [matVereda, matVereda, matVereda, matVereda, matVereda, matCordonCara]
-        );
-        vereda.position.set((va + vb) / 2, VEREDA_ALTO / 2, c.borde - VEREDA / 2);
-        vereda.castShadow = vereda.receiveShadow = true;
-        g.add(vereda);
+          const va = c.x0 - VEREDA, vb = c.x1 + VEREDA;
+          const vereda = new THREE.Mesh(
+            new THREE.BoxGeometry(vb - va, VEREDA_ALTO, VEREDA),
+            [matVereda, matVereda, matVereda, matVereda, matVereda, matCordonCara]
+          );
+          vereda.position.set((va + vb) / 2, VEREDA_ALTO / 2, c.borde - VEREDA / 2);
+          vereda.castShadow = vereda.receiveShadow = true;
+          g.add(vereda);
 
-        for (let x = c.x0 + 2; x < c.x1 - 2; x += 2.8) {
-          const guion = new THREE.Mesh(geoGuion, matGuion);
-          guion.rotation.x = -Math.PI / 2;
-          guion.position.set(x, 0.03, zc);
-          g.add(guion);
+          for (let x = c.x0 + 2; x < c.x1 - 2; x += 2.8) {
+            const guion = new THREE.Mesh(geoGuion, matGuion);
+            guion.rotation.x = -Math.PI / 2;
+            guion.position.set(x, 0.03, zc);
+            g.add(guion);
+          }
+          const borde = new THREE.Mesh(new THREE.PlaneGeometry(c.x1 - c.x0, 0.12), matGuion);
+          borde.rotation.x = -Math.PI / 2;
+          borde.position.set((c.x0 + c.x1) / 2, 0.03, zc - ANCHO_CALLE / 2 + 0.15);
+          g.add(borde);
         }
-        const borde = new THREE.Mesh(new THREE.PlaneGeometry(c.x1 - c.x0, 0.12), matGuion);
-        borde.rotation.x = -Math.PI / 2;
-        borde.position.set((c.x0 + c.x1) / 2, 0.03, zc - ANCHO_CALLE / 2 + 0.15);
-        g.add(borde);
 
         // Cartel en la punta de la cuadra más cercana a la cámara inicial
         // (a 4m de la esquina, como CARTEL_X en el frente), no en el medio:
         // así queda en primer plano y se lee desde la vista con que arranca.
+        // Con cebras, nunca encima de la de esa esquina (la calzada que cruza
+        // empieza en x0 − VEREDA).
         const thetaIni = ANGULO_LATERAL - Math.PI + FRENTE_GIRO;
         const haciaCam = x => (x * Math.cos(c.giro) + zc * Math.sin(c.giro)) * Math.sin(thetaIni)
           + (-x * Math.sin(c.giro) + zc * Math.cos(c.giro)) * Math.cos(thetaIni);
-        c.xCartel = haciaCam(c.x0) > haciaCam(c.x1) ? c.x0 + 4 : c.x1 - 4;
         const cartel = crearCartelCalle(c.nombre);
+        const despeje = ZONA_CEBRA ? ZONA_CEBRA + 1 + cartel.geometry.parameters.width / 2 - VEREDA : 4;
+        c.xCartel = haciaCam(c.x0) > haciaCam(c.x1) ? c.x0 + Math.max(4, despeje) : c.x1 - Math.max(4, despeje);
         cartel.position.set(c.xCartel, 0.035, zc - ANCHO_CALLE * 0.22);
         g.add(cartel);
       }
@@ -7708,10 +7879,10 @@
         { modelo: 'modelos/autos/suv.glb', x: -8, colorCarroceria: 0x9BA1A4 },
         { modelo: 'modelos/autos/hatchback.glb', x: -14, colorCarroceria: 0x5A6B78 },
       ].forEach((c, _, todos) => {
-        // Un auto que caería en un cruce (ROSSO: el de -14, en Paullier) pasa
-        // al primer lugar libre, de a 6 m hacia +X.
+        // Un auto que caería en un cruce o su cebra (ROSSO: Paullier) pasa al
+        // primer lugar libre, de a 6 m hacia +X.
         let x = c.x;
-        while (enCruce(x, LARGO_AUTO_OBJETIVO / 2 + 1) || todos.some(o => o !== c && o.xFinal === x)) x += 6;
+        while (enCruce(x, LARGO_AUTO_OBJETIVO / 2 + 1 + ZONA_CEBRA) || todos.some(o => o !== c && o.xFinal === x)) x += 6;
         c.xFinal = x;
         cargarModeloAuto(c.modelo, c.colorCarroceria).then(modelo => {
           if (!modelo) return; // ver el warn del onError de arriba
@@ -7851,6 +8022,163 @@
         cartel.add(panel);
         cartel.position.set(-1, VEREDA_ALTO, Z_VEREDA_MOBILIARIO);
         grupoCalle.add(cartel);
+      }
+
+      // CONTEXTO EXTENDIDO (con EXTENSION): árboles, faroles y autos a lo largo
+      // de las calles de la grilla, y manzanas vecinas como bloques bajos.
+      // - Cada pieza es un InstancedMesh por parte (tronco, copa…): unos pocos
+      //   draw calls para cientos de instancias. Geometría más simple que la de
+      //   cerca del edificio (de lejos no se distingue): árbol de dos lóbulos,
+      //   y autos de tres cajas en los dos tonos de siempre — un .glb tiene
+      //   ~3000 triángulos y 150 autos eran ~450 000.
+      // - Densidad que baja con la distancia (densidadContexto) y nada más allá
+      //   de HASTA_CONTEXTO, donde el fundido ya pasó el 93 %.
+      // - No se repite lo que ya tiene su versión de siempre: el tramo de 44 m
+      //   de la calle del frente y, en BRUSCO, las veredas de su manzana. Autos
+      //   tampoco cerca del edificio (ahí están los tres .glb y los carteles).
+      // - Lo que queda dentro del radio de sombra la proyecta (como lo de
+      //   siempre, solo en pantallas grandes); lo de más allá no, porque ahí
+      //   la sombra ya está apagada (ver conFundido).
+      // - Semilla propia: no cambia la secuencia de los árboles de siempre.
+      if (EXTENSION) {
+        const rndCtx = prngSemilla(hashTexto((proyecto.nombre || 'rosso') + ' contexto'));
+        const HASTA_CONTEXTO = FUNDIDO_DESDE + 0.6 * (FUNDIDO_HASTA - FUNDIDO_DESDE);
+        const DENSO_HASTA = RADIO_DISCO + CUADRA / 2;
+        const densidadContexto = d => (d >= HASTA_CONTEXTO ? 0
+          : d <= DENSO_HASTA ? 1 : 1 - 0.75 * (d - DENSO_HASTA) / (HASTA_CONTEXTO - DENSO_HASTA)) * (CIELO_ALTA ? 1 : 0.5);
+        const RADIO_SOMBRA_CONTEXTO = RADIO_DISCO * 1.5; // ≈ 0,9 del radio de la cámara de sombra
+        const MZ = MANZANA_EDIFICIO;
+        const yaEsta = (x, z) =>
+          (Math.abs(x) < LARGO_CALLE / 2 + 3 && Math.abs(z - Z_CALLE) < ANCHO_CALLE / 2 + VEREDA + 1) ||
+          (CALLES_LATERALES.length > 0 && MZ.x && MZ.z && x > MZ.x[0] - 1 && x < MZ.x[1] + 1 && z > MZ.z[0] - 1 && z < MZ.z[1] + 1);
+
+        // Recorre las veredas de todas las manzanas: f(x, z, dx, dz) cada ~paso
+        // metros, a `adentro` del cordón, sin los `tope` metros de cada esquina;
+        // (dx, dz) = dirección de la cuadra.
+        function porVeredas(paso, adentro, tope, f) {
+          for (const [xa, xb] of TRAMOS_X) for (const [za, zb] of TRAMOS_Z) {
+            for (const [x0, z0, dx, dz, largo] of [
+              [xa, za + adentro, 1, 0, xb - xa], [xa, zb - adentro, 1, 0, xb - xa],
+              [xa + adentro, za, 0, 1, zb - za], [xb - adentro, za, 0, 1, zb - za],
+            ]) {
+              for (let t = tope + rndCtx() * paso * 0.5; t < largo - tope; t += paso * (0.8 + rndCtx() * 0.4))
+                f(x0 + dx * t, z0 + dz * t, dx, dz);
+            }
+          }
+        }
+
+        // Partes de una pieza: { geo, mat, local (Matrix4), color?(item) }.
+        // Items: { x, y, z, rot, s }.
+        const dummy = new THREE.Object3D(), mInstancia = new THREE.Matrix4();
+        function instanciar(partes, items) {
+          const cerca = items.filter(p => Math.hypot(p.x, p.z) < RADIO_SOMBRA_CONTEXTO);
+          const lejos = items.filter(p => Math.hypot(p.x, p.z) >= RADIO_SOMBRA_CONTEXTO);
+          for (const [lista, sombra] of [[cerca, CIELO_ALTA], [lejos, false]]) {
+            if (!lista.length) continue;
+            for (const parte of partes) {
+              const im = new THREE.InstancedMesh(parte.geo, parte.mat, lista.length);
+              im.castShadow = sombra;
+              im.receiveShadow = true;
+              // r128 recorta un InstancedMesh con la esfera de su geometría base
+              // (en el origen), no con la de sus instancias.
+              im.frustumCulled = false;
+              lista.forEach((p, i) => {
+                dummy.position.set(p.x, p.y, p.z);
+                dummy.rotation.set(0, p.rot, 0);
+                dummy.scale.setScalar(p.s ?? 1);
+                dummy.updateMatrix();
+                im.setMatrixAt(i, mInstancia.multiplyMatrices(dummy.matrix, parte.local));
+                if (parte.color) im.setColorAt(i, parte.color(p));
+              });
+              grupoCalle.add(im);
+            }
+          }
+        }
+        const en = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
+        const estandar = (color, extra = {}) => conFundido(new THREE.MeshStandardMaterial({ color, roughness: 0.85, ...extra }));
+
+        // Árboles: cada ~11 m sobre la vereda, a 0,4 m del cordón (como la fila
+        // de siempre). Mismos colores, dos lóbulos en vez de tres.
+        const arboles = [];
+        porVeredas(11, 0.4, 4, (x, z) => {
+          if (yaEsta(x, z) || rndCtx() > densidadContexto(Math.hypot(x, z))) return;
+          arboles.push({ x, z, y: VEREDA_ALTO, rot: rndCtx() * Math.PI * 2, s: 0.8 + rndCtx() * 0.25 });
+        });
+        instanciar([
+          { geo: new THREE.CylinderGeometry(0.08, 0.12, 1.6, 5, 1, true), mat: estandar(0x8A7B6C, { roughness: 0.9 }), local: en(0, 0.8, 0) },
+          { geo: new THREE.IcosahedronGeometry(0.75, 0), mat: estandar(0x8FA083), local: en(0, 2.0, 0) },
+          { geo: new THREE.IcosahedronGeometry(0.6, 0), mat: estandar(0x7C9070), local: en(0.45, 1.85, 0.25) },
+        ], arboles);
+
+        // Faroles: cada ~32 m, en la línea del mobiliario (0,65 del ancho de la
+        // vereda desde el cordón), con el brazo a lo largo de la cuadra como
+        // los de siempre.
+        const faroles = [];
+        porVeredas(32, VEREDA * 0.65, 6, (x, z, dx, dz) => {
+          if (yaEsta(x, z) || rndCtx() > densidadContexto(Math.hypot(x, z))) return;
+          faroles.push({ x, z, y: VEREDA_ALTO, rot: Math.atan2(-dz, dx) });
+        });
+        const matPoste = estandar(0x2E3235, { roughness: 0.6, metalness: 0.3 });
+        instanciar([
+          { geo: new THREE.CylinderGeometry(0.06, 0.08, 4.2, 6, 1, true), mat: matPoste, local: en(0, 2.1, 0) },
+          { geo: new THREE.CylinderGeometry(0.04, 0.04, 0.7, 4, 1, true), mat: matPoste,
+            local: new THREE.Matrix4().makeRotationZ(Math.PI / 2).setPosition(0.35, 4.15, 0) },
+          { geo: new THREE.IcosahedronGeometry(0.14, 0), mat: estandar(0xE8E4D8, { roughness: 0.4 }), local: en(0.68, 4.05, 0) },
+        ], faroles);
+
+        // Autos estacionados contra el cordón (a 1,2 m), de las dos manos, con
+        // huecos al azar y sin los TOPE de cada esquina (cebras, cruces).
+        // Carrocería en grises y un azul apagado, como los tres de siempre
+        // (color por instancia); vidrios y bajos en el oscuro de siempre.
+        const COLORES_AUTO = [0x5D6367, 0x9BA1A4, 0x5A6B78, 0xB4B8BA, 0x45494C, 0x7A8085].map(c => new THREE.Color(c));
+        const autos = [], TOPE_AUTO = 9, m = ANCHO_CALLE / 2;
+        const estacionar = (x, z, rot) => {
+          const d = Math.hypot(x, z);
+          if (d < RADIO_DISCO + 6 || yaEsta(x, z) || rndCtx() > 0.4 * densidadContexto(d)) return;
+          autos.push({ x, z, y: 0.02, rot, color: COLORES_AUTO[Math.floor(rndCtx() * COLORES_AUTO.length)] });
+        };
+        for (const z of EJES_Z) for (const [a, b] of TRAMOS_X) for (const s of [-1, 1])
+          for (let x = a + TOPE_AUTO; x < b - TOPE_AUTO; x += 6 + rndCtx() * 1.5) estacionar(x, z + s * (m - 1.2), s > 0 ? Math.PI : 0);
+        for (const x of EJES_X) for (const [a, b] of TRAMOS_Z) for (const s of [-1, 1])
+          for (let z = a + TOPE_AUTO; z < b - TOPE_AUTO; z += 6 + rndCtx() * 1.5) estacionar(x + s * (m - 1.2), z, s > 0 ? Math.PI / 2 : -Math.PI / 2);
+        // Cajas [x0, x1, y0, y1, z0, z1], largo en X local.
+        instanciar([
+          { geo: geometriaCajas([[-2.2, 2.2, 0.28, 0.95, -0.88, 0.88]]), mat: estandar(0xFFFFFF, { roughness: 0.7 }),
+            local: new THREE.Matrix4(), color: p => p.color },
+          { geo: geometriaCajas([[-1.25, 0.9, 0.95, 1.45, -0.78, 0.78], [-1.9, 1.9, 0, 0.28, -0.8, 0.8]]),
+            mat: estandar(0x24292C, { roughness: 0.6 }), local: new THREE.Matrix4() },
+        ], autos);
+
+        // Manzanas vecinas (geometria.calle.manzanas = false las apaga): cada
+        // manzana menos la del edificio, retirada 3 m de la vereda (así no
+        // pisa árboles ni faroles) y partida en cuatro lotes de alturas
+        // distintas. Gris claro, con el fundido; sin sombra propia (el
+        // simulador solar no considera vecinos: una sombra suya sobre la
+        // fachada contradiría el "recibe sol"). Las de al lado de la manzana
+        // del edificio, bajas (4 a 5 m): a 15 m o más del edificio no tapan
+        // su fachada desde la vista inicial (24° de elevación) ni al enfocar
+        // una unidad (14°) más que el primer metro de la PB.
+        if (calleCfg.manzanas !== false && MZ.x && MZ.z) {
+          const RETIRO = VEREDA + 3, lotes = [];
+          const iX = TRAMOS_X.indexOf(MZ.x), iZ = TRAMOS_Z.indexOf(MZ.z);
+          TRAMOS_X.forEach(([xa, xb], i) => TRAMOS_Z.forEach(([za, zb], j) => {
+            if (i === iX && j === iZ) return;
+            const x0 = xa + RETIRO, x1 = xb - RETIRO, z0 = za + RETIRO, z1 = zb - RETIRO;
+            if (x1 - x0 < 6 || z1 - z0 < 6) return;
+            if (Math.hypot(Math.max(0, Math.abs((x0 + x1) / 2) - (x1 - x0) / 2), Math.max(0, Math.abs((z0 + z1) / 2) - (z1 - z0) / 2)) >= HASTA_CONTEXTO) return;
+            const vecina = Math.abs(i - iX) <= 1 && Math.abs(j - iZ) <= 1;
+            const xm = x0 + (x1 - x0) * (0.35 + rndCtx() * 0.3), zm = z0 + (z1 - z0) * (0.35 + rndCtx() * 0.3);
+            for (const [a, b] of [[x0, xm], [xm, x1]]) for (const [c, d] of [[z0, zm], [zm, z1]]) {
+              const h = vecina ? 4 + rndCtx() : 6 + rndCtx() * 8;
+              lotes.push([a, b, 0, h, c, d]);
+            }
+          }));
+          if (lotes.length) {
+            const manzanas = new THREE.Mesh(geometriaCajas(lotes), estandar(0xCDD0CD, { roughness: 0.95 }));
+            manzanas.receiveShadow = true;
+            grupoCalle.add(manzanas);
+          }
+        }
       }
 
       /* ============================================================
