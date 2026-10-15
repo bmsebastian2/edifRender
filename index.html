@@ -6872,9 +6872,15 @@
       pisosGrupo.push(pb);
       ocludoresSol.push(losaPB, volumenPB);
 
-      // Sombra de contacto: halo oscuro y difuso alrededor de la huella de la
-      // PB, para que el edificio pese sobre el terreno sea cual sea la
-      // posición del sol. Una textura hecha una vez en canvas (sin pasada de
+      // Sombra de contacto: franja oscura y angosta pegada al pie de la PB,
+      // para que el edificio se apoye en el terreno sea cual sea la posición
+      // del sol. Es oclusión ambiente (el cielo que tapa el propio edificio
+      // oscurece el pie de cualquier fachada a cualquier hora), no sombra del
+      // sol: por eso no se mueve con el simulador. Hasta 2026-10-14 tenía
+      // además un halo ancho (3 m de difuminado) que sí se leía como sombra
+      // del sol y la contradecía: con el sol de mediodía sobre una fachada,
+      // su vereda quedaba con una franja gris. La sombra del sol la pone el
+      // shadow map. Una textura hecha una vez en canvas (sin pasada de
       // render extra ni shadow map más grande): la huella se dibuja con los
       // triángulos reales de la losa de PB (sirve igual para la caja de ROSSO
       // que para contornos), se desenfoca con shadowBlur (andan en todos los
@@ -6883,7 +6889,8 @@
       (function crearSombraContacto() {
         const geoHuella = losaPB.geometry;
         geoHuella.computeBoundingBox();
-        const bb = geoHuella.boundingBox, MARGEN = 4;
+        // Margen de la textura alrededor de la huella: la franja llega a ~1,2 m.
+        const bb = geoHuella.boundingBox, MARGEN = 2;
         const x0 = bb.min.x - MARGEN, z0 = bb.min.z - MARGEN;
         const anchoM = bb.max.x - bb.min.x + MARGEN * 2, largoM = bb.max.z - bb.min.z + MARGEN * 2;
         const PX = 512 / Math.max(anchoM, largoM); // px por metro
@@ -6916,27 +6923,26 @@
         const cv = document.createElement('canvas');
         cv.width = W; cv.height = H;
         const ctx = cv.getContext('2d');
-        // Dos pasadas: una amplia y tenue (el peso) y una corta y densa pegada
-        // a la base (el contacto). Cada una desenfoca una huella agrandada,
-        // para que el halo arranque denso justo en el borde real y no a la
-        // mitad como pasaría desenfocando la huella exacta. La imagen se
-        // dibuja fuera del canvas y solo su sombra cae adentro.
-        [[1.0, 3.0, 0.7], [0.35, 0.8, 1]].forEach(([expM, blurM, alfa]) => {
-          ctx.save();
-          ctx.globalAlpha = alfa;
-          ctx.shadowColor = '#fff';
-          ctx.shadowBlur = blurM * PX;
-          ctx.shadowOffsetX = W;
-          ctx.drawImage(huellaCanvas(expM), -W, 0);
-          ctx.restore();
-        });
+        // Se desenfoca una huella agrandada 0,35 m (0,8 m de difuminado), para
+        // que la franja arranque densa justo en el borde real y no a la mitad
+        // como pasaría desenfocando la huella exacta. La imagen se dibuja
+        // fuera del canvas y solo su sombra cae adentro.
+        ctx.save();
+        ctx.shadowColor = '#fff';
+        ctx.shadowBlur = 0.8 * PX;
+        ctx.shadowOffsetX = W;
+        ctx.drawImage(huellaCanvas(0.35), -W, 0);
+        ctx.restore();
         ctx.globalCompositeOperation = 'destination-out';
         ctx.drawImage(huellaCanvas(0), 0, 0);
         const tex = new THREE.CanvasTexture(cv);
         const sombra = new THREE.Mesh(
           new THREE.PlaneGeometry(W / PX, H / PX),
           new THREE.MeshBasicMaterial({
-            color: 0x22302B, map: tex, transparent: true, opacity: 0.38, depthWrite: false,
+            // 0,5 y no el 0,38 de cuando había halo ancho: sola, con 0,38 la
+            // franja quedaba floja y el lateral casi no se apoyaba; con 0,62,
+            // sobre una vereda al sol del mediodía, volvía a leerse como sombra.
+            color: 0x22302B, map: tex, transparent: true, opacity: 0.5, depthWrite: false,
             // 1,5 cm sobre la vereda: sin offset parpadeaba contra ella.
             polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
           })
@@ -7030,7 +7036,7 @@
 
       // Cartel de calle: objeto de la propia maqueta, apoyado sobre la
       // calzada — no una superposición HTML. Un plano con una textura de
-      // canvas 2D (pill + pin + texto + sombra falsa ya dibujada adentro),
+      // canvas 2D (pill + pin + texto, sin sombra),
       // rotado como cualquier otra cosa de la escena. Geometría fija, no se
       // actualiza en el BUCLE: gira con la cámara si alguien orbita del
       // todo alrededor del edificio (es, en los hechos, texto pintado sobre
@@ -7118,19 +7124,10 @@
         ctx.translate(ancho, alto);
         ctx.rotate(Math.PI);
 
-        // Sombra de contacto: un óvalo difuso corrido hacia abajo-y-al-costado,
-        // no un box-shadow — así se lee como apoyado sobre el asfalto, no
-        // flotando, sin depender de sombras dinámicas de escena (ver más
-        // abajo por qué el material del plano es no-lit).
-        ctx.save();
-        ctx.filter = 'blur(' + Math.round(alto * 0.08) + 'px)';
-        ctx.fillStyle = 'rgba(0,0,0,.45)';
-        const rSombra = alto / 2;
-        const offX = alto * 0.05, offY = alto * 0.09;
-        trazarPildora(ctx, offX, offY, ancho, alto, rSombra);
-        ctx.fill();
-        ctx.restore();
-
+        // Sin sombra propia: hasta 2026-10-14 llevaba un óvalo difuso pintado
+        // en la textura, corrido siempre hacia el mismo lado, que no seguía
+        // al simulador solar. Es una etiqueta gráfica, no un objeto de la
+        // maqueta: no proyecta sombra ninguna.
         trazarPildora(ctx, 0, 0, ancho, alto, alto / 2);
         ctx.fillStyle = 'rgba(41,44,46,.92)';
         ctx.fill();

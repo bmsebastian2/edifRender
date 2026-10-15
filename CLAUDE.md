@@ -65,6 +65,10 @@ Archivos:
   `continue` que pone caché larga a `modelos/*.glb`. El resto de los estáticos (HTML,
   `supabase-config.js`, `amenities-iconos.js`) queda con el default de Vercel
   (`max-age=0, must-revalidate`) a propósito: cambian en cada deploy con la misma URL.
+  `"regions": ["pdx1"]`: las funciones corren en Portland, al lado de Supabase
+  (`us-west-2`, Oregón; verificado el 2026-10-13 por la IP de `db.<ref>.supabase.co`).
+  En producción se ve en el header `x-vercel-id` (`gru1::pdx1::…` = borde en São
+  Paulo, función en Portland; verificado el 2026-10-15).
 - `.vercelignore` — no se publican `CLAUDE.md`, `*.sql`, `scripts/`, `datos/`,
   `.githooks/` ni `node_modules/`.
 - `api/compartir.js` — HTML con las etiquetas Open Graph para los crawlers.
@@ -670,10 +674,6 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
 - El contador de la tarjeta del proyecto se configura con `CONTADOR_EN_TARJETA` en
   `api/_tarjeta.js` (por slug). Pasarlo a una columna de `settings` / `public_settings`
   necesita migración.
-- Región: el proyecto de Supabase está en `us-west-2` (Oregón; verificado el
-  2026-10-13 por la IP de `db.<ref>.supabase.co` contra los rangos de AWS) y las
-  funciones corren en `iad1` (Washington, el default de Vercel). `"regions": ["pdx1"]`
-  en `vercel.json` (compatible con `routes`) las pondría al lado de la base.
 
 ## Dar de alta un edificio nuevo
 
