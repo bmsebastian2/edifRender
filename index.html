@@ -6472,6 +6472,13 @@
       const LOSA_ANCHO = geo.losa_ancho ?? (SEP_X * 4 + 0.5), LOSA_LARGO = geo.losa_largo ?? (SEP_Z * 2 + PROF + 0.5);
       const NUCLEO_ANCHO = geo.nucleo_ancho ?? (SEP_X * 2), NUCLEO_LARGO = geo.nucleo_largo ?? 1.7;
       const calleCfg = geo.calle || {};
+      // Entorno extendido (ver ENTORNO EXTENDIDO más abajo): calles en grilla
+      // hasta EXTENSION metros del edificio, que se funden con el horizonte.
+      // geometria.calle.extension = 0 lo apaga y vuelve la vista de siempre
+      // (disco que se desvanece, fondo fijo y niebla). CUADRA = distancia
+      // entre ejes de calles (cuadra montevideana).
+      const EXTENSION = Math.max(0, calleCfg.extension ?? 400);
+      const CUADRA = calleCfg.cuadra ?? 90;
 
       // Placas con forma propia (edificios que no son una losa rectangular
       // simétrica) — mismo sistema de coordenadas que units.geom, ver CLAUDE.md.
@@ -6587,6 +6594,9 @@
       // el fondo adentro de WebGL el canvas es opaco (alpha: false) y cuesta
       // un solo quad. La niebla (NIEBLA_COLOR) usa el tono de las esquinas,
       // que es donde llega a notarse.
+      // Solo con EXTENSION = 0. Con el entorno extendido el fondo es el domo
+      // de cielo (ver cielo) y no hay niebla: teñía también el edificio — en
+      // celular, con radio 190, entre ~20 y ~55 % en la vista inicial.
       function pintarFondo() {
         const w = Math.max(2, Math.round(innerWidth / 2)), h = Math.max(2, Math.round(innerHeight / 2));
         const cv = document.createElement('canvas');
@@ -6605,8 +6615,10 @@
         if (escena.background) escena.background.dispose();
         escena.background = new THREE.CanvasTexture(cv);
       }
-      pintarFondo();
-      escena.fog = new THREE.Fog(0xF1F4F2, 130, 280);
+      if (!EXTENSION) {
+        pintarFondo();
+        escena.fog = new THREE.Fog(0xF1F4F2, 130, 280);
+      }
 
       // Grupo que gira en el lugar (ver GIRO en CÁMARA): el edificio + su
       // terreno + calle/vereda/árboles/autos/cartel + el sol — todo el sitio
@@ -6631,7 +6643,13 @@
       // 0.1 a radio 190 el error rondaba los 3 cm — más que el centímetro
       // entre asfalto, líneas y veredas, que parpadeaban al girar. La cámara
       // nunca queda a menos de unos metros de nada (radio mínimo 34).
-      const camara = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 1, 600);
+      // far: con el entorno extendido tiene que alcanzar el piso hasta donde
+      // termina de fundirse (EXTENSION) desde el radio máximo (190) con el
+      // objetivo corrido, y dejar adentro el domo de cielo. Subirlo casi no
+      // cambia la precisión (la manda near): a 300 m el paso es ~5 mm, y más
+      // lejos todo ya tiene el mismo color.
+      const LEJOS = EXTENSION ? Math.max(1100, EXTENSION + 700) : 600;
+      const camara = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 1, LEJOS);
       const render = new THREE.WebGLRenderer({ antialias: true, alpha: false });
       render.setPixelRatio(Math.min(devicePixelRatio, 2));
       render.setSize(innerWidth, innerHeight);
@@ -6643,6 +6661,118 @@
       // había antes (ya no existe) y apagaba el blanco de la losa/núcleo/
       // base — sin ese shader no hay motivo para tocarlo.
       document.body.appendChild(render.domElement);
+
+      // ENTORNO EXTENDIDO (EXTENSION > 0): piso, calles y veredas siguen hasta
+      // EXTENSION metros y se funden con el horizonte. Tres piezas:
+      // - cielo: domo que acompaña a la cámara, color según la altura de cada
+      //   dirección sobre el horizonte. Debajo del horizonte es
+      //   COLOR_HORIZONTE parejo, el mismo al que se funde el piso: el borde
+      //   del piso no se ve desde ninguna altura ni ángulo.
+      // - conFundido(material): mezcla el color final de un material del
+      //   entorno con COLOR_HORIZONTE según la distancia horizontal al eje de
+      //   giro (el origen de grupoEdificio: no cambia al girar). Nunca va en
+      //   los materiales del edificio, que no se tiñen a ninguna distancia.
+      // - la grilla de calles (ver EJES_X / EJES_Z).
+      const COLOR_HORIZONTE = new THREE.Color(0xEBEFEC), COLOR_CENIT = new THREE.Color(0xF9FBFA);
+      // Empieza donde termina el entorno de siempre (RADIO_DISCO: calle de 44 m,
+      // árboles, autos) y se completa antes del final de las calles, así su
+      // punta nunca se ve.
+      const FUNDIDO_DESDE = Math.min(RADIO_DISCO, EXTENSION * 0.5), FUNDIDO_HASTA = EXTENSION * 0.8;
+      let cielo = null;
+      if (EXTENSION) {
+        // Pocos segmentos alcanzan: el domo está centrado en la cámara, así que
+        // cada punto de una cara cae sobre el rayo de su píxel y el degradé sale
+        // exacto igual.
+        cielo = new THREE.Mesh(
+          new THREE.SphereGeometry(LEJOS - 100, 16, 8),
+          new THREE.ShaderMaterial({
+            uniforms: { uHorizonte: { value: COLOR_HORIZONTE }, uCenit: { value: COLOR_CENIT } },
+            vertexShader: `varying vec3 vDir;
+              void main() {
+                vDir = position;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+              }`,
+            fragmentShader: `uniform vec3 uHorizonte, uCenit;
+              varying vec3 vDir;
+              void main() {
+                gl_FragColor = vec4( mix( uHorizonte, uCenit, smoothstep( 0.0, 0.5, normalize( vDir ).y ) ), 1.0 );
+              }`,
+            side: THREE.BackSide, depthWrite: false, depthTest: false,
+          })
+        );
+        // Primero que todo, detrás de todo; sigue a la cámara en ubicarCamara().
+        cielo.renderOrder = -1000;
+        cielo.frustumCulled = false;
+        escena.add(cielo);
+      }
+
+      // Uniforms compartidos por todos los materiales con fundido: se fijan una
+      // vez y valen para todos. uRangoSombra se completa en SOL, cuando se
+      // conoce el radio de la cámara de sombra.
+      const FUNDIDO = {
+        uColorFundido: { value: COLOR_HORIZONTE },
+        uRangoFundido: { value: new THREE.Vector2(FUNDIDO_DESDE, FUNDIDO_HASTA) },
+        uRangoSombra: { value: new THREE.Vector2(1e5, 1e5) },
+      };
+      // La sombra del sol también se desvanece con la distancia, antes de que
+      // termine su cámara: con el piso extendido, la punta de una sombra larga
+      // (sol bajo) se cortaba en una línea recta. Se reemplaza getShadow() en
+      // las luces de este material por una versión que la mezcla hacia "sin
+      // sombra" y que, ya fuera del rango, ni lee el mapa (ahorra las lecturas
+      // de PCF en celular, donde el piso cubre casi toda la pantalla).
+      const LUCES_CON_FUNDIDO = THREE.ShaderChunk.lights_fragment_begin.replace(/\bgetShadow\(/g, 'getShadowFundido(');
+      function conFundido(mat) {
+        if (!EXTENSION) return mat;
+        mat.onBeforeCompile = shader => {
+          Object.assign(shader.uniforms, FUNDIDO);
+          shader.vertexShader = 'varying vec2 vPosFundido;\n' + shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+            vec4 posFundido = vec4( transformed, 1.0 );
+            #ifdef USE_INSTANCING
+              posFundido = instanceMatrix * posFundido;
+            #endif
+            vPosFundido = ( modelMatrix * posFundido ).xz;`);
+          shader.fragmentShader = 'varying vec2 vPosFundido;\nuniform vec3 uColorFundido;\nuniform vec2 uRangoFundido, uRangoSombra;\n' +
+            shader.fragmentShader
+              .replace('#include <shadowmap_pars_fragment>', `#include <shadowmap_pars_fragment>
+                #ifdef USE_SHADOWMAP
+                float getShadowFundido( sampler2D mapa, vec2 tam, float sesgo, float radio, vec4 coord ) {
+                  float k = 1.0 - smoothstep( uRangoSombra.x, uRangoSombra.y, length( vPosFundido ) );
+                  if ( k <= 0.0 ) return 1.0;
+                  return mix( 1.0, getShadow( mapa, tam, sesgo, radio, coord ), k );
+                }
+                #endif`)
+              .replace('#include <lights_fragment_begin>', LUCES_CON_FUNDIDO)
+              // Curva ease-out cúbica (no smoothstep): pierde contraste rápido
+              // en las primeras cuadras (~50 % a una cuadra del entorno de
+              // siempre, ~90 % a dos) y se apaga suave al final. Con smoothstep
+              // las calles a una o dos cuadras seguían casi oscuras y
+              // competían con el edificio, también a través de las unidades.
+              .replace('#include <fog_fragment>', `#include <fog_fragment>
+                float tFundido = 1.0 - clamp( ( length( vPosFundido ) - uRangoFundido.x ) / ( uRangoFundido.y - uRangoFundido.x ), 0.0, 1.0 );
+                gl_FragColor.rgb = mix( gl_FragColor.rgb, uColorFundido, 1.0 - tFundido * tFundido * tFundido );`);
+        };
+        return mat;
+      }
+
+      // Una sola malla con muchos rectángulos horizontales ([x0, x1, z0, z1] a
+      // altura y): toda la grilla de un material es un draw call, no un Mesh
+      // por tramo. UV en metros (para texturas de mundo).
+      function geometriaRectangulos(rects, y) {
+        const pos = [], nor = [], uv = [], idx = [];
+        rects.forEach(([x0, x1, z0, z1], i) => {
+          pos.push(x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1);
+          nor.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0);
+          uv.push(x0, z0, x1, z0, x1, z1, x0, z1);
+          const b = i * 4;
+          idx.push(b, b + 2, b + 1, b, b + 3, b + 2); // cara hacia +Y
+        });
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        g.setIndex(idx);
+        return g;
+      }
 
       // Iluminación de maqueta: UNA sola luz principal (sol, direccional, la
       // que proyecta sombras) + una hemisférica de ambiente. El simulador
@@ -6696,18 +6826,28 @@
       // Albedo más bajo que el tono buscado (#E7E6DC): con ambiente + sol
       // encima una cara horizontal recibe ~1.2 y el sol es cálido, así que
       // este gris neutro llega a beige gris claro sin amarillear.
-      const matTerreno = new THREE.MeshStandardMaterial({
-        color: 0xB5B7B3, map: crearTexturaTerreno(), roughness: 0.95,
-        transparent: true, depthWrite: false,
-        // Empujado hacia atrás en profundidad: se dibuja después de la calle
-        // (pasada transparente) y a 2 cm debajo, así que sin esto le ganaba
-        // al asfalto en parches claros al girar.
-        polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
-      });
-      const terreno = new THREE.Mesh(new THREE.CircleGeometry(RADIO_TERRENO, 96), matTerreno);
+      // Con EXTENSION: el mismo color, pero opaco y hasta donde llegan las
+      // calles; el fundido es de color (conFundido), no de alpha. Al ser
+      // opaco se dibuja antes que las unidades sin renderOrder.
+      const matTerreno = EXTENSION
+        ? conFundido(new THREE.MeshStandardMaterial({
+          color: 0xB5B7B3, roughness: 0.95,
+          polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+        }))
+        : new THREE.MeshStandardMaterial({
+          color: 0xB5B7B3, map: crearTexturaTerreno(), roughness: 0.95,
+          transparent: true, depthWrite: false,
+          // Empujado hacia atrás en profundidad: se dibuja después de la calle
+          // (pasada transparente) y a 2 cm debajo, así que sin esto le ganaba
+          // al asfalto en parches claros al girar.
+          polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+        });
+      const terreno = new THREE.Mesh(EXTENSION
+        ? new THREE.CircleGeometry(EXTENSION + 10, 128)
+        : new THREE.CircleGeometry(RADIO_TERRENO, 96), matTerreno);
       terreno.rotation.x = -Math.PI / 2;
       terreno.receiveShadow = true;
-      terreno.renderOrder = -2;
+      if (!EXTENSION) terreno.renderOrder = -2;
       grupoEdificio.add(terreno);
 
       // Calle: franja de asfalto frente al edificio (lado "frente", ver NOMBRE_CALLE
@@ -6718,12 +6858,75 @@
       const VEREDA_ALTO = calleCfg.vereda_alto ?? 0.12;
       const Z_CALLE = BORDE_FRENTE - VEREDA - ANCHO_CALLE / 2;
 
-      const matCalle = new THREE.MeshStandardMaterial({ color: 0x686F72, roughness: 0.95 });
-      const calle = new THREE.Mesh(new THREE.PlaneGeometry(LARGO_CALLE, ANCHO_CALLE), matCalle);
-      calle.rotation.x = -Math.PI / 2;
-      calle.position.set(0, 0.02, Z_CALLE);
-      calle.receiveShadow = true;
-      grupoCalle.add(calle);
+      // Grilla de calles (con EXTENSION), en coordenadas de grupoCalle: así
+      // queda alineada con los ejes de cada proyecto. Transversales (corren en
+      // Z) en EJES_X, paralelas al frente (corren en X) en EJES_Z, una cada
+      // CUADRA hacia afuera de las calles reales:
+      // - paralelas: la del frente (Z_CALLE) y, si existe, la de atrás
+      //   (geometria.calles, BRUSCO);
+      // - transversales: las laterales reales (BRUSCO) o, sin ellas,
+      //   geometria.calle.cruce_x: el eje de una transversal, en metros sobre
+      //   el frente desde el centro del edificio (parado en la calle mirando
+      //   la fachada, negativo = a la derecha). Sin el dato, el edificio queda
+      //   a mitad de cuadra (ejes en ±CUADRA/2).
+      // La calzada del frente y las laterales quedan dentro de la grilla
+      // (mismos ejes), así que con EXTENSION no se arman aparte; veredas,
+      // líneas, carteles y todo lo demás de cerca del edificio, sí.
+      const EJES_X = [], EJES_Z = [];
+      if (EXTENSION) {
+        const anclasX = [], anclasZ = [Z_CALLE];
+        for (const c of CALLES_LATERALES) {
+          // Eje de la lateral en coordenadas de su lado (ver el bucle de
+          // calles laterales), girado a las de grupoCalle.
+          const a = c.giro - FRENTE_GIRO, zc = c.borde - VEREDA - ANCHO_CALLE / 2;
+          if (Math.abs(Math.sin(a)) > 0.5) anclasX.push(zc * Math.sin(a));
+          else anclasZ.push(zc * Math.cos(a));
+        }
+        if (!anclasX.length) anclasX.push(calleCfg.cruce_x ?? CUADRA / 2);
+        const lim = EXTENSION + 10;
+        for (const [anclas, ejes] of [[anclasX, EJES_X], [anclasZ, EJES_Z]]) {
+          anclas.sort((a, b) => a - b);
+          for (let v = anclas[0] - CUADRA; v > -lim; v -= CUADRA) ejes.push(v);
+          ejes.push(...anclas);
+          for (let v = anclas[anclas.length - 1] + CUADRA; v < lim; v += CUADRA) ejes.push(v);
+          ejes.sort((a, b) => a - b);
+        }
+      }
+      // ¿Algo de ±medio a lo largo del frente, en x, cae en una transversal?
+      // Hoy solo ROSSO (esquina Paullier) tiene una dentro del tramo de 44 m:
+      // lo de la calle del frente que cae ahí se corta o se saca.
+      const enCruce = (x, medio) => EJES_X.some(e => Math.abs(x - e) < ANCHO_CALLE / 2 + medio);
+      // Lo que queda libre de [xa, xb] fuera de las calzadas transversales.
+      function tramosLibres(xa, xb) {
+        let tramos = [[xa, xb]];
+        for (const e of EJES_X) {
+          const c0 = e - ANCHO_CALLE / 2, c1 = e + ANCHO_CALLE / 2;
+          tramos = tramos.flatMap(([a, b]) => (b <= c0 || a >= c1) ? [[a, b]]
+            : [[a, c0], [c1, b]].filter(([p, q]) => q - p > 0));
+        }
+        return tramos.filter(([a, b]) => b - a >= 1);
+      }
+
+      const matCalle = conFundido(new THREE.MeshStandardMaterial({ color: 0x686F72, roughness: 0.95 }));
+      if (EXTENSION) {
+        // Toda la calzada de la grilla en una malla. Paralelas de punta a
+        // punta; transversales cortadas entre paralelas (sin pisar los cruces).
+        const L = EXTENSION + 10, m = ANCHO_CALLE / 2, rects = [];
+        for (const z of EJES_Z) rects.push([-L, L, z - m, z + m]);
+        const cortes = [-L, ...EJES_Z.flatMap(z => [z - m, z + m]), L];
+        for (const x of EJES_X)
+          for (let i = 0; i < cortes.length; i += 2)
+            if (cortes[i + 1] > cortes[i]) rects.push([x - m, x + m, cortes[i], cortes[i + 1]]);
+        const calzadas = new THREE.Mesh(geometriaRectangulos(rects, 0.02), matCalle);
+        calzadas.receiveShadow = true;
+        grupoCalle.add(calzadas);
+      } else {
+        const calle = new THREE.Mesh(new THREE.PlaneGeometry(LARGO_CALLE, ANCHO_CALLE), matCalle);
+        calle.rotation.x = -Math.PI / 2;
+        calle.position.set(0, 0.02, Z_CALLE);
+        calle.receiveShadow = true;
+        grupoCalle.add(calle);
+      }
 
       // Tramo de calzada (asfalto solo) de xa a xb, centrado en zc, en el grupo
       // dado. Los tramos se pisan en los cruces: mismo material y color, así
@@ -6737,7 +6940,8 @@
       }
       // Con calles laterales, la calzada del frente sigue hasta cruzarlas
       // (debajo de la de siempre, que conserva largo, líneas, autos y árboles).
-      if (CALLES_LATERALES.length) {
+      // Con EXTENSION ya lo cubre la grilla.
+      if (CALLES_LATERALES.length && !EXTENSION) {
         const f = LADOS_MANZANA[LADO_FRENTE], ext = VEREDA + ANCHO_CALLE;
         tramoCalzada(grupoCalle,
           Math.min(-LARGO_CALLE / 2, hayCalleEn(f.ladoMenosX) ? f.x0 - ext : -LARGO_CALLE / 2),
@@ -6749,24 +6953,28 @@
       // de arriba = vereda, cara que mira a la calzada = cordón, vía material por
       // cara) — así la diferencia de altura proyecta sombra real, no un color
       // plano fingiéndola.
-      const matVereda = new THREE.MeshStandardMaterial({ color: 0xCBCFCF, roughness: 0.9 });
-      const matCordonCara = new THREE.MeshStandardMaterial({ color: 0xF2F3F4, roughness: 0.8 });
-      const vereda = new THREE.Mesh(
-        new THREE.BoxGeometry(LARGO_CALLE, VEREDA_ALTO, VEREDA),
-        [matVereda, matVereda, matVereda, matVereda, matVereda, matCordonCara]
-      );
-      vereda.position.set(0, VEREDA_ALTO / 2, BORDE_FRENTE - VEREDA / 2);
-      vereda.castShadow = vereda.receiveShadow = true;
-      grupoCalle.add(vereda);
+      // Cortada donde la cruza una transversal (tramosLibres).
+      const matVereda = conFundido(new THREE.MeshStandardMaterial({ color: 0xCBCFCF, roughness: 0.9 }));
+      const matCordonCara = conFundido(new THREE.MeshStandardMaterial({ color: 0xF2F3F4, roughness: 0.8 }));
+      for (const [xa, xb] of tramosLibres(-LARGO_CALLE / 2, LARGO_CALLE / 2)) {
+        const vereda = new THREE.Mesh(
+          new THREE.BoxGeometry(xb - xa, VEREDA_ALTO, VEREDA),
+          [matVereda, matVereda, matVereda, matVereda, matVereda, matCordonCara]
+        );
+        vereda.position.set((xa + xb) / 2, VEREDA_ALTO / 2, BORDE_FRENTE - VEREDA / 2);
+        vereda.castShadow = vereda.receiveShadow = true;
+        grupoCalle.add(vereda);
+      }
 
       const geoGuion = new THREE.PlaneGeometry(1.6, 0.2);
       // polygonOffset: la pintura está a 1 cm del asfalto — le gana en
       // profundidad aunque la cámara esté lejos o rasante.
-      const matGuion = new THREE.MeshStandardMaterial({
+      const matGuion = conFundido(new THREE.MeshStandardMaterial({
         color: 0xEDEFEF, roughness: 0.6,
         polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
-      });
+      }));
       for (let x = -LARGO_CALLE / 2 + 2; x < LARGO_CALLE / 2 - 2; x += 2.8) {
+        if (enCruce(x, 0.8)) continue; // las líneas se cortan en el cruce
         const guion = new THREE.Mesh(geoGuion, matGuion);
         guion.rotation.x = -Math.PI / 2;
         guion.position.set(x, 0.03, Z_CALLE);
@@ -6775,10 +6983,12 @@
 
       // Línea de borde del lado opuesto a la vereda (el que no tiene cordón) —
       // continua, no discontinua, como el borde real de una calzada.
-      const bordeCalzada = new THREE.Mesh(new THREE.PlaneGeometry(LARGO_CALLE, 0.12), matGuion);
-      bordeCalzada.rotation.x = -Math.PI / 2;
-      bordeCalzada.position.set(0, 0.03, Z_CALLE - ANCHO_CALLE / 2 + 0.15);
-      grupoCalle.add(bordeCalzada);
+      for (const [xa, xb] of tramosLibres(-LARGO_CALLE / 2, LARGO_CALLE / 2)) {
+        const bordeCalzada = new THREE.Mesh(new THREE.PlaneGeometry(xb - xa, 0.12), matGuion);
+        bordeCalzada.rotation.x = -Math.PI / 2;
+        bordeCalzada.position.set((xa + xb) / 2, 0.03, Z_CALLE - ANCHO_CALLE / 2 + 0.15);
+        grupoCalle.add(bordeCalzada);
+      }
 
       /* ============================================================
          3. TORRE
@@ -7067,8 +7277,9 @@
       // edificio) encara hacia el punto de vista en vez de hacia la fachada.
       // Declarado acá (y no adentro del if de abajo) porque el árbol más
       // cercano tiene que esquivarlo aunque el cálculo del cartel en sí sea
-      // condicional a NOMBRE_CALLE.
-      const CARTEL_X = -(LARGO_CALLE / 2 - 4);
+      // condicional a NOMBRE_CALLE. `let`: si cae en un cruce se corre (ver
+      // abajo, al armar el cartel).
+      let CARTEL_X = -(LARGO_CALLE / 2 - 4);
       // Sobre la calzada misma (no cruzando al pasto del otro lado) — más
       // cerca del borde lejano que del cordón de la vereda, para no quedar
       // pegado a la línea de auto/vereda del lado del edificio.
@@ -7192,6 +7403,12 @@
 
       if (NOMBRE_CALLE) {
         cartelCalle = crearCartelCalle(NOMBRE_CALLE);
+        // Si una transversal cruza donde iría (ROSSO, esquina Paullier), pasa
+        // a la cuadra del edificio: 1 m después de la esquina.
+        const medioCartel = cartelCalle.geometry.parameters.width / 2;
+        const cruceCartel = EJES_X.find(e => Math.abs(CARTEL_X - e) < ANCHO_CALLE / 2 + medioCartel + 1);
+        if (cruceCartel != null)
+          CARTEL_X = cruceCartel + (cruceCartel < 0 ? 1 : -1) * (ANCHO_CALLE / 2 + medioCartel + 1);
         // Corrido hacia el borde del disco (mismo costado que ya despejaba el
         // rayo cámara→cartel de la propia torre, ver debajo) y apoyado unos
         // milímetros sobre la calzada — el polygonOffset de arriba hace el
@@ -7218,7 +7435,7 @@
         g.rotation.y = c.giro;
         grupoEdificio.add(g);
         const zc = c.borde - VEREDA - ANCHO_CALLE / 2, ext = VEREDA + ANCHO_CALLE;
-        tramoCalzada(g,
+        if (!EXTENSION) tramoCalzada(g, // con EXTENSION, la calzada es de la grilla
           hayCalleEn(c.ladoMenosX) ? c.x0 - ext : c.x0,
           hayCalleEn(c.ladoMasX) ? c.x1 + ext : c.x1,
           zc, 0.019);
@@ -7288,6 +7505,7 @@
           z: BORDE_FRENTE - VEREDA + 0.4 + (azar() - 0.5) * 0.3,
           y0: VEREDA_ALTO,
           s: 0.8 + azar() * 0.25,
+          frente: true,
         });
       }
       const zPasto = Z_CALLE - ANCHO_CALLE / 2;
@@ -7298,6 +7516,7 @@
           z: zPasto - 1.5 - azar() * 3,
           y0: 0,
           s: 0.8 + azar() * 0.25,
+          frente: true,
         });
       }
       // Calles laterales: solo la fila pegada al cordón, a lo largo de la
@@ -7315,6 +7534,9 @@
         }
       }
       posicionesArbol = posicionesArbol.filter(p => p.x * p.x + p.z * p.z <= (RADIO_DISCO - 3) ** 2);
+      // Las dos filas del frente no van en una transversal ni pegadas a ella
+      // (se filtra después de armarlas: las demás no cambian de lugar).
+      posicionesArbol = posicionesArbol.filter(p => !p.frente || !enCruce(p.x, 1.5));
       // El cartel, inclinado, ocupa más espacio real que un punto — un árbol
       // pegado a la fila del cordón caía justo delante y lo tapaba a media
       // altura. 3.2m de radio de exclusión (el cartel mide ~2m de alto ya
@@ -7485,11 +7707,16 @@
         { modelo: 'modelos/autos/sedan.glb', x: -2, colorCarroceria: 0x5D6367 },
         { modelo: 'modelos/autos/suv.glb', x: -8, colorCarroceria: 0x9BA1A4 },
         { modelo: 'modelos/autos/hatchback.glb', x: -14, colorCarroceria: 0x5A6B78 },
-      ].forEach(c => {
+      ].forEach((c, _, todos) => {
+        // Un auto que caería en un cruce (ROSSO: el de -14, en Paullier) pasa
+        // al primer lugar libre, de a 6 m hacia +X.
+        let x = c.x;
+        while (enCruce(x, LARGO_AUTO_OBJETIVO / 2 + 1) || todos.some(o => o !== c && o.xFinal === x)) x += 6;
+        c.xFinal = x;
         cargarModeloAuto(c.modelo, c.colorCarroceria).then(modelo => {
           if (!modelo) return; // ver el warn del onError de arriba
           const auto = modelo.clone();
-          auto.position.set(c.x, 0.02, Z_CALLE + 2.5);
+          auto.position.set(c.xFinal, 0.02, Z_CALLE + 2.5);
           // El "adelante" de estos modelos (Quaternius) mira +Z local —
           // confirmado midiendo la posición real de la malla de faros/luces
           // traseras de cada .glb, no a ojo. La calle corre en el eje X del
@@ -7543,7 +7770,9 @@
       // árboles, MARGEN_FAROL, para no salirse del tramo real de vereda),
       // cada 8m — ya no solo en el tramo donde están los autos.
       const MARGEN_FAROL = 2.5;
+      // Nada del mobiliario va en una transversal (hoy solo pasa en ROSSO).
       for (let x = -LARGO_CALLE / 2 + MARGEN_FAROL; x <= LARGO_CALLE / 2 - MARGEN_FAROL; x += 8) {
+        if (enCruce(x, 0.5)) continue;
         const farol = crearFarol();
         farol.position.set(x, VEREDA_ALTO, Z_VEREDA_MOBILIARIO);
         grupoCalle.add(farol);
@@ -7568,14 +7797,14 @@
         });
         return banco;
       }
-      [-17, -5.5, 10].forEach(x => {
+      [-17, -5.5, 10].filter(x => !enCruce(x, 1.2)).forEach(x => {
         const banco = crearBanco();
         banco.position.set(x, VEREDA_ALTO, Z_VEREDA_MOBILIARIO);
         grupoCalle.add(banco);
       });
 
       // Cesto de basura
-      {
+      if (!enCruce(-10.5, 0.7)) {
         const cesto = new THREE.Mesh(
           new THREE.CylinderGeometry(0.22, 0.18, 0.55, 10),
           new THREE.MeshStandardMaterial({ color: 0x3C4044, roughness: 0.7 })
@@ -7586,7 +7815,7 @@
       }
 
       // Bicicletero (soporte tipo U invertida, uno solo)
-      {
+      if (!enCruce(-14.5, 0.8)) {
         const matBici = new THREE.MeshStandardMaterial({ color: 0x33383B, roughness: 0.5, metalness: 0.4 });
         const bici = new THREE.Group();
         [-0.25, 0.25].forEach(x => {
@@ -7605,7 +7834,7 @@
       // Cartel de tránsito genérico (disco en poste) — la maqueta no tiene
       // una segunda calle/cruce modelado, así que un semáforo no tendría
       // con qué cruzarse; se optó por un cartel puntual en su lugar.
-      {
+      if (!enCruce(-1, 0.8)) {
         const cartel = new THREE.Group();
         const poste = new THREE.Mesh(
           new THREE.CylinderGeometry(0.04, 0.05, 2.2, 8),
@@ -7721,14 +7950,22 @@
       // Al ocultar y al volver a la pestaña: corta y el contador arranca de cero.
       document.addEventListener('visibilitychange', registrarActividad);
 
+      // La cámara nunca baja de ALTURA_MIN_CAMARA sobre el piso. Con phi al
+      // máximo (un poco por debajo del objetivo) y el radio grande quedaba
+      // debajo del terreno: ROSSO a radio 190, y ≈ −14 m. phiPiso es el phi
+      // que la deja justo a esa altura con el radio y el objetivo de ahora; no
+      // toca la vista inicial (1,15), una unidad (1,32) ni un piso (1,28).
+      const ALTURA_MIN_CAMARA = 2;
       function ubicarCamara() {
-        phi = Math.max(0.18, Math.min(Math.PI / 2 + 0.16, phi));
+        const phiPiso = Math.acos(Math.max(-1, Math.min(1, (ALTURA_MIN_CAMARA - objetivo.y) / radio)));
+        phi = Math.max(0.18, Math.min(Math.PI / 2 + 0.16, phiPiso, phi));
         camara.position.set(
           objetivo.x + radio * Math.sin(phi) * Math.sin(theta),
           objetivo.y + radio * Math.cos(phi),
           objetivo.z + radio * Math.sin(phi) * Math.cos(theta)
         );
         camara.lookAt(objetivo);
+        if (cielo) cielo.position.copy(camara.position);
         grupoEdificio.rotation.y = giro;
       }
       ubicarCamara();
@@ -7783,7 +8020,7 @@
       const AMBIENTE_COLOR = new THREE.Color(0xFFFFFF);
 
       function aplicarCielo() {
-        escena.fog.color.copy(NIEBLA_COLOR);
+        if (escena.fog) escena.fog.color.copy(NIEBLA_COLOR); // sin niebla con EXTENSION
         hemi.color.copy(AMBIENTE_COLOR);
       }
 
@@ -7822,6 +8059,12 @@
         sc.updateProjectionMatrix();
       }
       encuadrarSombra();
+      // Fundido de la sombra en el entorno (ver conFundido): entera hasta
+      // 0,65 del radio de su cámara y nada a 0,9 — la punta de una sombra
+      // larga se cortaba recién pasando ~1 radio, así que no llega a verse.
+      // Hoy son 32–45 m en ROSSO, 31–43 m en Altamira y 48–67 m en BRUSCO:
+      // todo lo de cerca del edificio queda con su sombra entera, como antes.
+      FUNDIDO.uRangoSombra.value.set(radioSombraSol * 0.65, radioSombraSol * 0.9);
       aplicarCieloDefault();
 
       let solActivo = false;
@@ -10442,7 +10685,7 @@
         camara.updateProjectionMatrix();
         render.setSize(innerWidth, innerHeight);
         if (CONTORNO) CONTORNO.resolucion(innerWidth, innerHeight);
-        pintarFondo();
+        if (!EXTENSION) pintarFondo();
       });
 
     } // fin de iniciar()

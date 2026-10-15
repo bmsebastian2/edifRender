@@ -163,7 +163,8 @@ Cada archivo es idempotente o tiene guardas. Orden histórico: `schema` → `aut
 `grants-explicitos` (grants de tabla para `authenticated`; no depender de los defaults
 de Supabase — una tabla nueva editable desde admin necesita su propio `grant`) →
 `alquiler` (estado `'alquiler'` + `units.precio_alquiler`, UYU/mes) → `nombre-publico`
-(`typologies.nombre_publico` + `public_typologies` recreada). Migraciones nuevas: archivo nuevo
+(`typologies.nombre_publico` + `public_typologies` recreada). Solo datos y sin orden:
+`calle-cruce-rosso` (`geometria.calle.cruce_x` de ROSSO, esquina Paullier). Migraciones nuevas: archivo nuevo
 `supabase-migration-<tema>.sql`, comentario de cabecera en español explicando el porqué,
 idempotente (`if not exists`, `drop policy if exists`, `on conflict`), puramente aditiva
 cuando se pueda (un proyecto sin el dato nuevo tiene que verse exactamente igual que
@@ -200,7 +201,9 @@ El script está organizado en secciones numeradas:
 2. **ESCENA** — renderer, luces, cielo, entorno. Las dimensiones salen de
    `proyecto.geometria` con los valores de ROSSO como fallback (`ancho` 5.4, `prof` 6.4,
    `alto` 3, `losa_espesor`, `sep_x`/`sep_z`, `losa_*`, `nucleo_*`). Entorno: calle
-   (`geometria.calle`, ver "La calle" más abajo), cartel con el nombre de la calle anclado al mundo
+   (`geometria.calle`, ver "La calle" más abajo) extendida en grilla hasta el horizonte,
+   con piso, domo de cielo y fundido propio en vez de niebla (ver "Entorno extendido"
+   ahí mismo), cartel con el nombre de la calle anclado al mundo
    (`geometria.calle_nombre` o extraído de `direccion`), árboles con random por semilla
    (estables entre recargas), autos GLB cargados una vez y reutilizados con `.clone()`
    (la malla del pack, con sus materiales reemplazados por dos tonos: carrocería y
@@ -497,9 +500,10 @@ fusionaron dos posiciones).
 
 ### La calle: `geometria.calle`
 
-Objeto opcional con las medidas de la calle, en metros. Hoy ningún proyecto lo define:
-los tres usan los valores por defecto. Se arma en coordenadas "de frente" (calle sobre el
-eje X, en −Z) y después gira con `frente_eje`.
+Objeto opcional con las medidas de la calle, en metros. Hoy solo ROSSO define algo
+(`cruce_x`, con `supabase-migration-calle-cruce-rosso.sql`); el resto usa los valores por
+defecto. Se arma en coordenadas "de frente" (calle sobre el eje X, en −Z) y después gira
+con `frente_eje`.
 
 - **`ancho`** (8) — ancho de la calzada. También el de las calles laterales
   (`geometria.calles`). El cartel con el nombre escala con él.
@@ -512,9 +516,51 @@ eje X, en −Z) y después gira con `frente_eje`.
 - **`vereda_alto`** (0,12) — altura del cordón (la vereda es un escalón real). Árboles y
   mobiliario se apoyan a esa altura y la sombra de contacto del edificio va 1,5 cm arriba.
 
+- **`extension`** (400) — hasta dónde llegan las calles desde el edificio. **`0` la apaga**
+  y vuelve la vista de antes, igual píxel a píxel: disco que se desvanece, fondo fijo a la
+  pantalla y niebla.
+- **`cuadra`** (90) — distancia entre ejes de calles de la grilla (cuadra montevideana).
+- **`cruce_x`** — eje de una calle transversal, en metros sobre el frente desde el centro
+  del edificio. Parado en la calle mirando la fachada, negativo = a la derecha (−X). Las
+  demás transversales salen cada `cuadra`. Sin el dato, el edificio queda a mitad de cuadra
+  (ejes en ±`cuadra`/2). En esquina: −(media losa + `vereda` + `ancho`/2) del lado de la
+  esquina; ROSSO = −17,65 (Paullier, del lado de las unidades "Esquina Paullier", `col`
+  −1,5). Con `geometria.calles` (BRUSCO) no se usa: las transversales y la calle de atrás
+  salen de las calles reales.
+
 La línea del mobiliario se mide desde la vereda, no desde la calzada. Hasta 2026-10-14
 era `Z_CALLE + 5,3`: con un `ancho` de 12 m caía sobre el asfalto. Sin contornos (ROSSO) el disco de base
 queda fijo en 30 m de radio; con contornos crece para que entren la calle y las esquinas.
+`RADIO_DISCO` sigue mandando aunque haya extensión: de él salen la cámara de sombra, el
+filtro de árboles y dónde empieza el fundido.
+
+#### Entorno extendido (`extension` > 0)
+
+- **Grilla** (`EJES_X` / `EJES_Z`, en coordenadas de `grupoCalle`): paralelas al frente
+  (la del frente y, si existe, la de atrás) y transversales, cada `cuadra` hacia afuera de
+  las calles reales, hasta `extension`. Toda la calzada es una sola malla
+  (`geometriaRectangulos()`); la del frente y las laterales de BRUSCO ya no se arman
+  aparte. Veredas, líneas, carteles, árboles, autos y mobiliario de cerca siguen como
+  antes, salvo lo que cae en una transversal (`enCruce()` / `tramosLibres()`, hoy solo
+  ROSSO): la vereda y el borde se cortan, los guiones, faroles, bancos y el bicicletero
+  de ese tramo no se ponen, el auto pasa al primer lugar libre y el cartel se corre a la
+  cuadra del edificio.
+- **Fundido** (`conFundido(material)`): mezcla el color final de piso, calzada, veredas y
+  pintura con `COLOR_HORIZONTE` según la distancia horizontal al eje de giro, con una
+  curva ease-out cúbica entre `RADIO_DISCO` y 0,8 × `extension`. **Nunca va en materiales
+  del edificio**: no hay `scene.fog` (teñía el edificio, en celular entre ~20 y ~55 % en
+  la vista inicial). Un material nuevo del entorno (árboles, autos, manzanas) tiene que
+  pasar por `conFundido()`; con instancing también funciona.
+- **Sombra**: en esos mismos materiales la del sol se desvanece entre 0,65 y 0,9 del radio
+  de su cámara (`radioSombraSol`, que no cambió) y más allá ni se lee el mapa. Sin esto la
+  punta de una sombra larga (sol bajo) se cortaba en una línea recta.
+- **Cielo** (`cielo`): domo que sigue a la cámara (`ubicarCamara()`), con degradé por
+  altura sobre el horizonte. Debajo del horizonte es `COLOR_HORIZONTE` parejo, el mismo al
+  que se funde el piso: el borde del piso no se ve desde ningún ángulo. `far` pasa de
+  600 a 1100.
+- **Cámara**: `phi` se limita según el radio para que la cámara quede siempre ≥ 2 m sobre el
+  piso (`ALTURA_MIN_CAMARA`; antes, a radio 190 y `phi` máximo, ROSSO quedaba a −14 m).
+  Vale también con `extension` 0.
 
 ## Simulador solar: `projects.lat`/`lon`, `paises.tz_offset_horas`, `geometria.norte_grados`
 
@@ -671,6 +717,12 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
   puede ocultar).
 - `supabase-js` se carga como `@supabase/supabase-js@2` desde jsdelivr, sin versión
   fija.
+- Zoom con dos dedos en táctil. Hoy en celular (≤ 860 px) **no hay zoom**: la toolbar se
+  reduce a la brújula (`.hr-grupo` oculto, sin `+` / `−`) y no hay pellizco; el arrastre
+  solo gira y cambia `phi`. En tablet y desktop están los botones, y la rueda en desktop.
+  El comentario del CSS de la toolbar mobile ("se acerca con gestos") describe algo que no
+  existe. Al hacerlo: mismos límites que la rueda (`radio` 34–190) vía `ubicarCamara()`, y
+  que un pellizco no cuente como arrastre que selecciona.
 - El contador de la tarjeta del proyecto se configura con `CONTADOR_EN_TARJETA` en
   `api/_tarjeta.js` (por slug). Pasarlo a una columna de `settings` / `public_settings`
   necesita migración.
