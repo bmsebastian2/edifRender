@@ -245,41 +245,52 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   vivo), unidades, entrega y disponibilidad contada en vivo por `aspectoDe(u)`, solo
   estados con unidades y solo si `muestra_totales`. En mobile se pliega a una píldora
   con puntos + cifras y se despliega a pedido (arranca desplegada, salvo con `?u=` o
-  `?sol=`). Desplegada, tocar una unidad o su tarjeta, o abrir/usar Filtros o Pisos, no
+  `?sol=`). Desplegada, abrir/usar Filtros o Pisos no
   la pliega (pedido de Sebastian: los datos del edificio no desaparecen; `enfocar()`
   encuadra debajo de ella, y el riel y Filtros se acomodan debajo vía `--fin-ficha`,
   que mide `medirFinFicha()`); arrastrar el edificio, tocar el vacío, otra capa (sol,
-  renders, avance), Escape o abrir el panel sí la pliegan.
+  renders, avance), Escape o abrir el panel sí la pliegan. Tocar una unidad abre el
+  panel, así que también la pliega (desde 2026-10-19; antes mostraba la tarjeta y no).
 - **Barra inferior única** (`#barra-inferior`): en desktop, desplegables Tipología /
   Estado / Torre / Vista que abren `#filtros` como popover con un solo grupo
   (`data-grupo`, `abrirGrupoFiltros()`), Restablecer (`restablecerFiltros()`, reusa los
   sets + `aplicar()` + click en los toggles) y los accesos a renders / avance. En
   mobile: Filtros · Pisos + íconos (renders, avance, sol), cada uno abre su hoja; nunca
-  dos hojas abiertas (la ficha desplegada sí convive con Filtros y Pisos).
+  dos hojas abiertas (la ficha desplegada sí convive con Filtros y Pisos). Con el panel de
+  la unidad abierto (desktop) se centra en lo que queda libre; si ni así entra, se esconde
+  hasta que se cierre (`.sin-lugar`, `acomodarBarraInferior()`).
 - **Riel de pisos** (`#pisos`): cifra = unidades **disponibles** del piso; flechas que
   hacen click en la fila vecina (`moverPisoAislado()`); centrado entre "Panel interno" y
   la toolbar para no superponerse; en pantallas bajas compacta filas y un fundido en el
   borde avisa que hay más pisos.
 - **Tooltip / tarjeta de unidad**: `pintarResumenUnidad()` (número, estado, torre/piso,
   tipología, m², precio — alquiler en UYU/mes, vendidas sin precio). Desktop: hover =
-  tooltip. Click o tap = `seleccionar(caja)`: la cámara va hasta la unidad (`enfocar(u)`,
-  vía `moverCamara()`, 750 ms), la unidad queda resaltada como elegida (contorno, ver
-  "Selección de unidad", punto 2) y aparece
-  `#tarjeta-unidad`. En desktop la tarjeta va `.anclada` a la unidad (aspecto de
+  tooltip (nunca sobre la unidad abierta en el panel; sobre las demás sí). Click o tap
+  = `abrir(u, true)` directo (desde 2026-10-19; antes pasaba por la tarjeta): la cámara
+  va hasta la unidad (`enfocar(u)`, vía `moverCamara()`, 750 ms), la unidad queda
+  resaltada como elegida (contorno, ver "Selección de unidad", punto 2), se abre el
+  panel y se registra el evento: desde ese día Demanda cuenta clicks en unidades (antes,
+  aperturas desde la tarjeta), así que no se compara con lo anterior. Un clic en la
+  unidad que ya está abierta solo la vuelve a encuadrar (sin otro evento). Con el panel
+  abierto, un click en otra unidad cambia el contenido en el lugar (sin cerrar ni volver a
+  deslizarse) y el scroll del panel vuelve a 0. X, Escape o un click en el vacío lo
+  cierran. Un arrastre de más de `UMBRAL_ARRASTRE` (5 px) entre `pointerdown` y
+  `pointerup` no abre ni cierra nada (se mide en el recorrido: en táctil el click trae
+  las coordenadas del comienzo del toque).
+  `#tarjeta-unidad` (`seleccionar(caja)`) queda solo para la demo del showroom: en
+  desktop va `.anclada` a la unidad (aspecto de
   tooltip, la sigue si se gira el edificio; `ubicarTarjeta()` en el bucle) con "Click
   para ver la unidad"; en táctil (`matchMedia('(hover: none)')`) sube sobre la barra
   inferior con "Ver unidad". En los dos casos una línea guía (`#tarjeta-guia`,
   `actualizarGuia()`) une la tarjeta con un punto en el centro de la fachada de la unidad
-  que mira a la cámara. Recién el botón de la tarjeta llama a `abrir(u)`, que es lo que registra el
-  evento: Demanda cuenta aperturas de ficha, no clicks. Ese botón no esconde la tarjeta:
+  que mira a la cámara. El botón de la tarjeta no la esconde:
   `viajarAlPanel()` la lleva hasta el lugar del panel y la convierte en él (`MS_VIAJE` 360 ms,
   `--ease`; el panel aparece al final con `.desde-tarjeta`, sin deslizarse); con
   `prefers-reduced-motion` el panel aparece directo. Con el panel abierto, `#marca-unidad`
   (`actualizarMarca()`) marca la unidad con punto y anillo y una línea al borde del panel o de
-  la hoja; si otro volumen la tapa (rayo contra `ocludoresSol`) va punteada. Con el panel ya abierto, un
-  click en otra unidad cambia el panel directo; `?u=` también abre el panel directo.
-  `enfocar()` encuadra la unidad en lo que dejan libre la tarjeta o el panel. Un
-  arrastre que termina sobre una unidad no la selecciona.
+  la hoja; si otro volumen la tapa (rayo contra `ocludoresSol`) va punteada. `?u=` también
+  abre el panel directo. `enfocar()` encuadra la unidad en lo que dejan libre la tarjeta o
+  el panel.
 - **Toolbar** (`#herramientas`): brújula + píldora de 48px (misma altura y línea de base
   que `#barra-inferior`) con cuatro grupos separados por `.hr-sep`: vista inicial · zoom ·
   giro automático / sol · pantalla completa (`#hr-pantalla`, último a propósito: en el
@@ -361,15 +372,54 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
 
 ### Panel de detalle de la unidad (`abrir(u)`)
 
-- **Planta / renders**: imágenes reales subidas por tipología (`media` con
-  `scope='typology'`, vía `mediaDeUnidad(u)` / `pintarPlantaUnidad(u)`). El viejo esquema
-  procedural `plantaSVG()` / `ambientes()` ya no existe.
+- **Ancho**: en desktop `--ancho-panel` (`clamp(400px, 37vw, 720px)`: la proporción de la
+  referencia aprobada; 505px a 1366, 710 a 1920), a toda altura; en mobile, hoja inferior a
+  lo ancho. `enfocar()` encuadra en `W − panel.offsetWidth`, y el sol y la barra inferior se
+  corren con la misma variable: nada asume un ancho fijo. El pie y los amenities responden
+  al ancho del panel (`@container`), no al de la pantalla.
+- **Amenities del edificio**: en el panel, grilla sin tarjetas con líneas entre celdas: 4
+  columnas desde 440px de grilla, 3 en un panel angosto (pantallas de ~1300px o menos), 2 en
+  ≤ 480px; texto cortado a 3 líneas y a lo sumo `MAX_AMENITIES_PANEL` (8); con más, "Ver
+  todos" despliega el resto en el lugar. Mismos datos e íconos (`amenities.icono`) que la
+  hoja de la ficha (`#ce-amenities`), que conserva sus tarjetas.
+- **Descripción + plano** (`#p-intro`, `pintarIntro()`): debajo de la barra de datos, texto
+  a la izquierda (eyebrow "Unidad N", título en Fraunces —la única serif, de Google Fonts,
+  fallback Georgia—, descripción y "Ver plano") y tarjeta 4:3 del plano a la derecha; en
+  ≤ 480 px, una columna. Título: `geom.titulo` > `typologies.titulo` > "{tipología} en
+  {barrio}" (barrio = último tramo de `direccion` con coma, si no `ciudad`). Texto:
+  `geom.descripcion` > `typologies.descripcion` > uno armado con dormitorios, m² y
+  orientación. Las columnas `titulo`/`descripcion` de `typologies` **no existen todavía**
+  (se leen si la vista las trae, como `nombre_publico`). El plano es la primera planta de
+  la tipología (`media` con `scope='typology'`), con `mix-blend-mode: multiply` para que el
+  blanco del dibujo tome el tono de la tarjeta; "Ver plano" o la tarjeta abren el lightbox
+  `galeria` (planta y después los renders de la tipología). Sin planta o si no carga:
+  estado vacío del mismo tamaño (grilla de plano) con "Solicitar plano", el WhatsApp de
+  `settings.whatsapp` con otro mensaje; no va en kiosco, sin WhatsApp ni en
+  vendida/reservada (como la consulta del pie). Nunca un esquema dibujado desde m²/dorms
+  (el viejo `plantaSVG()` / `ambientes()` ya no existe).
 - **Tipología** (`tipologiaDe(u, NOMBRES_TIPOLOGIA)`): `nombre_publico` de la tipología
   asignada; si no hay, `geom.tipologia` ("Estudio", "Flex"), aunque la unidad tenga
   `typology_id`; si no, los dormitorios. `typologies.nombre` no se muestra (ver los dos
   nombres en "Modelo de datos").
-- Precio, m², terraza (`m2_terraza`), precio de cochera opcional (`cochera_precio`),
-  unidades similares (`mostrarSimilares`), tira de pisos.
+- **Información del proyecto** (ⓘ en la cabecera, `#p-info`, `pintarLegal()`): popover con
+  `settings.textos.legal`, una oración por párrafo, con título "Vivienda Promovida · Ley N"
+  solo si el texto la nombra, + la nota de demo (escrita en el HTML). Se cierra con un toque
+  afuera, Esc (sin cerrar el panel) o el mismo ⓘ. Sin texto legal ni nota no hay ⓘ.
+- **Cabecera** (`.p-hero`, `pintarPanel()`): foto a lo ancho (el primer render de la
+  tipología; si no tiene, `renderPortada`, el primero del proyecto; sin ninguno, fondo
+  verde) con piso, número, píldora de estado y píldora de orientación encima, y copiar / ⓘ
+  / cerrar en círculos blancos. El color de la píldora de estado va por `data-estado` en
+  el CSS, no el de `ESTADOS`: los claros de la leyenda no dejan leer el blanco sobre la
+  foto. Debajo, la barra de datos (`.p-datos`): dormitorios o tipología · m² "(área
+  propia)" + terraza · orientación, los tres en una sola fila (pedido de Sebastian,
+  2026-10-19). Si no entran, se acomodan adentro de su lugar: primero "(área propia)" y
+  la terraza pasan debajo del m², después la orientación se parte en dos renglones;
+  dormitorios no se parte. Solo si ni así entran la orientación baja de renglón: con el
+  panel en su mínimo (400 px, ventanas de menos de ~1080 px) o, hasta ~1280 px de
+  ventana, en unidades con terraza y orientación larga (Altamira: "Contrafrente en L").
+  En celular, una fila que se desliza.
+- m², terraza (`m2_terraza`), precio de cochera opcional (`cochera_precio`), unidades
+  similares (`mostrarSimilares`).
 - Link de **WhatsApp** armado con `settings.whatsapp` + mensaje con plantilla +
   `linkDe(u)`.
 - **Simulador de financiación** (`tieneFinanciacion()` / `calcularFinanciacion()`):
@@ -403,7 +453,9 @@ del lienzo, `seleccionar()`, la tarjeta, `abrir()`, `enfocar()`, `moverCamara()`
 `actualizarGuia()` o el bucle de render tiene que dejar esto funcionando igual, y se
 verifica en el navegador (desktop y ~390px, en ROSSO y en BRUSCO) antes de darlo por
 terminado. Si algo de la lista tiene que cambiar, se acuerda con Sebastian antes, no se
-saca de paso. Versión de referencia: commit `8d5c300`. `scripts/control-seleccion.mjs`
+saca de paso. Versión de referencia: commit `8d5c300`, con los puntos 3 y 4 cambiados
+el 2026-10-19 a pedido de Sebastian (el clic abre el panel directo; la tarjeta quedó
+para la demo del showroom). `scripts/control-seleccion.mjs`
 controla esta lista en cada commit (ver "Correr / probar"); si un cambio acordado la
 modifica, se actualizan el script y esta sección en el mismo commit.
 
@@ -425,14 +477,16 @@ modifica, se actualizan el script y esta sección en el mismo commit.
    quedaban apagadas (la reservada, barrosa); con 0,2 cada estado queda cerca del color
    de su leyenda (comparado en BRUSCO el 2026-10-14). Si los scripts de las líneas no
    cargan, vuelve el resaltado anterior (emissive 0,6 + borde fino).
-3. Aparece la tarjeta chica, no el panel: en desktop anclada a la unidad con "Click para
-   ver la unidad →"; en táctil, abajo, con "Ver unidad". Una línea guía la une con un
-   punto sobre la fachada de la unidad.
-4. Recién el botón de la tarjeta abre el panel (`abrir(u, true)`) y registra el evento.
-   Con el panel abierto, un click en otra unidad cambia el panel directo.
+3. Se abre el panel directo (`abrir(u, true)`), en desktop y en táctil, y registra el
+   evento; si la tarjeta de la demo estaba a la vista, se va. Hover: la ventana chica
+   (tooltip) sigue igual, salvo sobre la unidad abierta en el panel.
+4. Con el panel abierto, un click en otra unidad cambia el contenido en el lugar, sin
+   cerrarlo, y el scroll vuelve a 0; en la misma unidad solo vuelve a encuadrarla. X,
+   Escape o un click en el vacío lo cierran y quitan el resaltado; un click dentro del
+   panel nunca lo cierra.
 5. `?u=<id>` abre el panel directo, con la cámara frente a la unidad.
 6. El giro automático no corre con tarjeta o panel abiertos y no pelea con la cámara; un
-   arrastre que termina sobre una unidad no la selecciona.
+   arrastre (más de `UMBRAL_ARRASTRE`, 5 px) que termina sobre una unidad no la abre.
 7. Encuadre: la unidad queda en lo que dejan libre la tarjeta o el panel; funciona en las
    dos torres de BRUSCO (no asume una torre centrada en el origen); en celular entran al
    menos 40 m de ancho (sin primer plano).
@@ -774,4 +828,4 @@ lat/lon, tiene_pb, financiacion, tipologías + imágenes, avance de obra.
 
 Lo que sigue hardcodeado en `index.html` y puede necesitar cambios: `DEFAULT_SLUG`,
 `BASE`, la marca/colores (variables CSS en `:root`, compartidas por todos los proyectos), y el copy de aviso de demo
-(`#aviso`, la última `.nota` del panel).
+(`#aviso`, y `#p-info-nota` en el popover ⓘ del panel).

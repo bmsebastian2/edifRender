@@ -7,6 +7,11 @@
      cuando cargarProyecto() resuelve (ver el IIFE final) — nunca "ROSSO" para
      un visitante que abrió el link de otro edificio. -->
   <title>Disponibilidad navegable</title>
+  <!-- Fraunces: solo el titular del bloque de descripción del panel de la
+     unidad (.p-intro-tit). Sin red, Georgia. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&display=swap">
   <style>
     :root {
       --fondo: #F7F8F7;
@@ -19,6 +24,16 @@
          nunca para decorar. */
       --verde: #2B6656;
       --verde-suave: #E7EFEC;
+      /* Pie del panel de la unidad (.p-pie): el verde de marca bajado de
+         luz, y un dorado que solo usa su ícono. */
+      --verde-bosque: #1E3B32;
+      --dorado: #C9A961;
+      /* Ancho del panel de la unidad en desktop (en mobile es una hoja a lo
+         ancho): la proporción de la referencia aprobada, ~37% de la
+         pantalla (505px a 1366, 710 a 1920), con piso para que el contenido
+         entre y techo para pantallas muy anchas. Lo usan también el sol y la
+         barra inferior para correrse. */
+      --ancho-panel: clamp(400px, 37vw, 720px);
       --gris: #7A8380;
       --ambar: #C9993F;
       /* Superficies flotantes (barra superior, ficha): radios grandes y
@@ -1203,18 +1218,20 @@
       top: 0;
       right: 0;
       height: 100%;
-      width: 360px;
+      width: var(--ancho-panel);
       z-index: 12;
       background: rgba(255, 255, 255, .94);
       backdrop-filter: blur(12px);
       border-left: 1px solid var(--linea);
-      /* Sin padding abajo: lo pone el pie fijo (.p-pie), que llega al borde. */
-      padding: 20px var(--p-pad) 0;
+      /* Sin padding arriba ni abajo: la foto de la cabecera (.p-hero) y el
+         pie fijo (.p-pie) llegan a los bordes. */
+      padding: 0 var(--p-pad);
       display: flex;
       flex-direction: column;
       overflow-y: auto;
-      /* Que un foco o un scrollIntoView no deje nada tapado por el pie. */
-      scroll-padding-bottom: 110px;
+      /* Que un foco o un scrollIntoView no deje nada tapado por el pie
+         (hasta ~155px apilado, en un celular angosto). */
+      scroll-padding-bottom: 170px;
       transform: translateX(100%);
       transition: transform var(--t-hoja) var(--ease)
     }
@@ -1232,18 +1249,62 @@
       pointer-events: none;
     }
 
-    /* Cabecera: tira de elevación · piso y número + estado · copiar/cerrar.
-       Todo en una fila: el número es lo primero que se lee. */
-    .p-cabeza {
-      display: flex;
-      align-items: stretch;
-      gap: 12px;
-      flex: none
+    /* Cabecera: una foto (render de la tipología o del proyecto, ver
+       pintarPanel()) con piso, número, estado y orientación encima, y
+       copiar / ⓘ / cerrar arriba a la derecha. A lo ancho del panel y pegada
+       arriba, como el pie abajo. El recorte va en .p-hero-fondo y no en la
+       cabecera: el popover ⓘ sale de ella y no tiene que cortarse. */
+    .p-hero {
+      position: relative;
+      flex: none;
+      height: 180px;
+      margin: 0 calc(-1 * var(--p-pad));
+      padding: 20px 24px;
+      color: #fff;
+      border-top-left-radius: inherit;
+      border-top-right-radius: inherit
     }
 
-    .p-id {
-      flex: 1;
-      min-width: 0
+    /* Sin foto queda el verde del pie: el texto blanco se sigue leyendo. */
+    .p-hero-fondo {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: inherit;
+      background: var(--verde-bosque)
+    }
+
+    .p-hero-fondo img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    .p-hero-fondo img[hidden] {
+      display: none
+    }
+
+    /* Oscurece la izquierda (piso y número) y el pie (píldoras): así se leen
+       sobre cualquier foto. */
+    .p-hero-fondo::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(0, 0, 0, .55) 0%, rgba(0, 0, 0, .15) 60%, transparent 100%),
+        linear-gradient(0deg, rgba(0, 0, 0, .35) 0%, transparent 50%)
+    }
+
+    .p-hero-id {
+      position: relative
+    }
+
+    .p-hero .p-eyebrow {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      color: rgba(255, 255, 255, .9)
     }
 
     .p-eyebrow {
@@ -1255,117 +1316,328 @@
       color: var(--suave)
     }
 
-    .p-id-fila {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 4px 12px;
-      margin-top: 2px
+    #p-unidad {
+      margin: 4px 0 0;
+      font-size: 56px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+      color: #fff
     }
 
-    #p-unidad {
-      font-size: 40px;
-      font-weight: 650;
-      letter-spacing: -.03em;
-      line-height: 1.05;
-      font-variant-numeric: tabular-nums;
-      margin: 0
+    /* Estado a la izquierda y orientación a la derecha. En fila y no cada
+       una por su lado: en una hoja angosta la orientación se acorta (con
+       "…"; entera está en la barra de datos) en vez de pisar al estado. */
+    .p-hero-pildoras {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px
     }
 
     #p-estado {
+      flex: none;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       margin: 0;
-      padding: 4px 11px 4px 9px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 650;
-      border: 1px solid var(--linea);
-      width: fit-content
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: #fff;
+      background: var(--verde-bosque)
+    }
+
+    /* data-estado lo pone pintarPanel(). Alquiler y sin estado no están en
+       la referencia: salvia oscuro (el de la leyenda no deja leer el blanco)
+       y un vidrio oscuro neutro, que no se confunde con ningún estado. */
+    #p-estado[data-estado="reservado"] {
+      background: #B7791F
+    }
+
+    #p-estado[data-estado="vendido"] {
+      background: #6B6B6B
+    }
+
+    #p-estado[data-estado="alquiler"] {
+      background: #4E7D6F
+    }
+
+    #p-estado[data-estado="sin_dato"] {
+      background: rgba(23, 32, 30, .55);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px)
     }
 
     #p-estado .punto {
-      border-radius: 50%
+      width: 6px;
+      height: 6px;
+      background: #fff
+    }
+
+    .p-vista {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      margin: 0;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(30, 59, 50, .85);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #fff
+    }
+
+    .p-vista[hidden] {
+      display: none
+    }
+
+    .p-vista svg {
+      flex: none;
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round
+    }
+
+    .p-vista span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap
+    }
+
+    @media (max-width: 480px) {
+      .p-hero {
+        height: 160px
+      }
+
+      #p-unidad {
+        font-size: 44px
+      }
+
+      #p-estado,
+      .p-vista {
+        font-size: 12px
+      }
     }
 
     .p-cabeza-acc {
+      position: absolute;
+      top: 16px;
+      right: 16px;
       display: flex;
-      gap: 6px;
-      flex: none;
-      align-self: flex-start
+      gap: 8px
     }
 
+    /* Círculos blancos sobre la foto. */
     .p-icono {
-      width: 32px;
-      height: 32px;
+      width: 40px;
+      height: 40px;
       display: grid;
       place-items: center;
-      border: 1px solid var(--linea);
-      background: none;
+      border: 0;
+      background: #fff;
       border-radius: 50%;
-      color: var(--suave);
+      color: var(--verde-bosque);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .18);
       cursor: pointer;
       padding: 0;
-      transition: color var(--t) var(--ease), border-color var(--t) var(--ease)
+      transition: transform 150ms var(--ease), background 150ms var(--ease)
+    }
+
+    .p-icono svg {
+      width: 18px;
+      height: 18px
     }
 
     .p-icono:hover {
-      color: var(--tinta);
-      border-color: rgba(26, 33, 36, .34)
+      transform: scale(1.05)
     }
 
+    /* Doble anillo: se ve sobre una foto clara y sobre una oscura. */
     .p-icono:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--verde-bosque), 0 0 0 4px #fff
+    }
+
+    /* .p-icono es grid: sin esto, [hidden] no lo oculta. */
+    #p-info-btn[hidden] {
+      display: none
+    }
+
+    #p-info-btn[aria-expanded="true"] {
+      background: #E6EBE8
+    }
+
+    /* Información del proyecto (ⓘ): el texto legal y la nota de demo, que
+       antes cerraban el cuerpo del panel. Debajo de los botones de la foto,
+       alineado a la derecha; ancho tope 320px y en un celular angosto 16px
+       de aire a cada lado. */
+    .p-info {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 3;
+      width: min(320px, calc(100vw - 32px));
+      color: var(--tinta);
+      padding: 16px;
+      background: #fff;
+      border: 1px solid var(--linea);
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(20, 40, 35, .06), 0 12px 32px rgba(20, 40, 35, .14);
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease)
+    }
+
+    @starting-style {
+      .p-info {
+        opacity: 0;
+        transform: translateY(-4px)
+      }
+    }
+
+    .p-info:focus {
+      outline: none
+    }
+
+    .p-info:focus-visible {
       outline: 2px solid var(--tinta);
       outline-offset: 2px
     }
 
-    /* Tira de elevación: una marca por nivel (PB abajo), la del piso de la
-       unidad más larga y en el color de su estado. Del alto de la cabecera. */
-    .p-tira {
-      display: flex;
-      flex-direction: column-reverse;
-      justify-content: space-between;
-      align-items: flex-start;
-      flex: none;
-      width: 14px;
-      padding: 3px 0
+    .p-info-tit {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: #1E4A3F
     }
 
-    .p-tira-marca {
-      display: block;
-      width: 9px;
-      height: 2px;
-      border-radius: 1px;
-      background: rgba(20, 40, 35, .16)
+    .p-info-legal p {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #49524F
     }
 
-    .p-tira-marca.activa {
-      width: 14px;
-      height: 3px
+    .p-info-legal p+p {
+      margin-top: 6px
     }
 
-    /* Tira de datos: tipología · superficie (+ terraza) · orientación, con
-       el lenguaje de la tarjeta de la unidad: ícono + valor en tinta +
-       unidad en gris, en línea, y lo que no entra baja de renglón. En
-       columnas con etiqueta abajo no entraba: con el ícono, "dormitorios"
-       o "Esquina Paullier" se cortaban o se salían de los 330px del panel.
-       Las etiquetas (dt) quedan para lectores de pantalla; a la vista las
-       dice el ícono. */
+    .p-info-nota {
+      margin: 0;
+      font-size: 11px;
+      line-height: 1.45;
+      color: #8A8A8A
+    }
+
+    /* Separador fino, solo si hay texto legal arriba. */
+    .p-info-legal:not([hidden])~.p-info-nota {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--linea)
+    }
+
+    /* Barra de datos, debajo de la foto: dormitorios · superficie (+
+       terraza) · orientación, los tres en una sola fila, con una línea fina
+       entre cada uno. Las etiquetas (dt) quedan para lectores de pantalla; a
+       la vista las dice el ícono. Si no entran (panel angosto, "Esquina,
+       terraza", terraza), ninguno baja de renglón: se acomodan adentro de su
+       lugar. Primero "(área propia)" y la terraza pasan debajo del m²;
+       después la orientación se parte en dos renglones; dormitorios no se
+       parte nunca (ver #p-m2-c / #p-orient-c). Solo si ni así entran (panel
+       de 400px, o terraza + "Contrafrente en L" hasta ~1280px de ventana) la
+       orientación baja entera de renglón.
+       Cada dato lleva su línea a la izquierda, en el medio de los 33px de
+       aire (16 + 1 + 16, el column-gap); la del que empieza un renglón cae
+       fuera de .p-datos-fila (overflow hidden) y no se ve. */
     .p-datos {
-      margin: 18px 0 0;
-      padding: 14px 0;
-      border-top: 1px solid var(--linea);
-      border-bottom: 1px solid var(--linea);
+      flex: none;
+      margin: 0 calc(-1 * var(--p-pad));
+      padding: 16px 24px;
+      border-bottom: 1px solid rgba(0, 0, 0, .08);
+      overflow: hidden
+    }
+
+    .p-datos-fila {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px 20px;
-      flex: none
+      align-items: center;
+      gap: 10px 33px;
+      margin: 0;
+      overflow: hidden
     }
 
     .p-dato {
       position: relative;
-      min-width: 0
+      flex: none
+    }
+
+    /* Superficie y orientación arrancan en 0 y crecen hasta su ancho
+       natural (max-width), nunca por debajo del mínimo (min-width: auto: su
+       palabra más larga). La orientación crece primero (flex-grow 100): el
+       m² se queda con lo que sobra y, si no le alcanza, baja "(área
+       propia)". Como la base es 0, la fila corta de renglón recién cuando ni
+       los mínimos entran. */
+    #p-m2-c,
+    #p-orient-c {
+      flex: 1 1 0;
+      min-width: auto;
+      max-width: max-content
+    }
+
+    #p-orient-c {
+      flex-grow: 100
+    }
+
+    .p-dato::before {
+      content: "";
+      position: absolute;
+      left: -17px;
+      top: 50%;
+      width: 1px;
+      height: 20px;
+      margin-top: -10px;
+      background: rgba(0, 0, 0, .1)
+    }
+
+    /* Celular: una sola fila que se desliza (sin barra a la vista), con
+       cada dato a su ancho natural, y menos aire entre datos. */
+    @media (max-width: 480px) {
+      .p-datos {
+        overflow-x: auto;
+        scrollbar-width: none
+      }
+
+      .p-datos::-webkit-scrollbar {
+        display: none
+      }
+
+      .p-datos-fila {
+        flex-wrap: nowrap;
+        width: max-content;
+        column-gap: 29px
+      }
+
+      .p-dato::before {
+        left: -15px
+      }
     }
 
     .p-dato[hidden] {
@@ -1382,92 +1654,192 @@
       white-space: nowrap
     }
 
+    /* Dormitorios no se parte; superficie y orientación sí (ver abajo). */
     .p-dato dd {
       margin: 0;
       display: flex;
-      align-items: flex-start;
-      gap: 6px;
+      align-items: center;
+      gap: 10px;
       font-size: 15px;
       font-weight: 500;
       line-height: 1.3;
-      color: var(--suave);
+      color: var(--tinta);
+      white-space: nowrap;
       font-variant-numeric: tabular-nums
     }
 
-    .p-dato dd b {
-      color: var(--tinta);
-      font-weight: 650
+    /* La orientación se parte entre palabras; la superficie solo entre el
+       m² y sus notas, nunca adentro de "187 m²" ni de "(área propia)". */
+    #p-m2-c dd,
+    #p-orient-c dd {
+      white-space: normal
     }
 
-    /* Mismo trazo que los íconos de la tarjeta, en gris, del alto del texto
-       y a la altura de la primera línea (la orientación puede ocupar dos). */
+    /* En dos renglones parejos: "Contrafrente / en L", no "Contrafrente en
+       / L". */
+    #p-orient-c dd {
+      text-wrap: balance
+    }
+
+    #p-m2-c dd>span {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      column-gap: 4px
+    }
+
+    #p-m2-c dd>span>* {
+      white-space: nowrap
+    }
+
+    .p-dato dd b {
+      font-weight: 600
+    }
+
+    /* Los trazos de la tarjeta (ICONOS_RESUMEN), en el verde oscuro de los
+       íconos de amenities. */
     .p-dato dd svg {
       flex: none;
-      width: 1.15em;
-      height: 1.15em;
-      margin-top: .08em;
+      width: 20px;
+      height: 20px;
       fill: none;
-      stroke: currentColor;
-      stroke-width: 1.6;
+      stroke: #1E4A3F;
+      stroke-width: 1.5;
       stroke-linecap: round;
       stroke-linejoin: round
     }
 
-    .p-dato dd>span {
-      min-width: 0
-    }
-
-    /* "92 m²" no se parte. */
-    #p-m2 {
-      white-space: nowrap
-    }
-
-    /* "+ 11 m² terraza" debajo de la superficie, en la misma celda. */
+    /* "(área propia)" y "+ 11 m² terraza", en gris chico al lado del m² (o
+       debajo, si no entran). La separación es el column-gap de arriba. */
     .p-dato-extra {
-      display: block;
-      margin-top: 1px;
-      font-size: 11.5px;
-      font-weight: 500;
-      letter-spacing: 0;
-      color: var(--suave)
+      font-size: 12px;
+      font-weight: 400;
+      color: #8A8A8A
     }
 
     .p-dato-extra[hidden] {
       display: none
     }
 
-    /* Pie fijo: precio + consulta. Sticky al fondo del panel (que es el
-       que scrollea), de borde a borde; margin-top: auto lo baja al fondo
-       cuando el contenido es corto. Si no entran precio y botones en una
-       fila (desktop, 330px), los botones bajan a la suya, a lo ancho. */
+    /* Pie fijo: la consulta, en una banda verde bosque. Sticky al fondo
+       del panel (que es el que scrollea), de borde a borde; margin-top:
+       auto lo baja al fondo cuando el contenido es corto. Responde a su
+       propio ancho (@container pie), no al de la pantalla: hasta 480px (el
+       celular) el texto va arriba y el botón abajo, a lo ancho; más ancho
+       (el panel de desktop, la hoja de tablet), en una fila. */
     .p-pie {
       position: sticky;
       bottom: 0;
       z-index: 1;
       flex: none;
       margin: auto calc(-1 * var(--p-pad)) 0;
-      padding: 14px var(--p-pad) calc(16px + env(safe-area-inset-bottom));
-      background: #fff;
-      border-top: 1px solid var(--linea);
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px 16px
+      container: pie / inline-size;
+      background: var(--verde-bosque);
+      border-bottom-left-radius: inherit;
+      border-bottom-right-radius: inherit
     }
 
-    /* Vendida sin precio con el formulario de espera a la vista: el pie
-       quedaría vacío. */
-    .p-pie:has(> #p-precio-wrap[hidden]):has(> #acciones-panel[hidden]):has(> #p-espera-ir[hidden]) {
+    .p-pie-cont {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 28px calc(20px + env(safe-area-inset-bottom))
+    }
+
+    @container pie (max-width: 480px) {
+      .p-pie-cont {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px
+      }
+    }
+
+    @media (max-width: 480px) {
+      .p-pie-cont {
+        padding: 16px 16px calc(16px + env(safe-area-inset-bottom))
+      }
+    }
+
+    /* Sin botón a la vista (vendida/reservada con el formulario de espera
+       en pantalla, o ya anotado): el pie quedaría vacío. */
+    .p-pie:has(#acciones-panel[hidden]):has(#p-espera-ir[hidden]) {
       display: none
     }
 
-    .p-precio-wrap {
+    .p-pie-msg {
+      display: flex;
+      align-items: center;
+      gap: 14px;
       flex: 1 1 auto;
       min-width: 0
     }
 
-    /* Unidad sin precio cargado (ver abrir()): el botón ocupa todo el pie. */
-    #p-precio-wrap[hidden] {
+    /* Vendida/reservada: no hay consulta (ver actualizarEsperaPanel()) y el
+       mensaje invitaría a algo que no está; queda solo "Avisarme si se
+       libera". */
+    .p-pie:has(#acciones-panel[hidden]) .p-pie-msg {
+      display: none
+    }
+
+    .p-pie-icono {
+      flex: none;
+      width: 32px;
+      height: 32px;
+      fill: none;
+      stroke: var(--dorado);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round
+    }
+
+    /* También contenedor: mide el ancho que le queda al texto. */
+    .p-pie-txt {
+      flex: 1;
+      min-width: 0;
+      container: pie-txt / inline-size
+    }
+
+    .p-pie-tit {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.3;
+      text-wrap: balance;
+      color: #fff
+    }
+
+    .p-pie-sub {
+      margin: 2px 0 0;
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.4;
+      text-wrap: balance;
+      color: rgba(255, 255, 255, .75)
+    }
+
+    /* Si el subtítulo no entra en dos líneas, se va entero (nunca cortado a
+       la mitad). El título no se esconde nunca: baja de renglón. */
+    @container pie-txt (max-width: 150px) {
+      .p-pie-sub {
+        display: none
+      }
+    }
+
+    /* En fila, el botón (52px) marca el alto del pie: con el subtítulo en
+       dos líneas pasaría los 96px (panel de 1366, o con el botón de
+       WhatsApp al lado), así que ahí tiene que entrar en una (~250px). */
+    @container pie (min-width: 481px) {
+      @container pie-txt (max-width: 250px) {
+        .p-pie-sub {
+          display: none
+        }
+      }
+    }
+
+    /* El precio salió del pie: la referencia aprobada del panel no lo
+       muestra. Queda en el DOM porque abrir() lo sigue llenando. */
+    .p-precio-wrap {
       display: none
     }
 
@@ -1684,9 +2056,9 @@
       color: var(--suave)
     }
 
-    /* Aviso legal del simulador: mismo tratamiento visual que .nota (borde +
-     color suave + 12px) a propósito — tiene que leerse igual de claro que
-     cualquier otro texto del panel, no esconderse como letra chica. */
+    /* Aviso legal del simulador: borde + color suave + 12px a propósito —
+     tiene que leerse igual de claro que cualquier otro texto del panel, no
+     esconderse como letra chica. */
     .p-fin-disclaimer {
       margin: 12px 0 0;
       padding-top: 12px;
@@ -1764,93 +2136,317 @@
       display: none
     }
 
-    /* Planta/renders reales de la tipología (subidos desde admin.html) — ver
-     pintarPlantaUnidad(). La primera imagen (la planta, si hay) va grande;
-     el resto, en miniaturas debajo. Todas abren el lightbox (galeria.abrir).
-     Sin imágenes, la figura no aparece y el resto del panel sube. */
-    .planta {
-      margin: 18px 0 0;
-      flex-shrink: 0
+    /* Descripción + plano de la unidad (ver pintarIntro()): texto a la
+       izquierda, tarjeta del plano a la derecha. De borde a borde como la
+       barra de datos, con su propia línea abajo. El plano es la planta de
+       la tipología (subida desde admin.html); sin planta, la tarjeta queda
+       del mismo tamaño con el estado vacío, así el panel no salta. */
+    .p-intro {
+      flex: none;
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 24px;
+      align-items: center;
+      margin: 0 calc(-1 * var(--p-pad));
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(0, 0, 0, .08)
     }
 
-    .planta[hidden] {
+    /* La línea de abajo del bloque ya separa: si lo que sigue a la vista
+       es la financiación o los amenities, no suman la suya 18px más abajo
+       (quedaban dos líneas paralelas). */
+    #panel:has(#p-sol[hidden]):has(#p-asol[hidden]):has(#p-espera[hidden]) #p-financiacion,
+    #panel:has(#p-sol[hidden]):has(#p-asol[hidden]):has(#p-espera[hidden]):has(#p-financiacion[hidden]) #p-edificio {
+      margin-top: 0;
+      border-top: 0
+    }
+
+    .p-intro-eyebrow {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.4;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--tinta)
+    }
+
+    /* La única serif del visor: el nombre de la unidad como titular. */
+    .p-intro-tit {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+      margin: 6px 0 10px;
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 24px;
+      font-weight: 600;
+      line-height: 1.2;
+      text-wrap: balance;
+      color: #1A2E27
+    }
+
+    .p-intro-desc {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 5;
+      overflow: hidden;
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #3D3D3D
+    }
+
+    /* Píldora con borde, sin relleno, en el verde del pie. */
+    .p-ver-plano {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+      padding: 10px 18px;
+      border: 1.5px solid var(--verde-bosque);
+      border-radius: 999px;
+      background: transparent;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--verde-bosque);
+      cursor: pointer;
+      transition: background-color var(--t) var(--ease)
+    }
+
+    .p-ver-plano[hidden] {
       display: none
     }
 
-    .planta button {
-      display: block;
-      padding: 0;
-      border: 1px solid var(--linea);
-      border-radius: 6px;
-      background: #fff;
-      overflow: hidden;
-      cursor: zoom-in;
-      transition: border-color var(--t) var(--ease)
+    .p-ver-plano svg {
+      flex: none;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round
     }
 
-    .planta button:hover {
-      border-color: rgba(26, 33, 36, .34)
+    .p-ver-plano .p-ver-chevron {
+      transition: transform var(--t) var(--ease)
     }
 
-    .planta button:focus-visible {
+    .p-ver-plano:hover {
+      background: rgba(30, 59, 50, .06)
+    }
+
+    .p-ver-plano:hover .p-ver-chevron {
+      transform: translateX(2px)
+    }
+
+    .p-ver-plano:focus-visible {
       outline: 2px solid var(--tinta);
       outline-offset: 2px
     }
 
-    .planta img {
+    /* Tarjeta del plano. Siempre 4:3, con o sin plano. Contenedor: el
+       estado vacío se compacta según el ancho (= el alto) de la tarjeta. */
+    .p-plano {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      padding: 14px;
+      overflow: hidden;
+      border-radius: 14px;
+      background: #EFEEE9;
+      container: plano / inline-size
+    }
+
+    .p-plano img {
       display: block;
       width: 100%;
-      height: 100%
+      height: 100%;
+      object-fit: contain;
+      /* El blanco del dibujo toma el tono de la tarjeta: el plano se lee
+         impreso sobre ella, no como un recuadro blanco encima. Las líneas
+         y los rellenos quedan como los subió el cliente. */
+      mix-blend-mode: multiply;
+      opacity: 0;
+      transition: opacity var(--t) var(--ease), transform var(--t) var(--ease)
     }
 
-    .planta-principal {
-      position: relative;
-      width: 100%
+    .p-plano[data-estado="listo"] {
+      cursor: zoom-in
     }
 
-    /* Alto acotado para que la planta no empuje el sol fuera de la hoja;
-       contain: una planta recortada no sirve. */
-    .planta-principal img {
-      max-height: 42vh;
-      object-fit: contain
+    .p-plano[data-estado="listo"] img {
+      opacity: 1
     }
 
-    /* Ícono de ampliar: sin tarjeta, solo sombra (ver CLAUDE.md). */
-    .planta-ampliar {
+    .p-plano[data-estado="vacio"] img {
+      display: none
+    }
+
+    @media (hover: hover) {
+      .p-plano[data-estado="listo"]:hover img {
+        transform: scale(1.02)
+      }
+    }
+
+    /* Mientras carga: un brillo suave que cruza la tarjeta. */
+    .p-plano[data-estado="cargando"]::before {
+      content: "";
       position: absolute;
-      right: 8px;
-      bottom: 8px;
-      display: grid;
-      place-items: center;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, .9);
-      color: var(--tinta);
-      box-shadow: 0 1px 4px rgba(20, 40, 35, .18);
+      inset: 0;
+      background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .55) 50%, transparent 70%) 0 0 / 250% 100% no-repeat;
+      animation: p-plano-brillo 1.4s var(--ease) infinite
+    }
+
+    @keyframes p-plano-brillo {
+      from {
+        background-position: 130% 0
+      }
+
+      to {
+        background-position: -30% 0
+      }
+    }
+
+    /* Sin plano: grilla de plano técnico, cada 16px. */
+    .p-plano[data-estado="vacio"] {
+      background-image:
+        linear-gradient(rgba(30, 59, 50, .06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 59, 50, .06) 1px, transparent 1px);
+      background-size: 16px 16px;
+      background-position: -1px -1px
+    }
+
+    .p-plano-vacio {
+      display: none;
+      height: 100%;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-align: center
+    }
+
+    .p-plano[data-estado="vacio"] .p-plano-vacio {
+      display: flex
+    }
+
+    .p-plano-vacio svg {
+      flex: none;
+      width: 40px;
+      height: 40px;
+      fill: none;
+      stroke: var(--verde-bosque);
+      stroke-opacity: .5;
+      stroke-width: 1.25;
+      stroke-linecap: round;
+      stroke-linejoin: round
+    }
+
+    .p-plano-vacio p {
+      margin: 0;
+      line-height: 1.35;
+      text-wrap: balance
+    }
+
+    .p-plano-vacio-tit {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--verde-bosque)
+    }
+
+    .p-plano-vacio-sub {
+      font-size: 12px;
+      color: #8A8A8A
+    }
+
+    .p-plano-pedir {
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--verde-bosque);
+      text-decoration: none;
+      text-underline-offset: 3px
+    }
+
+    .p-plano-pedir:hover {
+      text-decoration: underline
+    }
+
+    .p-plano-pedir:focus-visible {
+      outline: 2px solid var(--tinta);
+      outline-offset: 2px;
+      border-radius: 2px
+    }
+
+    .p-plano-pedir[hidden] {
+      display: none
+    }
+
+    /* Tarjeta baja (panel angosto: ~1366px de ventana o menos): con el
+       link a la vista, el subtítulo dice lo mismo y no entra; más baja
+       todavía, tampoco el ícono. */
+    @container plano (max-width: 230px) {
+      body:not(.kiosco) .p-plano-vacio:has(.p-plano-pedir:not([hidden])) .p-plano-vacio-sub {
+        display: none
+      }
+    }
+
+    @container plano (max-width: 170px) {
+      .p-plano-vacio svg {
+        display: none
+      }
+    }
+
+    .p-plano-m2 {
+      position: absolute;
+      right: 12px;
+      bottom: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.3;
+      color: #4A4A4A;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
       pointer-events: none
     }
 
-    .planta-miniaturas {
-      display: flex;
-      gap: 6px;
-      margin-top: 6px
+    .p-plano-m2:empty {
+      display: none
     }
 
-    .planta-miniaturas button {
-      flex: none;
-      width: 52px;
-      height: 40px
+    /* Celular: texto arriba y plano abajo, a lo ancho. */
+    @media (max-width: 480px) {
+      .p-intro {
+        grid-template-columns: minmax(0, 1fr)
+      }
+
+      .p-intro-tit {
+        font-size: 22px
+      }
+
+      .p-ver-plano {
+        display: flex;
+        justify-content: center;
+        width: 100%
+      }
     }
 
-    .planta-miniaturas img {
-      object-fit: cover
+    @media (prefers-reduced-motion: reduce) {
+      .p-plano[data-estado="cargando"]::before {
+        animation: none;
+        background: rgba(255, 255, 255, .35)
+      }
+
+      .p-plano img,
+      .p-ver-plano .p-ver-chevron {
+        transition: none
+      }
     }
 
     .acciones-panel {
       display: flex;
       gap: 8px;
-      flex: 1 0 auto
+      flex: none
     }
 
     .acciones-panel[hidden] {
@@ -1858,15 +2454,60 @@
     }
 
     .acciones-panel .bton-p {
-      flex: 1;
-      padding-inline: 22px
+      flex: 1
     }
 
-    /* WhatsApp secundario (con Consultar): solo ícono, cuadrado. */
+    /* Botones del pie: blancos sobre el verde, con el texto en el verde del
+       pie. Pisan a .bton / .bton-p solo acá. */
+    .p-pie .bton {
+      height: 52px;
+      padding: 0 28px;
+      gap: 10px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background 150ms var(--ease), border-color 150ms var(--ease), transform 150ms var(--ease)
+    }
+
+    .p-pie .bton-p {
+      background: #fff;
+      color: var(--verde-bosque)
+    }
+
+    .p-pie .bton-p:hover {
+      background: #F2F2EE;
+      transform: translateY(-1px)
+    }
+
+    .p-pie .bton-p:active {
+      background: #E6E7E1;
+      transform: none
+    }
+
+    /* El contorno oscuro de .bton no se vería sobre el verde. */
+    .p-pie .bton:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 3px
+    }
+
+    /* WhatsApp secundario (con Consultar): solo ícono, cuadrado, en línea
+       blanca para no competir con el botón blanco. */
     .acciones-panel #p-wa.bton-s {
       flex: none;
-      width: 46px;
-      padding: 0
+      width: 52px;
+      padding: 0;
+      border-color: rgba(255, 255, 255, .32);
+      color: #fff
+    }
+
+    .acciones-panel #p-wa.bton-s:hover {
+      background: rgba(255, 255, 255, .08);
+      border-color: rgba(255, 255, 255, .6)
+    }
+
+    .acciones-panel #p-wa.bton-s:active {
+      background: rgba(255, 255, 255, .14)
     }
 
     .acciones-panel #p-wa.bton-s .bton-txt {
@@ -2031,16 +2672,6 @@
       color: var(--suave)
     }
 
-    .nota {
-      margin-top: 18px;
-      margin-bottom: 20px;
-      padding-top: 16px;
-      border-top: 1px solid var(--linea);
-      color: var(--suave);
-      font-size: 12px;
-      line-height: 1.55
-    }
-
     #p-edificio {
       margin-top: 18px;
       padding-top: 16px;
@@ -2050,11 +2681,51 @@
       line-height: 1.55
     }
 
+    /* Encabezado de amenities: título a la izquierda y "Ver todos" a la
+       derecha (solo con más de 8, ver pintarAmenities()). */
+    .p-amen-cabeza {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px
+    }
+
     #p-edificio .p-edificio-tit {
-      margin: 0 0 10px;
+      margin: 0;
+      font-size: 12px;
       font-weight: 600;
-      color: var(--tinta);
-      font-size: 12.5px
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--tinta)
+    }
+
+    /* Botón con aspecto de link: despliega la grilla en el lugar, no
+       navega. El padding con margen negativo agranda el área de toque sin
+       mover nada. */
+    .p-amen-todos {
+      flex: none;
+      margin: -8px -6px;
+      padding: 8px 6px;
+      border: 0;
+      background: none;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.3;
+      color: var(--verde-bosque);
+      text-underline-offset: 3px;
+      cursor: pointer
+    }
+
+    .p-amen-todos:hover {
+      text-decoration: underline
+    }
+
+    .p-amen-todos:focus-visible {
+      outline: 2px solid var(--tinta);
+      outline-offset: -2px;
+      border-radius: 4px
     }
 
     #p-edificio p {
@@ -2069,7 +2740,8 @@
       margin-bottom: 14px
     }
 
-    /* Sin amenities ni texto legal no queda nada que mostrar (ni la línea). */
+    /* Sin amenities no queda nada que mostrar (ni la línea). El texto legal
+       pasó al popover ⓘ de la cabecera (.p-info). */
     #p-edificio:not(:has(> :not([hidden]))) {
       display: none
     }
@@ -2107,6 +2779,140 @@
     .amenity svg {
       flex: none;
       color: #1E4A3F;
+    }
+
+    /* En el panel: sin tarjetas, en una grilla de 4 con líneas finas entre
+       celdas (2 en celular) y a lo sumo 8 a la vista (.plegada; "Ver todos"
+       despliega el resto). La hoja de la ficha (#ce-amenities) sigue con las
+       tarjetas de arriba. */
+    #p-amenities {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0
+    }
+
+    #p-amenities .amenity {
+      gap: 8px;
+      padding: 12px 10px;
+      border-radius: 0;
+      background: none;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #4A4A4A
+    }
+
+    #p-amenities .amenity svg {
+      width: 28px;
+      height: 28px;
+      stroke-width: 1.5
+    }
+
+    /* Hasta 3 líneas; lo que sobra, con puntos suspensivos. */
+    #p-amenities .amenity span {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      overflow: hidden
+    }
+
+    #p-amenities.plegada .amenity:nth-child(n+9) {
+      display: none
+    }
+
+    /* Columnas según el ancho de la grilla, no el de la pantalla (el panel
+       es ~37% de ella): 4 desde 440px (celdas de 110px o más), 3 en un panel
+       angosto (desktop de ~1300px o menos) y 2 en celular. Con 4 justas
+       (440–499px, ~1366) va menos aire a los costados y medio punto menos de
+       letra: así los nombres largos entran en las 3 líneas.
+       Líneas: a la derecha de cada celda menos la última de su fila, y abajo
+       en todas menos la última fila (la que arranca en la celda que es
+       primera de fila y está entre las últimas N). Plegada, la última fila a
+       la vista es la que cierra las 8. */
+    #p-amenities-bloque {
+      container: amenities / inline-size
+    }
+
+    @media (min-width: 481px) {
+      @container amenities (min-width: 440px) {
+        #p-amenities .amenity:not(:nth-child(4n)):not(:last-child) {
+          border-right: 1px solid rgba(0, 0, 0, .08)
+        }
+
+        #p-amenities .amenity {
+          border-bottom: 1px solid rgba(0, 0, 0, .08)
+        }
+
+        #p-amenities .amenity:nth-child(4n+1):nth-last-child(-n+4),
+        #p-amenities .amenity:nth-child(4n+1):nth-last-child(-n+4)~.amenity,
+        #p-amenities.plegada .amenity:nth-child(n+5) {
+          border-bottom: 0
+        }
+      }
+
+      @container amenities (min-width: 440px) and (max-width: 499px) {
+        #p-amenities .amenity {
+          padding-inline: 4px;
+          font-size: 11.5px
+        }
+      }
+
+      /* Lo mismo con 3 columnas justas (panel de ~400px, pantalla de 1024). */
+      @container amenities (max-width: 359px) {
+        #p-amenities .amenity {
+          padding-inline: 4px;
+          font-size: 11.5px
+        }
+      }
+
+      @container amenities (max-width: 439px) {
+        #p-amenities {
+          grid-template-columns: repeat(3, 1fr)
+        }
+
+        #p-amenities .amenity:not(:nth-child(3n)):not(:last-child) {
+          border-right: 1px solid rgba(0, 0, 0, .08)
+        }
+
+        #p-amenities .amenity {
+          border-bottom: 1px solid rgba(0, 0, 0, .08)
+        }
+
+        #p-amenities .amenity:nth-child(3n+1):nth-last-child(-n+3),
+        #p-amenities .amenity:nth-child(3n+1):nth-last-child(-n+3)~.amenity,
+        #p-amenities.plegada .amenity:nth-child(n+7) {
+          border-bottom: 0
+        }
+
+        /* Plegada, la 8 es la última a la vista aunque le sigan ocultas. */
+        #p-amenities.plegada .amenity:nth-child(8) {
+          border-right: 0
+        }
+      }
+    }
+
+    @media (max-width: 480px) {
+      #p-amenities {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      #p-amenities .amenity svg {
+        width: 24px;
+        height: 24px
+      }
+
+      #p-amenities .amenity:nth-child(odd):not(:last-child) {
+        border-right: 1px solid rgba(0, 0, 0, .08)
+      }
+
+      #p-amenities .amenity {
+        border-bottom: 1px solid rgba(0, 0, 0, .08)
+      }
+
+      #p-amenities .amenity:nth-child(odd):nth-last-child(-n+2),
+      #p-amenities .amenity:nth-child(odd):nth-last-child(-n+2)~.amenity,
+      #p-amenities.plegada .amenity:nth-child(n+7) {
+        border-bottom: 0
+      }
     }
 
     /* Capa del edificio (ver abrirCapaEdificio()). Desktop: tarjeta debajo
@@ -3142,17 +3948,31 @@
       transform: none
     }
 
-    /* Desktop con la ficha de una unidad abierta (#panel, 360px): el sol se
-       corre a su izquierda en vez de quedar tapado. #sol va antes que #panel
-       en el DOM, así que no alcanza con ~; :has() desde body. En mobile no
-       aplica: ahí #sol es una hoja inferior (ver la media de abajo). */
+    /* Desktop con la ficha de una unidad abierta (#panel, --ancho-panel): el
+       sol se corre a su izquierda en vez de quedar tapado. #sol va antes que
+       #panel en el DOM, así que no alcanza con ~; :has() desde body. En
+       mobile no aplica: ahí #sol es una hoja inferior (ver la media de
+       abajo). La barra inferior, igual: se centra en lo que queda libre. */
     @media (min-width: 861px) {
       #sol {
         transition: opacity var(--t) var(--ease), transform var(--t) var(--ease), right var(--t-hoja) var(--ease);
       }
 
       body:has(#panel.abierto) #sol {
-        right: calc(360px + 16px)
+        right: calc(var(--ancho-panel) + 16px)
+      }
+
+      body:has(#panel.abierto) #barra-inferior {
+        left: calc((100vw - var(--ancho-panel)) / 2);
+        transform: translateX(-50%);
+        max-width: calc(100vw - var(--ancho-panel) - 48px)
+      }
+
+      /* Ni centrada entra (ver acomodarBarraInferior()). visibility y no
+         display: tiene que seguir midiéndose para volver al cerrar. */
+      #barra-inferior.sin-lugar {
+        visibility: hidden;
+        pointer-events: none
       }
     }
 
@@ -4123,7 +4943,7 @@
         border-top: 1px solid var(--linea);
         border-radius: 12px 12px 0 0;
         --p-pad: 20px;
-        padding: 22px var(--p-pad) 0;
+        padding: 0 var(--p-pad);
         transform: translateY(100%);
       }
 
@@ -4131,24 +4951,22 @@
         transform: none
       }
 
+      /* Tirador de la hoja: blanco y por encima de la foto de la cabecera. */
       #panel::before {
         content: "";
         position: absolute;
         top: 8px;
         left: 50%;
+        z-index: 2;
         transform: translateX(-50%);
         width: 38px;
         height: 4px;
         border-radius: 2px;
-        background: var(--linea);
+        background: rgba(255, 255, 255, .8);
       }
 
       #panel.abierto~#filtros {
         display: none
-      }
-
-      .nota {
-        margin-top: 18px
       }
 
       /* Toolbar: en mobile se gira y se acerca con gestos; queda solo la
@@ -4210,13 +5028,14 @@
     .kiosco #brujula,
     .kiosco .hr-grupo> :not(#hr-pantalla),
     .kiosco:not(.pantalla-llena) #herramientas,
-    /* Del panel, lo que se iría de la pantalla (WhatsApp, Consultar) o no
-       sirve en un aparato compartido por todos los visitantes (lista de
-       espera: una sola sesión, ver limitar_leads_por_sesion; copiar link). */
-    .kiosco #acciones-panel,
+    /* Del panel, lo que se iría de la pantalla (el pie: WhatsApp, Consultar
+       y el mensaje que invita a eso) o no sirve en un aparato compartido por
+       todos los visitantes (lista de espera: una sola sesión, ver
+       limitar_leads_por_sesion; copiar link). */
+    .kiosco .p-pie,
     .kiosco #p-espera,
-    .kiosco #p-espera-ir,
-    .kiosco #p-copiar {
+    .kiosco #p-copiar,
+    .kiosco #p-plano-pedir {
       display: none !important
     }
 
@@ -5214,19 +6033,30 @@
   </div>
 
   <aside id="panel" aria-live="polite">
-    <!-- Orden de lectura: identificación → lo que define la unidad (tira)
-       → planta → sol → [espera / financiación / edificio] → pie fijo con
-       precio y consulta (position: sticky, siempre a la vista). -->
-    <div class="p-cabeza">
-      <!-- Tira de elevación: el piso de la unidad dentro de la torre, mismo
-         lenguaje que el riel de pisos (panel de ascensor). -->
-      <div class="p-tira" id="p-tira" aria-hidden="true"></div>
-      <div class="p-id">
+    <!-- Orden de lectura: foto con la identificación (+ copiar, ⓘ
+       información del proyecto, cerrar) → lo que define la unidad (barra de
+       datos) → descripción y plano → sol → [espera / financiación / edificio] → pie fijo
+       con la consulta (position: sticky, siempre a la vista). -->
+    <div class="p-hero">
+      <!-- Foto: render de la tipología o, si no hay, del proyecto (ver
+         pintarPanel()). Decorativa: lo que importa está escrito encima. -->
+      <div class="p-hero-fondo" aria-hidden="true">
+        <img id="p-hero-img" alt="" hidden>
+      </div>
+      <div class="p-hero-id">
         <p class="p-eyebrow" id="p-eyebrow">Piso —</p>
-        <div class="p-id-fila">
-          <p id="p-unidad">—</p>
-          <p id="p-estado"><span class="punto" id="p-color"></span><span id="p-estado-txt"></span></p>
-        </div>
+        <p id="p-unidad">—</p>
+      </div>
+      <div class="p-hero-pildoras">
+        <p id="p-estado"><span class="punto"></span><span id="p-estado-txt"></span></p>
+        <!-- La orientación de la unidad; sin ella, no va. -->
+        <p class="p-vista" id="p-vista" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="3" width="16" height="18" rx="1.5" />
+            <path d="M12 3v18M4 12h16" />
+          </svg>
+          <span id="p-vista-txt"></span>
+        </p>
       </div>
       <div class="p-cabeza-acc">
         <button class="p-icono" id="p-copiar" type="button" aria-label="Copiar link de esta unidad"
@@ -5237,6 +6067,25 @@
             <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
           </svg>
         </button>
+        <!-- Solo la "i": el círculo lo pone el botón. Oculto si el popover
+           quedaría vacío (ver pintarLegal()). -->
+        <button class="p-icono" id="p-info-btn" type="button" aria-label="Información del proyecto"
+          title="Información del proyecto" aria-haspopup="dialog" aria-expanded="false" aria-controls="p-info" hidden>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" aria-hidden="true">
+            <path d="M12 10.5v7.5" />
+            <circle cx="12" cy="6.8" r="1.25" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+        <!-- Texto legal del proyecto (settings.textos.legal, lo arma
+           pintarLegal()) + la nota de demo, que no está en los datos. -->
+        <div class="p-info" id="p-info" role="dialog" aria-label="Información del proyecto" tabindex="-1" hidden>
+          <p class="p-info-tit" id="p-info-tit" hidden></p>
+          <div class="p-info-legal" id="p-info-legal" hidden></div>
+          <p class="p-info-nota" id="p-info-nota">Demostración armada con datos públicos de avisos (setiembre
+            2026). Cuando la tipología de la unidad tiene su planta real cargada, se muestra tal cual la subió el
+            cliente.</p>
+        </div>
         <button class="p-icono" id="cerrar" type="button" aria-label="Cerrar">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" aria-hidden="true">
@@ -5246,28 +6095,64 @@
       </div>
     </div>
 
-    <!-- Lo que define la unidad, leído de un golpe: dato grande arriba,
-       etiqueta chica abajo (dt va primero en el DOM por semántica; el CSS
-       lo muestra debajo). Las celdas sin dato se ocultan enteras. Los
-       íconos (data-icono) los completa el JS desde ICONOS_RESUMEN, los
-       mismos de la tarjeta de la unidad. -->
-    <dl class="p-datos">
-      <div class="p-dato" id="p-dorms-c">
-        <dt id="p-dorms-dt">Dormitorios</dt>
-        <dd><svg data-icono="dorms" viewBox="0 0 24 24" aria-hidden="true"></svg><span id="p-dorms"></span></dd>
-      </div>
-      <div class="p-dato" id="p-m2-c">
-        <dt>Superficie</dt>
-        <dd><svg data-icono="m2" viewBox="0 0 24 24" aria-hidden="true"></svg><span><span id="p-m2"></span><span
-              class="p-dato-extra" id="p-terraza" hidden></span></span></dd>
-      </div>
-      <div class="p-dato" id="p-orient-c">
-        <dt>Orientación</dt>
-        <dd><svg data-icono="orient" viewBox="0 0 24 24" aria-hidden="true"></svg><span id="p-orient"></span></dd>
-      </div>
-    </dl>
+    <!-- Lo que define la unidad, en una fila: ícono + dato. Las celdas sin
+       dato se ocultan enteras, con su línea. Los íconos (data-icono) los
+       completa el JS desde ICONOS_RESUMEN, los mismos de la tarjeta. -->
+    <div class="p-datos">
+      <dl class="p-datos-fila">
+        <div class="p-dato" id="p-dorms-c">
+          <dt id="p-dorms-dt">Dormitorios</dt>
+          <dd><svg data-icono="dorms" viewBox="0 0 24 24" aria-hidden="true"></svg><span id="p-dorms"></span></dd>
+        </div>
+        <div class="p-dato" id="p-m2-c">
+          <dt>Superficie</dt>
+          <dd><svg data-icono="m2" viewBox="0 0 24 24" aria-hidden="true"></svg><span><span id="p-m2"></span><span
+                class="p-dato-extra">(área propia)</span><span class="p-dato-extra" id="p-terraza" hidden></span></span>
+          </dd>
+        </div>
+        <div class="p-dato" id="p-orient-c">
+          <dt>Orientación</dt>
+          <dd><svg data-icono="orient" viewBox="0 0 24 24" aria-hidden="true"></svg><span id="p-orient"></span></dd>
+        </div>
+      </dl>
+    </div>
 
-    <figure class="planta" id="p-planta"></figure>
+    <!-- Descripción + plano (ver pintarIntro()): título y texto de la unidad
+       o de su tipología; sin ellos, armados con sus datos. -->
+    <section class="p-intro" id="p-intro" aria-labelledby="p-intro-tit">
+      <div class="p-intro-texto">
+        <p class="p-intro-eyebrow" id="p-intro-eyebrow"></p>
+        <h2 class="p-intro-tit" id="p-intro-tit"></h2>
+        <p class="p-intro-desc" id="p-intro-desc"></p>
+        <button class="p-ver-plano" id="p-ver-plano" type="button" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" stroke-width="1.8" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="17" height="17" rx="1.5" />
+            <path d="M3.5 12H9m3.5 0h8M12 3.5V8m0 4v8.5" />
+          </svg>
+          <span>Ver plano</span>
+          <svg class="p-ver-chevron" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </button>
+      </div>
+      <!-- Con plano, toda la tarjeta lo amplía, igual que "Ver plano" (el
+         control para teclado y lector). Sin plano, o si la imagen no carga,
+         el estado vacío en el mismo lugar. -->
+      <div class="p-plano" id="p-plano" data-estado="vacio">
+        <img id="p-plano-img" alt="" loading="lazy" decoding="async">
+        <div class="p-plano-vacio">
+          <svg viewBox="0 0 40 40" aria-hidden="true">
+            <rect x="5" y="5" width="30" height="30" rx="2" />
+            <path d="M5 20h9m5 0h16M20 5v8m0 7v15M14 20v-5a5 5 0 0 1 5 5" />
+          </svg>
+          <p class="p-plano-vacio-tit">Plano no disponible</p>
+          <p class="p-plano-vacio-sub">Consultanos por el plano de esta unidad</p>
+          <a class="p-plano-pedir" id="p-plano-pedir" href="#" target="_blank" rel="noopener" hidden>Solicitar plano
+            <span aria-hidden="true">→</span></a>
+        </div>
+        <span class="p-plano-m2" id="p-plano-m2"></span>
+      </div>
+    </section>
 
     <!-- Solo visible con el simulador solar prendido (ver
        actualizarSolUnidad()) — dice si ESTA unidad tiene sol directo en el
@@ -5336,20 +6221,20 @@
 
     <div id="p-edificio">
       <div id="p-amenities-bloque" hidden>
-        <p class="p-edificio-tit">Amenities del edificio</p>
+        <div class="p-amen-cabeza">
+          <p class="p-edificio-tit">Amenities del edificio</p>
+          <button class="p-amen-todos" id="p-amenities-todos" type="button" aria-expanded="false"
+            aria-controls="p-amenities" hidden></button>
+        </div>
         <ul class="amenities-grilla" id="p-amenities"></ul>
       </div>
-      <p id="p-legal" hidden></p>
     </div>
 
-    <p class="nota">
-      Demostración armada con datos públicos de avisos (setiembre 2026). Cuando la tipología
-      de la unidad tiene su planta real cargada, se muestra tal cual la subió el cliente.
-    </p>
-
-    <!-- Pie fijo (sticky): precio + consulta, siempre a la vista sin
-       desplazarse — es la conversión. -->
+    <!-- Pie fijo (sticky): la consulta, siempre a la vista sin desplazarse
+       — es la conversión. -->
     <div class="p-pie">
+      <!-- Oculto: la referencia aprobada del panel no muestra el precio (ver
+         .p-precio-wrap en el CSS). -->
       <div class="p-precio-wrap" id="p-precio-wrap">
         <p id="p-precio"></p>
         <p class="p-precio-sub">
@@ -5358,27 +6243,39 @@
           <span id="p-cochera" hidden></span>
         </p>
       </div>
-      <div class="acciones-panel" id="acciones-panel">
-        <!-- Solo con settings.consulta_url (ver actualizarConsulta()): lleva al
-           formulario de contacto del cliente. Cuando está, WhatsApp pasa a
-           secundario (solo ícono) para no tener dos botones verdes. -->
-        <a class="bton bton-p" id="p-consultar" href="#" hidden>
-          <span class="bton-txt">Consultar</span>
-        </a>
-        <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path
-              d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      <div class="p-pie-cont">
+        <div class="p-pie-msg">
+          <!-- Sol saliendo sobre el horizonte. -->
+          <svg class="p-pie-icono" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M10 20a6 6 0 0 1 12 0M3 20h26M8 24h16M12 28h8M16 8v3M7.5 11.5l2.1 2.1M24.5 11.5l-2.1 2.1" />
           </svg>
-          <span class="bton-txt">Consultar</span>
-        </a>
+          <div class="p-pie-txt">
+            <p class="p-pie-tit">¡Tu próximo hogar te espera!</p>
+            <p class="p-pie-sub">Consultá por financiación y más beneficios.</p>
+          </div>
+        </div>
+        <div class="acciones-panel" id="acciones-panel">
+          <!-- Solo con settings.consulta_url (ver actualizarConsulta()): lleva al
+             formulario de contacto del cliente. Cuando está, WhatsApp pasa a
+             secundario (solo ícono) para no tener dos botones blancos. -->
+          <a class="bton bton-p" id="p-consultar" href="#" hidden>
+            <span class="bton-txt">Consultar</span>
+          </a>
+          <a class="bton bton-p" id="p-wa" href="#" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path
+                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+            <span class="bton-txt">Consultar</span>
+          </a>
+        </div>
+        <!-- Vendida/reservada: en lugar de consultar, lleva al formulario de
+           lista de espera (en el cuerpo) — ver actualizarEsperaPanel(). -->
+        <button class="bton bton-p" id="p-espera-ir" type="button" hidden>
+          <span class="bton-txt">Avisarme si se libera</span>
+        </button>
       </div>
-      <!-- Vendida/reservada: en lugar de consultar, lleva al formulario de
-         lista de espera (en el cuerpo) — ver actualizarEsperaPanel(). -->
-      <button class="bton bton-p" id="p-espera-ir" type="button" hidden>
-        <span class="bton-txt">Avisarme si se libera</span>
-      </button>
     </div>
   </aside>
 
@@ -5925,6 +6822,18 @@
     // amenities-iconos.js); sin ícono asignado va el genérico. Sin amenities
     // no aparece nada: ni la fila de la ficha ni el bloque del panel. El
     // texto lo carga el cliente en el admin: va como texto, nunca como HTML.
+    // En el panel van a lo sumo MAX_AMENITIES_PANEL (dos filas); con más,
+    // "Ver todos" despliega el resto en el lugar.
+    const MAX_AMENITIES_PANEL = 8;
+    const verTodasAmenities = document.getElementById('p-amenities-todos');
+    function desplegarAmenities(abiertas) {
+      document.getElementById('p-amenities').classList.toggle('plegada', !abiertas);
+      verTodasAmenities.setAttribute('aria-expanded', String(abiertas));
+      verTodasAmenities.innerHTML = abiertas ? 'Ver menos' : 'Ver todos <span aria-hidden="true">→</span>';
+    }
+    verTodasAmenities.addEventListener('click', () =>
+      desplegarAmenities(verTodasAmenities.getAttribute('aria-expanded') !== 'true'));
+
     function pintarAmenities(lista) {
       const hay = lista.length > 0;
       document.getElementById('cb-extra').hidden = !hay;
@@ -5941,6 +6850,9 @@
       });
       document.getElementById('ce-amenities').replaceChildren(...grilla());
       document.getElementById('p-amenities').replaceChildren(...grilla());
+      const sobran = lista.length > MAX_AMENITIES_PANEL;
+      verTodasAmenities.hidden = !sobran;
+      desplegarAmenities(!sobran);
       // Fila de la ficha: hasta cuatro íconos distintos de muestra (el
       // genérico solo si no hay ninguno asignado) + cuántas son.
       const muestra = [...new Set(lista.map(a => a.icono).filter(tieneIconoAmenity))].slice(0, 4);
@@ -6004,12 +6916,66 @@
     }, true);
     addEventListener('resize', () => { if (capaAbierta()) ubicarCapaEdificio(); });
 
+    /* ------------------------------------------------------------
+       Información del proyecto (ⓘ en la cabecera del panel): popover con el
+       texto legal (settings.textos.legal) y la nota de demo. Se cierra con
+       un toque afuera, con Esc o con el mismo ⓘ.
+       ------------------------------------------------------------ */
+    const infoBtn = document.getElementById('p-info-btn');
+    const infoPop = document.getElementById('p-info');
+
     function pintarLegal(textos) {
-      if (!textos || !textos.legal) return;
-      const el = document.getElementById('p-legal');
-      el.textContent = textos.legal;
-      el.hidden = false;
+      const legal = ((textos && textos.legal) || '').trim();
+      const cont = document.getElementById('p-info-legal');
+      cont.textContent = '';
+      // Una oración por renglón: en ROSSO "Amparado por… (10 años)." y
+      // "Desarrolla Block Desarrollos · …" son dos datos en un mismo texto.
+      // Corta solo en punto + espacio + mayúscula: "(18.795)" y "S.A. ·
+      // Proyecta" quedan enteros.
+      legal.split(/(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ¿¡])/).filter(Boolean).forEach(oracion => {
+        const p = document.createElement('p');
+        p.textContent = oracion;
+        cont.appendChild(p);
+      });
+      cont.hidden = !legal;
+      // Título solo si el texto nombra la ley (no se inventa para un
+      // proyecto que no es Vivienda Promovida).
+      const ley = legal.match(/Vivienda Promovida\s*\((\d[\d.]*)\)/i);
+      const tit = document.getElementById('p-info-tit');
+      tit.textContent = ley ? 'Vivienda Promovida · Ley ' + ley[1] : '';
+      tit.hidden = !ley;
+      infoBtn.hidden = !legal && !document.getElementById('p-info-nota').textContent.trim();
     }
+
+    function abrirInfo() {
+      infoPop.hidden = false;
+      infoBtn.setAttribute('aria-expanded', 'true');
+      infoPop.focus({ preventScroll: true });
+    }
+
+    function cerrarInfo(devolverFoco) {
+      if (infoPop.hidden) return;
+      infoPop.hidden = true;
+      infoBtn.setAttribute('aria-expanded', 'false');
+      if (devolverFoco) infoBtn.focus({ preventScroll: true });
+    }
+
+    infoBtn.addEventListener('click', () => infoPop.hidden ? abrirInfo() : cerrarInfo());
+    // En captura sobre window: con el popover abierto, Esc lo cierra a él y
+    // no llega a los demás Esc (el de la unidad cerraría el panel entero).
+    addEventListener('keydown', e => {
+      if (e.key !== 'Escape' || infoPop.hidden) return;
+      e.stopPropagation();
+      cerrarInfo(true);
+    }, true);
+    document.addEventListener('pointerdown', e => {
+      if (infoPop.hidden || infoPop.contains(e.target) || infoBtn.contains(e.target)) return;
+      cerrarInfo();
+    }, true);
+    // El panel también se cierra solo (kiosco, ?u=…): el popover, con él.
+    new MutationObserver(() => {
+      if (!document.getElementById('panel').classList.contains('abierto')) cerrarInfo();
+    }).observe(document.getElementById('panel'), { attributes: true, attributeFilter: ['class'] });
 
     // Reemplaza el overlay #carga (que ya está tapando toda la pantalla,
     // ver el div al principio del <body>) por un mensaje de error en vez de
@@ -6057,7 +7023,9 @@
         document.removeEventListener('keydown', alTeclado);
       }
       function alTeclado(e) {
-        if (e.key === 'Escape') cerrar();
+        // Esc cierra solo el lightbox: que no llegue al de la unidad (en
+        // window), que cerraría también el panel de abajo.
+        if (e.key === 'Escape') { e.stopPropagation(); cerrar(); }
         else if (e.key === 'ArrowLeft' && indice > 0) mostrarIndice(indice - 1);
         else if (e.key === 'ArrowRight' && indice < lista.length - 1) mostrarIndice(indice + 1);
       }
@@ -6073,8 +7041,14 @@
     // Galería de renders del edificio: el trigger queda oculto (ver HTML)
     // hasta que haya al menos una imagen — la mayoría de los proyectos
     // todavía no van a tener renders cargados desde admin.html.
+    // El primer render del proyecto: la foto de la cabecera del panel cuando
+    // la tipología de la unidad no tiene uno propio (ver pintarPanel()).
+    let renderPortada = null;
+    // Si la foto no carga, queda el fondo verde de la cabecera.
+    document.getElementById('p-hero-img').addEventListener('error', ev => { ev.target.hidden = true; });
     function pintarRenders(lista) {
       if (!lista.length) return;
+      renderPortada = lista[0].url;
       const trigger = document.getElementById('renders-trigger');
       trigger.hidden = false;
       trigger.addEventListener('click', () => galeria.abrir(lista, 0));
@@ -6258,7 +7232,7 @@
 
       // Media real por tipología (planta/renders subidos desde admin.html),
       // agrupada por typology_id y tipo — así abrir(u) resuelve en O(1) qué
-      // mostrarle a cada unidad según su u.typologyId. Ver pintarPlantaUnidad().
+      // mostrarle a cada unidad según su u.typologyId. Ver pintarIntro().
       // refrescarDatos() lo vuelve a armar con la media nueva.
       const MEDIA_POR_TIPOLOGIA = {};
       function agruparMediaTipologias(lista) {
@@ -6272,6 +7246,19 @@
       // typology_id → nombre para el comprador (ver tipologiaDe()). Lo
       // reemplaza refrescarDatos().
       let NOMBRES_TIPOLOGIA = nombresPublicosDe(tipologias);
+      // typology_id → { titulo, descripcion } del bloque de descripción del
+      // panel (ver pintarIntro()), solo los cargados. Hoy public_typologies
+      // no trae esas columnas y queda vacío. Lo reemplaza refrescarDatos().
+      function textosTipologiaDe(lista) {
+        const textos = {};
+        (lista || []).forEach(t => {
+          const titulo = typeof t.titulo === 'string' ? t.titulo.trim() : '';
+          const descripcion = typeof t.descripcion === 'string' ? t.descripcion.trim() : '';
+          if (titulo || descripcion) textos[t.id] = { titulo, descripcion };
+        });
+        return textos;
+      }
+      let TEXTOS_TIPOLOGIA = textosTipologiaDe(tipologias);
 
       // Barra superior: "BRUSCO" + "by IXOU". Varios nombres ya traen el
       // "by X" adentro ("ROSSO by Block"); se parte ahí para no duplicarlo
@@ -6317,12 +7304,12 @@
       // En fase de captura: ningún stopPropagation del lienzo o de las hojas
       // puede impedir que se cierre. Excepciones: el lienzo, la tarjeta de
       // unidad, Filtros/Pisos (botón y hoja) y la hoja de amenities (se abre
-      // desde la ficha). Tocar una unidad o usar los
+      // desde la ficha). Usar los
       // filtros y el riel no la pliega (los datos del edificio se siguen
       // viendo; el riel y Filtros se acomodan debajo, ver --fin-ficha); en el
       // lienzo se decide al moverse o al soltar: arrastrar o tocar el vacío
       // la siguen plegando (ver el click del lienzo). Abrir el panel también
-      // la pliega (ver abrir()).
+      // la pliega (ver abrir()), y tocar una unidad lo abre.
       document.addEventListener('pointerdown', e => {
         if (!ficha.classList.contains('abierta') || ficha.contains(e.target)) return;
         if (e.target === lienzo ||
@@ -8699,16 +9686,24 @@
       // toolbar (Restablecer y los accesos a renders / avance la estiran;
       // en BRUSCO con todo a la vista pedía ~1450px). Entonces se corre a
       // la izquierda, como en tablet (.corrida, ver CSS). Se mide sin la
-      // clase; los dos observadores cubren cualquier cambio de ancho.
+      // clase; los observadores cubren cualquier cambio de ancho.
+      // Con el panel de la unidad abierto se centra en lo que queda libre
+      // (ver CSS); si ni así entra (Restablecer y los accesos la estiran),
+      // se esconde hasta que se cierre, como en mobile (.sin-lugar).
       const herramientasEl = document.getElementById('herramientas');
       function acomodarBarraInferior() {
-        barraInferior.classList.remove('corrida');
+        barraInferior.classList.remove('corrida', 'sin-lugar');
         if (solEsHoja.matches) return;
         barraInferior.classList.toggle('corrida',
           barraInferior.getBoundingClientRect().right + 16 > herramientasEl.getBoundingClientRect().left);
+        barraInferior.classList.toggle('sin-lugar', document.getElementById('panel').classList.contains('abierto') &&
+          barraInferior.scrollWidth > barraInferior.clientWidth + 1);
       }
       const obsBarra = new ResizeObserver(acomodarBarraInferior);
       obsBarra.observe(barraInferior);
+      // Los hijos también: Restablecer aparece adentro de .fb-drops, y con la
+      // barra ya al tope de su ancho eso no la cambia de tamaño.
+      [...barraInferior.children].forEach(hijo => obsBarra.observe(hijo));
       obsBarra.observe(herramientasEl);
       addEventListener('resize', acomodarBarraInferior);
 
@@ -9251,66 +10246,108 @@
       });
 
       /* ============================================================
-         Planta real de la tipología (subida por el cliente desde admin.html,
-         ver MEDIA_POR_TIPOLOGIA más arriba). Antes acá se dibujaba un esquema de
-         rectángulos a partir de m²/dorms — se sacó porque un esquema inventado
-         que no coincide con muros reales (diagonales, plantas en L, etc.) es
-         peor que no mostrar nada. Sin imágenes la figura se oculta entera:
-         una ficha compacta se lee mejor que una con un hueco.
+         Descripción + plano de la unidad (#p-intro). El plano es la planta
+         real de la tipología (subida por el cliente desde admin.html, ver
+         MEDIA_POR_TIPOLOGIA más arriba); nunca un esquema dibujado a partir
+         de m²/dorms: uno inventado que no coincide con los muros reales
+         (diagonales, plantas en L) es peor que no mostrar nada. Sin planta,
+         la tarjeta queda en su lugar con el estado vacío y un pedido por
+         WhatsApp.
+         - Título: geom.titulo de la unidad > typologies.titulo > "{tipología}
+           en {barrio}".
+         - Texto: geom.descripcion de la unidad > typologies.descripcion > uno
+           armado con dormitorios, m² y orientación.
          ============================================================ */
 
-      // Planta primero, después los renders de la tipología — mismo orden en el
-      // que se muestran y en el que se navega al ampliar con el lightbox.
+      // Planta primero, después los renders de la tipología: el orden en que
+      // se navega al ampliar con el lightbox.
       function mediaDeUnidad(u) {
         const media = (u.typologyId && MEDIA_POR_TIPOLOGIA[u.typologyId]) || { planta: [], render: [] };
         return media.planta.length ? [media.planta[0], ...media.render] : media.render;
       }
 
-      // Armado con nodos (no innerHTML): la URL viene de la base.
-      function pintarPlantaUnidad(u) {
-        const cont = document.getElementById('p-planta');
-        const items = mediaDeUnidad(u);
-        cont.hidden = !items.length;
-        cont.replaceChildren();
-        if (!items.length) return;
-        const boton = (m, i) => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          const nombre = (m.tipo === 'planta' ? 'planta' : 'render') + ' de la unidad ' + numeroDe(u);
-          b.setAttribute('aria-label', 'Ampliar ' + nombre);
-          const img = document.createElement('img');
-          img.src = m.url;
-          img.alt = nombre[0].toUpperCase() + nombre.slice(1);
-          b.appendChild(img);
-          b.addEventListener('click', () => galeria.abrir(items, i));
-          return b;
-        };
-        const principal = boton(items[0], 0);
-        principal.className = 'planta-principal';
-        principal.insertAdjacentHTML('beforeend',
-          '<span class="planta-ampliar" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" ' +
-          'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-          '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></span>');
-        cont.appendChild(principal);
-        if (items.length > 1) {
-          const mini = document.createElement('div');
-          mini.className = 'planta-miniaturas';
-          items.slice(1).forEach((m, i) => mini.appendChild(boton(m, i + 1)));
-          cont.appendChild(mini);
-        }
+      // Barrio del título armado: el último tramo de la dirección, si tiene
+      // coma y no es un número de puerta ("Ana Monterroso de Lavalleja 2162,
+      // Cordón" → "Cordón"); si no, la ciudad.
+      const BARRIO = (() => {
+        const partes = (proyecto.direccion || '').split(',').map(s => s.trim()).filter(Boolean);
+        const ultimo = partes.length > 1 ? partes[partes.length - 1] : '';
+        return ultimo && !/\d/.test(ultimo) ? ultimo : (proyecto.ciudad || '').trim();
+      })();
+
+      // "Apartamento de 2 dormitorios, 64 m², orientación frente.", con lo
+      // que haya: el dato que falta no va.
+      function descripcionArmada(u) {
+        // Espacio duro: "120,5 m²" no se parte entre renglones.
+        const m2 = u.m2 != null ? formatearM2(u.m2, proyecto.locale) + '\xa0m²' : null;
+        const orient = textoOrientacion(u);
+        // Solo la inicial: "esquina Paullier", no "esquina paullier".
+        const o = orient ? 'orientación ' + orient[0].toLowerCase() + orient.slice(1) : null;
+        if (u.dorms == null && !m2 && !o) return '';
+        // "Monoambiente de 38 m²", "Apartamento de 64 m²" (sin dormitorios cargados).
+        const partes = u.dorms > 0 ? ['Apartamento de ' + etiquetaDorms(u.dorms), m2]
+          : [(u.dorms === 0 ? 'Monoambiente' : 'Apartamento') + (m2 ? ' de ' + m2 : '')];
+        return [...partes, o].filter(Boolean).join(', ') + '.';
       }
 
-      // Tira de elevación junto al número de unidad: 11 marcas (PB + pisos 1–10),
-      // la del piso de la unidad elegida se destaca con el color de su estado.
-      // Mismo lenguaje visual que el riel de pisos (panel de ascensor).
-      function actualizarTiraPiso(u) {
-        const cont = document.getElementById('p-tira');
-        cont.innerHTML = '';
-        for (let p = 0; p <= PISOS; p++) {
-          const marca = document.createElement('i');
-          marca.className = 'p-tira-marca' + (p === u.piso ? ' activa' : '');
-          if (p === u.piso) marca.style.background = aspectoDe(u).color;
-          cont.appendChild(marca);
+      const intro = {
+        eyebrow: document.getElementById('p-intro-eyebrow'),
+        tit: document.getElementById('p-intro-tit'),
+        desc: document.getElementById('p-intro-desc'),
+        ver: document.getElementById('p-ver-plano'),
+        plano: document.getElementById('p-plano'),
+        img: document.getElementById('p-plano-img'),
+        pedir: document.getElementById('p-plano-pedir'),
+        m2: document.getElementById('p-plano-m2'),
+      };
+      // cargando → listo, o vacio (sin planta, o la imagen no cargó). Sin
+      // plano que mostrar, tampoco "Ver plano".
+      function estadoPlano(e) {
+        intro.plano.dataset.estado = e;
+        intro.ver.hidden = e === 'vacio';
+      }
+      // getAttribute: sin src (estado vacío) no hay nada que resolver.
+      intro.img.addEventListener('load', () => { if (intro.img.getAttribute('src')) estadoPlano('listo'); });
+      intro.img.addEventListener('error', () => { if (intro.img.getAttribute('src')) estadoPlano('vacio'); });
+      // "Ver plano" y la tarjeta abren el lightbox de siempre en la planta, y
+      // desde ahí se sigue a los renders de la tipología.
+      function ampliarPlano() {
+        if (elegida && intro.plano.dataset.estado !== 'vacio') galeria.abrir(mediaDeUnidad(elegida), 0);
+      }
+      intro.ver.addEventListener('click', ampliarPlano);
+      intro.plano.addEventListener('click', () => { if (intro.plano.dataset.estado === 'listo') ampliarPlano(); });
+
+      const textoDe = v => typeof v === 'string' ? v.trim() : '';
+      function pintarIntro(u) {
+        const g = u.geom || {};
+        const deTipologia = (u.typologyId && TEXTOS_TIPOLOGIA[u.typologyId]) || {};
+        const tipo = tipologiaDe(u, NOMBRES_TIPOLOGIA) || (u.dorms != null ? etiquetaDorms(u.dorms) : 'Apartamento');
+        intro.eyebrow.textContent = 'Unidad ' + numeroDe(u);
+        intro.tit.textContent = textoDe(g.titulo) || deTipologia.titulo || [tipo, BARRIO].filter(Boolean).join(' en ');
+        intro.desc.textContent = textoDe(g.descripcion) || deTipologia.descripcion || descripcionArmada(u);
+
+        // Misma imagen (otra unidad de la tipología, o un repintado de
+        // refrescarDatos()): ni se vuelve a pedir ni parpadea el esqueleto.
+        const media = u.typologyId && MEDIA_POR_TIPOLOGIA[u.typologyId];
+        const url = media && media.planta.length ? media.planta[0].url : '';
+        intro.img.alt = url ? 'Plano de la unidad ' + numeroDe(u) : '';
+        if (!url) {
+          intro.img.removeAttribute('src');
+          estadoPlano('vacio');
+        } else if (intro.img.getAttribute('src') !== url) {
+          estadoPlano('cargando');
+          intro.img.src = url;
+        } else if (intro.img.complete) estadoPlano(intro.img.naturalWidth ? 'listo' : 'vacio');
+        intro.m2.textContent = u.m2 != null ? formatearM2(u.m2, proyecto.locale) + ' m²' : '';
+
+        // Pedir el plano: el WhatsApp del pie, con otro mensaje. Donde el pie
+        // no ofrece consulta (vendida/reservada) tampoco va.
+        intro.pedir.hidden = !settingsRow.whatsapp || u.estado === 'vendido' || u.estado === 'reservado';
+        if (!intro.pedir.hidden) {
+          const texto = 'Hola, quiero pedir el plano de la unidad ' + numeroDe(u) + ' de ' + proyecto.nombre + ' (' +
+            [tipo.toLowerCase(), u.m2 != null ? formatearM2(u.m2, proyecto.locale) + ' m²' : null]
+              .filter(Boolean).join(', ') + '). ' + linkDe(u);
+          intro.pedir.href = 'https://wa.me/' + settingsRow.whatsapp + '?text=' + encodeURIComponent(texto);
         }
       }
 
@@ -9349,9 +10386,9 @@
           -cx * Math.sin(g) + cz * Math.cos(g));
         // Encuadre en la parte del lienzo que queda libre según lo que esté
         // abierto (se llama de nuevo al pasar de la tarjeta al panel):
-        // - panel: en desktop tapa 360px a la derecha; en mobile es una hoja
-        //   inferior de hasta 74vh, y una unidad en el centro de la pantalla
-        //   quedaba abajo de la hoja.
+        // - panel: en desktop tapa su ancho (--ancho-panel, ~37% de la
+        //   pantalla) a la derecha; en mobile es una hoja inferior de hasta
+        //   74vh, y una unidad en el centro de la pantalla quedaba abajo.
         // - tarjeta anclada (desktop): va arriba de la unidad; se le deja
         //   lugar, y abajo a la barra inferior, así el par queda centrado.
         // - tarjeta táctil: sube sobre la barra inferior.
@@ -9369,7 +10406,7 @@
         if (panel.classList.contains('abierto')) {
           libre = hoja
             ? { x0: 0, x1: W, y0: techo, y1: H - Math.min(panel.offsetHeight || H * 0.74, H * 0.74) }
-            : { x0: 0, x1: W - 360, y0: techo, y1: H };
+            : { x0: 0, x1: W - panel.offsetWidth, y0: techo, y1: H };
         } else if (tarjeta.classList.contains('anclada')) {
           libre = { x0: 0, x1: W, y0: techo + tarjeta.offsetHeight + 16, y1: H - 80 };
         } else {
@@ -9803,14 +10840,15 @@
         tooltip.style.top = posRaton.y + 'px';
       }
 
-      /* Tarjeta de unidad: el clic (o el toque) en una unidad lleva la
-         cámara hasta ella, la resalta y muestra el resumen; recién "Click
-         para ver la unidad" (desktop) o "Ver unidad" (táctil) abre el panel
-         y registra el evento en abrir(). En táctil la tarjeta sube sobre la
-         barra inferior; en desktop va .anclada a la unidad, con el aspecto
-         del tooltip, y aparece cuando la cámara ya casi llegó (viajando
-         pegada a la unidad mientras gira el edificio se perdía entre los
-         volúmenes). */
+      /* Tarjeta de unidad: hoy solo la usa la demo del showroom (el clic o
+         el toque en una unidad abre el panel directo, ver el click del
+         lienzo). seleccionar() lleva la cámara hasta la unidad, la resalta y
+         muestra el resumen; "Click para ver la unidad" (desktop) o "Ver
+         unidad" (táctil) abre el panel y registra el evento en abrir(). En
+         táctil la tarjeta sube sobre la barra inferior; en desktop va
+         .anclada a la unidad, con el aspecto del tooltip, y aparece cuando
+         la cámara ya casi llegó (viajando pegada a la unidad mientras gira
+         el edificio se perdía entre los volúmenes). */
       const tarjeta = document.getElementById('tarjeta-unidad');
       if (!esTactil) tarjeta.classList.add('anclada');
       // cajaTarjeta = la unidad elegida; cajaAncla = donde está la tarjeta de
@@ -10183,13 +11221,16 @@
         elegida = u;
         tooltip.classList.remove('visible'); // en touch queda pegado en la última posición tocada
         pintarPanel(u);
+        // Con el panel ya abierto en otra unidad el contenido cambia en el
+        // lugar (sin cerrar ni volver a deslizarse) y arranca desde arriba.
+        panel.scrollTop = 0;
 
         marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
         panel.classList.add('abierto');
         actualizarSolUnidad();
         // Mobile: el panel es una hoja de hasta 74vh; con la ficha desplegada
-        // arriba no quedaba lugar para el edificio. (Tocar la unidad no la
-        // pliega; abrir el panel sí.)
+        // arriba no quedaba lugar para el edificio. (Tocar una unidad abre el
+        // panel, así que también la pliega.)
         if (matchMedia('(max-width: 860px)').matches) cerrarFicha();
         // Al final: enfocar() encuadra en lo que el panel deja libre y en
         // mobile necesita la altura real de la hoja ya con su contenido.
@@ -10199,44 +11240,45 @@
       // El contenido del panel, sin efectos: abrir() lo usa y refrescarDatos()
       // lo repinta con el panel abierto (sin registrar otro evento en Demanda).
       function pintarPanel(u) {
-        const e = aspectoDe(u);
         const torreU = torresDisponibles.length ? torreDe(u) : null;
         document.getElementById('p-eyebrow').textContent =
           (torreU ? (torreU === 'Basamento' ? torreU : 'Torre ' + torreU) + ' · ' : '') + 'Piso ' + u.piso;
         document.getElementById('p-unidad').textContent = numeroDe(u);
         document.getElementById('p-estado-txt').textContent = nombreEstado(u);
-        document.getElementById('p-color').style.background = e.color;
-        const pEstado = document.getElementById('p-estado');
-        // El color va en el punto y el fondo; el texto siempre en tinta:
-        // con los grises claros (vendida) el texto en su color no se leía.
-        pEstado.style.background = e.color + '1A';
-        pEstado.style.borderColor = e.color + '4D';
-        pEstado.style.color = 'var(--tinta)';
-        actualizarTiraPiso(u);
-        pintarPlantaUnidad(u);
+        // El fondo de la píldora sale del CSS por estado: sobre la foto, los
+        // colores claros de la leyenda (vendida, sin estado) no dejaban leer
+        // el texto blanco.
+        document.getElementById('p-estado').dataset.estado = u.estado;
+        // Foto de la cabecera: un render de la tipología si tiene; si no, el
+        // del proyecto; sin ninguno queda el fondo verde.
+        const mediaTipo = u.typologyId && MEDIA_POR_TIPOLOGIA[u.typologyId];
+        const foto = (mediaTipo && mediaTipo.render.length && mediaTipo.render[0].url) || renderPortada;
+        const heroImg = document.getElementById('p-hero-img');
+        if (foto && heroImg.getAttribute('src') !== foto) heroImg.src = foto;
+        heroImg.hidden = !foto;
+        pintarIntro(u);
         const tipologia = tipologiaDe(u, NOMBRES_TIPOLOGIA);
         const comoCifra = !tipologia && u.dorms > 0;
         // Sin tipología ni dormitorios cargados, la celda no va (si no,
         // "null dormitorios").
         document.getElementById('p-dorms-c').hidden = !tipologia && u.dorms == null;
-        // Valor en negrita (tinta) y la unidad en gris, como en la tarjeta:
-        // "2 dormitorios", "92 m²"; una tipología con nombre va entera.
+        // "1 dormitorio", "2 dormitorios", "Monoambiente" (etiquetaDorms());
+        // una tipología con nombre va entera.
         document.getElementById('p-dorms-dt').textContent = comoCifra ? 'Dormitorios' : 'Tipología';
-        const pDorms = document.getElementById('p-dorms');
-        pDorms.textContent = '';
-        const textoDorms = tipologia || (u.dorms != null ? etiquetaDorms(u.dorms) : '');
-        if (textoDorms) pDorms.append(...valorEnTinta(textoDorms));
+        document.getElementById('p-dorms').textContent =
+          tipologia || (u.dorms != null ? etiquetaDorms(u.dorms) : '');
         // Sin m² / precio cargados (null, no 0) se ocultan en vez de mostrar
         // "null m²" o un precio en cero — ver cargarProyecto().
         document.getElementById('p-m2-c').hidden = u.m2 == null;
         const pSup = document.getElementById('p-m2');
         pSup.textContent = '';
-        if (u.m2 != null) pSup.append(nodo('b', null, formatearM2(u.m2, proyecto.locale)), ' m²');
+        if (u.m2 != null) pSup.append(nodo('b', null, formatearM2(u.m2, proyecto.locale) + ' m²'));
+        // La orientación va en la barra y, sobre la foto, en la píldora.
         const orient = textoOrientacion(u);
         document.getElementById('p-orient-c').hidden = !orient;
-        const pOrient = document.getElementById('p-orient');
-        pOrient.textContent = '';
-        if (orient) pOrient.appendChild(nodo('b', null, orient));
+        document.getElementById('p-orient').textContent = orient;
+        document.getElementById('p-vista').hidden = !orient;
+        document.getElementById('p-vista-txt').textContent = orient;
         unidadAsol = u;
         actualizarAsoleamiento();
         // Alquiler: precio mensual en UYU (u.precioAlquiler), igual que en el
@@ -10300,18 +11342,33 @@
       addEventListener('keydown', e => { if (e.key === 'Escape') { ocultarTarjeta(); cerrar(); } });
       // Soltar después de arrastrar (girar el edificio) también dispara
       // click: sin esta guarda, terminar un giro sobre una unidad la abría
-      // y terminarlo en el vacío cerraba el panel.
-      let inicioClic = null;
-      lienzo.addEventListener('pointerdown', e => { inicioClic = { x: e.clientX, y: e.clientY }; });
-      // Ficha mobile desplegada: tocar una unidad no la pliega (ver el
+      // y terminarlo en el vacío cerraba el panel. Si el puntero se alejó más
+      // de UMBRAL_ARRASTRE px del pointerdown antes del pointerup, es un
+      // arrastre, no un clic. Se mide en el recorrido y no en el click: en
+      // táctil el click de un toque viene con las coordenadas del comienzo,
+      // y un arrastre corto del dedo abría la unidad.
+      const UMBRAL_ARRASTRE = 5;
+      let inicioClic = null, arrastreClic = 0;
+      lienzo.addEventListener('pointerdown', e => {
+        inicioClic = { x: e.clientX, y: e.clientY };
+        arrastreClic = 0;
+      });
+      function medirArrastre(e) {
+        if (!inicioClic) return;
+        arrastreClic = Math.max(arrastreClic, Math.hypot(e.clientX - inicioClic.x, e.clientY - inicioClic.y));
+      }
+      lienzo.addEventListener('pointerup', medirArrastre);
+      // Ficha mobile desplegada: el toque en sí no la pliega (ver el
       // pointerdown en captura junto a cerrarFicha()); arrastrar el edificio
-      // o tocar el vacío sí, como antes.
+      // o tocar el vacío sí, como antes, y tocar una unidad también, porque
+      // abre el panel (ver abrir()).
       lienzo.addEventListener('pointermove', e => {
-        if (arrastrando && inicioClic && ficha.classList.contains('abierta') &&
-          Math.hypot(e.clientX - inicioClic.x, e.clientY - inicioClic.y) > 8) cerrarFicha();
+        if (!arrastrando) return;
+        medirArrastre(e);
+        if (arrastreClic > UMBRAL_ARRASTRE && ficha.classList.contains('abierta')) cerrarFicha();
       });
       lienzo.addEventListener('click', e => {
-        if (inicioClic && Math.hypot(e.clientX - inicioClic.x, e.clientY - inicioClic.y) > 8) return;
+        if (arrastreClic > UMBRAL_ARRASTRE) return;
         // Táctil: el rayo sale del punto tocado (no hay hover que lo haya
         // calculado antes). Lo mismo con el hover en pausa (otro clic sin
         // mover el mouse después de elegir una unidad): si no, ese clic
@@ -10326,10 +11383,17 @@
         }
         if (caja) {
           pausarHover(e);
-          // Primero la tarjeta; con el panel ya abierto se pasa directo a la
-          // otra unidad.
-          if (elegida) abrir(caja.userData.unidad, true);
-          else seleccionar(caja);
+          // El clic abre el panel directo (la tarjeta queda solo para la demo
+          // del showroom, y si estaba a la vista se va). Con el panel abierto
+          // en otra unidad, abrir() cambia el contenido en el lugar, sin
+          // cerrarlo; en la misma solo la vuelve a encuadrar: un doble clic no
+          // cuenta dos aperturas en Demanda.
+          const u = caja.userData.unidad;
+          if (elegida && elegida.id === u.id) { enfocar(u); return; }
+          // Solo si está: ocultarTarjeta() suelta el hover (sobre = null) y,
+          // con el hover en pausa, el cursor quedaba de mano sobre el vacío.
+          if (cajaTarjeta) ocultarTarjeta();
+          abrir(u, true);
           return;
         }
         ocultarTarjeta();
@@ -10394,11 +11458,12 @@
          próxima vuelta.
          ============================================================ */
       const CAMPOS_AL_DIA = ['estado', 'precio', 'precioAlquiler', 'estimado', 'm2', 'm2Terraza', 'cocheraPrecio', 'orient', 'typologyId'];
-      // Media de tipologías + nombres para el comprador, para saber si algo cambió.
-      const firmaTipologias = (media, nombres) =>
+      // Media de tipologías + nombres para el comprador + título y texto del
+      // panel, para saber si algo cambió.
+      const firmaTipologias = (media, nombres, textos) =>
         (media || []).map(m => [m.id, m.typology_id, m.tipo, m.url, m.orden].join(' ')).join('|') +
-        '#' + JSON.stringify(Object.entries(nombres).sort());
-      let firmaTip = firmaTipologias(mediaTipologias, NOMBRES_TIPOLOGIA), refrescando = false;
+        '#' + JSON.stringify(Object.entries(nombres).sort()) + '#' + JSON.stringify(Object.entries(textos).sort());
+      let firmaTip = firmaTipologias(mediaTipologias, NOMBRES_TIPOLOGIA, TEXTOS_TIPOLOGIA), refrescando = false;
       async function refrescarDatos() {
         if (refrescando) return;
         refrescando = true;
@@ -10424,12 +11489,14 @@
         });
         // Si falla solo esta, quedan los nombres que había (como en la carga).
         const nombres = rT.error ? NOMBRES_TIPOLOGIA : nombresPublicosDe(rT.data);
-        const firma = firmaTipologias(rM.data, nombres);
+        const textos = rT.error ? TEXTOS_TIPOLOGIA : textosTipologiaDe(rT.data);
+        const firma = firmaTipologias(rM.data, nombres, textos);
         const cambioTipologias = firma !== firmaTip;
         if (cambioTipologias) {
           firmaTip = firma;
           agruparMediaTipologias(rM.data);
           NOMBRES_TIPOLOGIA = nombres;
+          TEXTOS_TIPOLOGIA = textos;
         }
         if (!cambiadas.size && !cambioTipologias) return;
 
