@@ -3622,7 +3622,8 @@
 
     /* Galería de renders: overlay oscuro simple, una imagen a la vez. No hay
      miniaturas ni zoom a propósito — es un puñado de fotos del edificio,
-     no un catálogo, así que un carrusel liviano alcanza. */
+     no un catálogo, así que un carrusel liviano alcanza. Zoom solo cuando
+     se abre desde el plano del panel (.con-zoom, más abajo). */
     #renders-modal {
       position: fixed;
       inset: 0;
@@ -3712,6 +3713,87 @@
       padding: 5px 12px;
       border-radius: 20px;
       font-variant-numeric: tabular-nums;
+    }
+
+    /* Zoom del plano (solo abierto desde el panel, ver zoomGaleria en el
+       script): el modal se queda con todos los gestos, así que ni la página
+       ni el navegador hacen zoom o scroll detrás. La imagen se mueve con un
+       único transform desde su esquina; el resto del modal es el de siempre. */
+    #renders-modal.con-zoom {
+      touch-action: none;
+      overscroll-behavior: contain;
+    }
+
+    #renders-modal.con-zoom #renders-img {
+      transform-origin: 0 0;
+      will-change: transform;
+      cursor: zoom-in;
+      -webkit-user-drag: none;
+      -webkit-touch-callout: none;
+    }
+
+    #renders-modal.con-zoom #renders-img.ampliada {
+      cursor: grab
+    }
+
+    #renders-modal.con-zoom.arrastrando #renders-img {
+      cursor: grabbing
+    }
+
+    /* Ampliada, la imagen pasa por debajo de los controles: quedan arriba y
+       con fondo oscuro, para leerse también sobre el blanco del plano. */
+    #renders-modal.con-zoom #renders-cerrar,
+    #renders-modal.con-zoom #renders-prev,
+    #renders-modal.con-zoom #renders-next,
+    #renders-modal.con-zoom #renders-contador {
+      z-index: 1
+    }
+
+    #renders-modal.con-zoom #renders-cerrar,
+    #renders-modal.con-zoom #renders-prev,
+    #renders-modal.con-zoom #renders-next {
+      background: rgba(15, 19, 21, .55)
+    }
+
+    #renders-modal.con-zoom #renders-cerrar:hover,
+    #renders-modal.con-zoom #renders-prev:hover,
+    #renders-modal.con-zoom #renders-next:hover {
+      background: rgba(15, 19, 21, .8)
+    }
+
+    #renders-modal.con-zoom #renders-cerrar {
+      top: 14px;
+      right: 14px;
+      width: 44px;
+      height: 44px;
+      font-size: 22px
+    }
+
+    /* "Pellizcá para ampliar": la primera vez en táctil, 2 s, sobre el
+       contador. No recibe toques. */
+    #renders-pista {
+      position: absolute;
+      left: 50%;
+      bottom: 60px;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px 8px 12px;
+      border-radius: 20px;
+      background: rgba(15, 19, 21, .6);
+      color: #fff;
+      font-size: 13px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, 6px);
+      transition: opacity .3s var(--ease), transform .3s var(--ease);
+    }
+
+    #renders-pista.visible {
+      opacity: 1;
+      transform: translate(-50%, 0)
     }
 
     /* ============================================================
@@ -5999,6 +6081,13 @@
       </svg>
     </button>
     <span id="renders-contador"></span>
+    <span id="renders-pista" aria-hidden="true">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7" />
+      </svg>
+      Pellizcá para ampliar
+    </span>
   </div>
 
   <!-- Avance de obra: sección propia, no un panel — pantalla completa sobre
@@ -7004,23 +7093,335 @@
       const btnNext = document.getElementById('renders-next');
       let lista = [], indice = 0;
 
+      /* Zoom del plano: pellizco, arrastre, doble toque/doble click, rueda y
+         deslizar hacia abajo para cerrar. Solo si lo pide quien abre (el
+         plano del panel, ver ampliarPlano()): los renders del edificio y las
+         fotos de obra siguen siendo el carrusel de siempre. Un único
+         transform, translate(x, y) scale(s) con origen en la esquina de la
+         imagen, escrito en requestAnimationFrame. Coordenadas en px del
+         modal, que con inset 0 son las de la pantalla (clientX/Y). */
+      const zoomGaleria = (() => {
+        const ZOOM_MAX = 4, ZOOM_DOBLE = 2.5;
+        const MS_VOLVER = 200;      // soltar debajo de 1x, o fuera de los bordes
+        const MS_DOBLE = 250;       // doble toque / doble click
+        const MS_SALIDA = 180;      // la imagen sigue bajando al cerrar deslizando
+        const MS_ENTRE_TOQUES = 300, DIST_TOQUE = 10, DIST_DOBLE = 30;
+        const ELASTICO = .35;       // cuánto sigue al dedo pasado el borde
+        const reducir = matchMedia('(prefers-reduced-motion: reduce)');
+        const tactil = matchMedia('(hover: none)');
+        const pista = document.getElementById('renders-pista');
+        let activo = false;
+        // Estado mostrado: escala, traslación, opacidad del fondo y de la imagen.
+        let s = 1, x = 0, y = 0, velo = 1, op = 1;
+        let cuadro = 0, anim = null, cerrando = false;
+        const punteros = new Map();   // pointerId → { x, y }
+        let gesto = null, toqueLimpio = false, ultimoToque = null;
+        let pistaReloj = 0, pistaVista = false;
+
+        const ampliada = () => s > 1.001;
+        const elastico = (v, a, b) => v < a ? a - (a - v) * ELASTICO : v > b ? b + (v - b) * ELASTICO : v;
+        // La inversa: para seguir arrastrando desde una imagen que ya quedó
+        // pasada del borde (un pellizco contra el costado) sin que salte.
+        const desElastico = (v, a, b) => v < a ? a - (a - v) / ELASTICO : v > b ? b + (v - b) / ELASTICO : v;
+
+        // La caja de la imagen sin transformar (offset* ignora el transform).
+        function medir() {
+          return {
+            L: imgEl.offsetLeft, T: imgEl.offsetTop, W: imgEl.offsetWidth, H: imgEl.offsetHeight,
+            VW: modal.clientWidth, VH: modal.clientHeight
+          };
+        }
+        // Traslación permitida en un eje: más grande que la pantalla, sin
+        // dejar ver fondo de ese lado; más chica, centrada.
+        function rango(L, tam, V) {
+          if (tam >= V) return [V - L - tam, -L];
+          const c = (V - tam) / 2 - L;
+          return [c, c];
+        }
+        function limites(sc, m) {
+          return { x: rango(m.L, m.W * sc, m.VW), y: rango(m.T, m.H * sc, m.VH) };
+        }
+        function dentro(sc, tx, ty, m) {
+          const l = limites(sc, m);
+          return {
+            x: Math.min(l.x[1], Math.max(l.x[0], tx)),
+            y: Math.min(l.y[1], Math.max(l.y[0], ty))
+          };
+        }
+        // Traslación que deja quieto bajo (fx, fy) el punto de la imagen que
+        // hoy está ahí, al pasar de la escala actual a `sc`.
+        function fijandoPunto(sc, fx, fy, m) {
+          const k = sc / s;
+          return { x: fx - m.L - k * (fx - m.L - x), y: fy - m.T - k * (fy - m.T - y) };
+        }
+
+        function escribir() {
+          imgEl.style.transform = 'translate(' + x + 'px, ' + y + 'px) scale(' + s + ')';
+          imgEl.style.opacity = op < 1 ? op : '';
+          modal.style.backgroundColor = velo < 1 ? 'rgba(15, 19, 21, ' + (.92 * velo).toFixed(3) + ')' : '';
+          imgEl.classList.toggle('ampliada', ampliada());
+        }
+        function pintar(ahora) {
+          cuadro = 0;
+          let fin = null;
+          if (anim) {
+            const k = Math.min(1, Math.max(0, (ahora - anim.t0) / anim.ms));
+            const e = 1 - Math.pow(1 - k, 3);
+            s = anim.de.s + (anim.a.s - anim.de.s) * e;
+            x = anim.de.x + (anim.a.x - anim.de.x) * e;
+            y = anim.de.y + (anim.a.y - anim.de.y) * e;
+            velo = anim.de.velo + (anim.a.velo - anim.de.velo) * e;
+            op = anim.de.op + (anim.a.op - anim.de.op) * e;
+            if (k < 1) pedirCuadro();
+            else { fin = anim.fin; anim = null; }
+          }
+          escribir();
+          if (fin) fin();
+        }
+        function pedirCuadro() { if (!cuadro) cuadro = requestAnimationFrame(pintar); }
+        // Ease-out cúbico hacia `a`; con movimiento reducido, directo.
+        function animarZoom(a, ms, fin) {
+          const destino = { s, x, y, velo: 1, op: 1, ...a };
+          if (reducir.matches) {
+            anim = null;
+            ({ s, x, y, velo, op } = destino);
+            escribir();
+            if (fin) fin();
+            return;
+          }
+          anim = { t0: performance.now(), ms, de: { s, x, y, velo, op }, a: destino, fin };
+          pedirCuadro();
+        }
+        // Al soltar: debajo de 1x vuelve a 1x; fuera de los bordes, rebota.
+        function asentar() {
+          if (s < 1) { animarZoom({ s: 1, x: 0, y: 0 }, MS_VOLVER); return; }
+          const d = dentro(s, x, y, medir());
+          if (Math.abs(d.x - x) > .5 || Math.abs(d.y - y) > .5 || velo < 1 || op < 1) animarZoom(d, MS_VOLVER);
+        }
+
+        function reiniciar() {
+          if (cuadro) cancelAnimationFrame(cuadro);
+          cuadro = 0; anim = null; cerrando = false;
+          punteros.clear(); gesto = null; ultimoToque = null;
+          s = 1; x = 0; y = 0; velo = 1; op = 1;
+          modal.classList.remove('arrastrando');
+          if (activo) escribir();
+          else {
+            imgEl.style.transform = imgEl.style.opacity = modal.style.backgroundColor = '';
+            imgEl.classList.remove('ampliada');
+          }
+        }
+        // Al abrir y al cerrar: siempre a 1x, sin pan.
+        function activar(conZoom) {
+          activo = conZoom;
+          modal.classList.toggle('con-zoom', conZoom);
+          reiniciar();
+          if (!conZoom) ocultarPista();
+        }
+
+        // Una vez por aparato (y, sin localStorage, una vez por visita).
+        function mostrarPista() {
+          if (!activo || !tactil.matches || pistaVista) return;
+          pistaVista = true;
+          try {
+            if (localStorage.getItem('cota_pista_zoom')) return;
+            localStorage.setItem('cota_pista_zoom', '1');
+          } catch { /* sin localStorage alcanza con la de esta visita */ }
+          pista.classList.add('visible');
+          pistaReloj = setTimeout(ocultarPista, 2000);
+        }
+        function ocultarPista() {
+          clearTimeout(pistaReloj);
+          pista.classList.remove('visible');
+        }
+
+        // Un dedo (o el mouse): arrastre si está ampliada; a 1x, en táctil,
+        // deslizar hacia abajo cierra. Se decide al pasar DIST_TOQUE.
+        function empezarUno(id, p, tipo, enFondo) {
+          gesto = { modo: null, id, x0: p.x, y0: p.y, sx: x, sy: y, t0: performance.now(), tipo, enFondo, m: medir() };
+        }
+        function empezarArrastre(g) {
+          g.modo = 'mover';
+          const l = limites(s, g.m);
+          g.sx = desElastico(x, l.x[0], l.x[1]);
+          g.sy = desElastico(y, l.y[0], l.y[1]);
+          if (g.tipo === 'mouse') modal.classList.add('arrastrando');
+        }
+        function empezarPellizco() {
+          const [a, b] = [...punteros.values()];
+          velo = 1; op = 1;
+          gesto = {
+            modo: 'pellizco', d0: Math.hypot(b.x - a.x, b.y - a.y) || 1,
+            mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, s0: s, x0: x, y0: y, m: medir()
+          };
+          toqueLimpio = false;
+        }
+
+        modal.addEventListener('pointerdown', e => {
+          if (!activo || cerrando || e.target.closest('button')) return;
+          if (e.pointerType === 'mouse' && e.button !== 0) return;
+          // Imagen sin cargar todavía, o un tercer dedo: nada que hacer.
+          if (!imgEl.offsetWidth || punteros.size >= 2) return;
+          e.preventDefault();   // sin el arrastre nativo de la imagen ni selección
+          try { modal.setPointerCapture(e.pointerId); } catch { /* ya no está */ }
+          ocultarPista();
+          anim = null;          // un toque frena la animación donde esté
+          punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (punteros.size === 1) {
+            toqueLimpio = true;
+            empezarUno(e.pointerId, punteros.get(e.pointerId), e.pointerType, e.target === modal);
+          } else empezarPellizco();
+        });
+
+        modal.addEventListener('pointermove', e => {
+          const p = punteros.get(e.pointerId);
+          if (!p || !gesto) return;
+          p.x = e.clientX; p.y = e.clientY;
+          const g = gesto, m = g.m;
+
+          if (g.modo === 'pellizco') {
+            const [a, b] = [...punteros.values()];
+            let sc = g.s0 * Math.hypot(b.x - a.x, b.y - a.y) / g.d0;
+            // Hasta 4x firme; debajo de 1x se deja achicar con resistencia y
+            // vuelve al soltar.
+            sc = Math.min(ZOOM_MAX, sc < 1 ? Math.max(.5, 1 - (1 - sc) * .6) : sc);
+            // El punto que estaba entre los dedos al empezar sigue entre los
+            // dedos: zoom centrado ahí y pan si los dos se mueven juntos.
+            const k = sc / g.s0, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+            s = sc;
+            x = mx - m.L - k * (g.mx - m.L - g.x0);
+            y = my - m.T - k * (g.my - m.T - g.y0);
+            pedirCuadro();
+            return;
+          }
+
+          const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+          if (!g.modo) {
+            if (Math.hypot(dx, dy) < DIST_TOQUE) return;
+            toqueLimpio = false;
+            if (ampliada()) empezarArrastre(g);
+            else if (g.tipo !== 'mouse' && dy > Math.abs(dx)) {
+              g.modo = 'bajar';
+              g.vy = 0; g.ty = e.clientY; g.tt = performance.now();
+            } else g.modo = 'nada';
+          }
+          if (g.modo === 'mover') {
+            const l = limites(s, m);
+            x = elastico(g.sx + dx, l.x[0], l.x[1]);
+            y = elastico(g.sy + dy, l.y[0], l.y[1]);
+            pedirCuadro();
+          } else if (g.modo === 'bajar') {
+            const ahora = performance.now();
+            if (ahora > g.tt) g.vy = .8 * (e.clientY - g.ty) / (ahora - g.tt) + .2 * g.vy;
+            g.ty = e.clientY; g.tt = ahora;
+            // La imagen sigue al dedo y se achica apenas, desde su centro;
+            // el fondo se va aclarando. Hacia arriba casi no se mueve.
+            const avance = Math.min(1, Math.max(0, dy) / (m.VH * .45));
+            s = 1 - .12 * avance;
+            x = dx + m.W * (1 - s) / 2;
+            y = (dy > 0 ? dy : dy * .2) + m.H * (1 - s) / 2;
+            velo = 1 - .85 * avance;
+            pedirCuadro();
+          }
+        });
+
+        function soltar(e) {
+          if (!punteros.delete(e.pointerId) || !gesto) return;
+          if (gesto.modo === 'pellizco') {
+            if (punteros.size === 1) {
+              // Queda un dedo: sigue arrastrando desde donde quedó.
+              const [[id, p]] = punteros;
+              empezarUno(id, p, e.pointerType, false);
+              if (ampliada()) empezarArrastre(gesto); else gesto.modo = 'nada';
+              return;
+            }
+          }
+          if (punteros.size) return;
+          const g = gesto;
+          gesto = null;
+          modal.classList.remove('arrastrando');
+          if (e.type === 'pointercancel') { asentar(); return; }
+
+          if (g.modo === 'bajar') {
+            const dy = e.clientY - g.y0;
+            if (dy > Math.min(140, g.m.VH * .2) || (g.vy > .6 && dy > 40)) {
+              cerrando = true;
+              animarZoom({ s, x, y: y + g.m.VH * .25, velo: 0, op: 0 }, MS_SALIDA, cerrar);
+            } else animarZoom({ s: 1, x: 0, y: 0 }, MS_VOLVER);
+            return;
+          }
+          if (toqueLimpio && performance.now() - g.t0 < 400) tocar(e.clientX, e.clientY, g.enFondo);
+          else asentar();
+        }
+        modal.addEventListener('pointerup', soltar);
+        modal.addEventListener('pointercancel', soltar);
+
+        // Doble toque (o doble click): 1x ↔ 2.5x en el punto tocado. Un toque
+        // suelto en el fondo oscuro cierra, como siempre; con la imagen
+        // ampliada no (lo que queda de fondo es el costado de la imagen).
+        function tocar(fx, fy, enFondo) {
+          const ahora = performance.now();
+          const doble = ultimoToque && ahora - ultimoToque.t < MS_ENTRE_TOQUES &&
+            Math.hypot(fx - ultimoToque.x, fy - ultimoToque.y) < DIST_DOBLE;
+          if (doble) {
+            ultimoToque = null;
+            if (ampliada()) { animarZoom({ s: 1, x: 0, y: 0 }, MS_DOBLE); return; }
+            const m = medir(), t = fijandoPunto(ZOOM_DOBLE, fx, fy, m);
+            animarZoom({ s: ZOOM_DOBLE, ...dentro(ZOOM_DOBLE, t.x, t.y, m) }, MS_DOBLE);
+            return;
+          }
+          ultimoToque = { t: ahora, x: fx, y: fy };
+          if (enFondo && !ampliada()) cerrar();
+        }
+
+        // Rueda (y el pellizco del trackpad, que llega como rueda con
+        // ctrlKey): centrado en el cursor, entre 1x y 4x.
+        modal.addEventListener('wheel', e => {
+          if (!activo) return;
+          e.preventDefault();   // ctrl + rueda tampoco amplía la página
+          if (cerrando || gesto || !imgEl.offsetWidth) return;
+          ocultarPista();
+          anim = null;
+          const px = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? modal.clientHeight : 1;
+          const sc = Math.min(ZOOM_MAX, Math.max(1, s * Math.exp(-e.deltaY * px * (e.ctrlKey ? .01 : .0015))));
+          if (sc === s) return;
+          const m = medir(), t = fijandoPunto(sc, e.clientX, e.clientY, m);
+          s = sc;
+          ({ x, y } = dentro(sc, t.x, t.y, m));
+          pedirCuadro();
+        }, { passive: false });
+        // Safari (iOS y el trackpad de macOS) amplía la página con sus propios
+        // eventos de gesto, aparte de los pointer events.
+        modal.addEventListener('gesturestart', e => { if (activo) e.preventDefault(); });
+
+        // Girar el teléfono cambia la caja de la imagen: vuelve a 1x.
+        addEventListener('resize', () => { if (activo && !modal.hidden) reiniciar(); });
+
+        return { activar, reiniciar, mostrarPista };
+      })();
+
       function mostrarIndice(i) {
         indice = i;
         imgEl.src = lista[indice].url;
         contador.textContent = (indice + 1) + ' / ' + lista.length;
         btnPrev.disabled = indice === 0;
         btnNext.disabled = indice === lista.length - 1;
+        zoomGaleria.reiniciar();
       }
-      function abrir(nuevaLista, indiceInicial) {
+      // { zoom: true }: pellizco y demás (ver zoomGaleria). Hoy, solo el plano.
+      function abrir(nuevaLista, indiceInicial, opciones) {
         if (!nuevaLista.length) return;
         lista = nuevaLista;
+        zoomGaleria.activar(!!(opciones && opciones.zoom));
         mostrarIndice(indiceInicial || 0);
         modal.hidden = false;
         document.addEventListener('keydown', alTeclado);
+        zoomGaleria.mostrarPista();
       }
       function cerrar() {
         modal.hidden = true;
         document.removeEventListener('keydown', alTeclado);
+        zoomGaleria.activar(false);
       }
       function alTeclado(e) {
         // Esc cierra solo el lightbox: que no llegue al de la unidad (en
@@ -7031,7 +7432,9 @@
       }
 
       document.getElementById('renders-cerrar').addEventListener('click', cerrar);
-      modal.addEventListener('click', e => { if (e.target === modal) cerrar(); });
+      // Con zoom el toque en el fondo lo resuelve zoomGaleria: el click llega
+      // también después de un arrastre que termina afuera de la imagen.
+      modal.addEventListener('click', e => { if (e.target === modal && !modal.classList.contains('con-zoom')) cerrar(); });
       btnPrev.addEventListener('click', () => { if (indice > 0) mostrarIndice(indice - 1); });
       btnNext.addEventListener('click', () => { if (indice < lista.length - 1) mostrarIndice(indice + 1); });
 
@@ -10312,7 +10715,7 @@
       // "Ver plano" y la tarjeta abren el lightbox de siempre en la planta, y
       // desde ahí se sigue a los renders de la tipología.
       function ampliarPlano() {
-        if (elegida && intro.plano.dataset.estado !== 'vacio') galeria.abrir(mediaDeUnidad(elegida), 0);
+        if (elegida && intro.plano.dataset.estado !== 'vacio') galeria.abrir(mediaDeUnidad(elegida), 0, { zoom: true });
       }
       intro.ver.addEventListener('click', ampliarPlano);
       intro.plano.addEventListener('click', () => { if (intro.plano.dataset.estado === 'listo') ampliarPlano(); });
