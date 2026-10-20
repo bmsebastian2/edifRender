@@ -56,6 +56,8 @@ const controles = [
   ['Un arrastre que termina sobre una unidad no la abre (recorrido medido entre pointerdown y pointerup, no en el click; UMBRAL_ARRASTRE entre 3 y 8 px; encontrado: ' + (umbral || 'nada') + ')',
     /arrastreClic > UMBRAL_ARRASTRE\) return/.test(click) && medir.includes('Math.hypot(') &&
     /lienzo\.addEventListener\('pointerup', medirArrastre\)/.test(html) && umbral >= 3 && umbral <= 8],
+  ['Un pellizco (dos dedos en el lienzo) no abre ni cierra nada: el segundo dedo vuelve todo el gesto un arrastre',
+    /if \(dedos\.size > 1\) \{ arrastreClic = Infinity; return; \}/.test(html)],
   ['Un clic en el vacío cierra el panel',
     click.includes('cerrar()')],
   ['Con el panel abierto, otra unidad cambia el contenido en el lugar y el scroll vuelve a 0',

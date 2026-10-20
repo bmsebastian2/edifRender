@@ -219,8 +219,12 @@ El script está organizado en secciones numeradas:
    del edificio, radio escalado según la altura del edificio y el aspecto de la
    pantalla; rotación automática lenta (una vuelta cada 80 s) desde el arranque, que se
    corta con cualquier interacción y vuelve tras `INACTIVIDAD_MS` (6 s) sin actividad,
-   salvo con un panel, hoja, tarjeta o piso aislado abierto (`puedeGirar()`). Los controles del
-   simulador solar también viven acá.
+   salvo con un panel, hoja, tarjeta o piso aislado abierto (`puedeGirar()`). Arrastre con
+   un dedo (o el mouse) = giro; en táctil, el pellizco con dos dedos acerca o aleja hacia
+   el objetivo con los límites de la rueda (`radio` 34–190, vía `ubicarCamara()`; los
+   punteros en `dedos`, el pellizco vuelve a medir cada vez que cambia la cantidad y el
+   dedo que queda sigue girando sin salto). Los controles del simulador solar también
+   viven acá.
 5. **INTERACCIÓN** — hover (tooltip con resumen + emissive) y click (`abrir(u)`). Los
    filtros (chips de dormitorios armados desde los datos, chips de estado, torre, aislar
    piso, "separar pisos") pasan todos por `pasa(u)` / `aplicar()`, que atenúan/desactivan
@@ -276,7 +280,8 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   deslizarse) y el scroll del panel vuelve a 0. X, Escape o un click en el vacío lo
   cierran. Un arrastre de más de `UMBRAL_ARRASTRE` (5 px) entre `pointerdown` y
   `pointerup` no abre ni cierra nada (se mide en el recorrido: en táctil el click trae
-  las coordenadas del comienzo del toque).
+  las coordenadas del comienzo del toque). Un pellizco tampoco: el segundo dedo en el
+  lienzo pone `arrastreClic` en `Infinity`.
   `#tarjeta-unidad` (`seleccionar(caja)`) queda solo para la demo del showroom: en
   desktop va `.anclada` a la unidad (aspecto de
   tooltip, la sigue si se gira el edificio; `ubicarTarjeta()` en el bucle) con "Click
@@ -303,7 +308,7 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   interpola giro/phi/radio/objetivo con los mismos límites que el arrastre). **Brújula**
   (solo con `norte_grados`): `anguloNorte(giro)` proyecta el norte del modelo
   `(−sin N, −cos N)` girado por `giro` sobre la pantalla con la cámara en `theta`; click
-  = norte arriba. En mobile queda solo la brújula.
+  = norte arriba. En mobile queda solo la brújula (el zoom es el pellizco, ver CÁMARA).
 
 ### Modo showroom (kiosco)
 
@@ -392,7 +397,12 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   (se leen si la vista las trae, como `nombre_publico`). El plano es la primera planta de
   la tipología (`media` con `scope='typology'`), con `mix-blend-mode: multiply` para que el
   blanco del dibujo tome el tono de la tarjeta; "Ver plano" o la tarjeta abren el lightbox
-  `galeria` (planta y después los renders de la tipología). Sin planta o si no carga:
+  `galeria` (planta y después los renders de la tipología) con zoom (`zoomGaleria`, solo
+  abierto así, `{ zoom: true }`): pellizco 1–4x en el punto medio de los dedos, arrastre
+  con rebote en los bordes, doble toque/doble clic 1x ↔ 2.5x, rueda en desktop, deslizar
+  hacia abajo a 1x cierra, y "Pellizcá para ampliar" la primera vez en táctil
+  (`localStorage` `cota_pista_zoom`). "Ver renders" y las fotos de obra siguen sin zoom.
+  Sin planta o si no carga:
   estado vacío del mismo tamaño (grilla de plano) con "Solicitar plano", el WhatsApp de
   `settings.whatsapp` con otro mensaje; no va en kiosco, sin WhatsApp ni en
   vendida/reservada (como la consulta del pie). Nunca un esquema dibujado desde m²/dorms
@@ -486,7 +496,8 @@ modifica, se actualizan el script y esta sección en el mismo commit.
    panel nunca lo cierra.
 5. `?u=<id>` abre el panel directo, con la cámara frente a la unidad.
 6. El giro automático no corre con tarjeta o panel abiertos y no pelea con la cámara; un
-   arrastre (más de `UMBRAL_ARRASTRE`, 5 px) que termina sobre una unidad no la abre.
+   arrastre (más de `UMBRAL_ARRASTRE`, 5 px) que termina sobre una unidad no la abre, y un
+   pellizco con dos dedos no abre ni cierra nada (desde 2026-10-20).
 7. Encuadre: la unidad queda en lo que dejan libre la tarjeta o el panel; funciona en las
    dos torres de BRUSCO (no asume una torre centrada en el origen); en celular entran al
    menos 40 m de ancho (sin primer plano).
@@ -808,12 +819,6 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
   puede ocultar).
 - `supabase-js` se carga como `@supabase/supabase-js@2` desde jsdelivr, sin versión
   fija.
-- Zoom con dos dedos en táctil. Hoy en celular (≤ 860 px) **no hay zoom**: la toolbar se
-  reduce a la brújula (`.hr-grupo` oculto, sin `+` / `−`) y no hay pellizco; el arrastre
-  solo gira y cambia `phi`. En tablet y desktop están los botones, y la rueda en desktop.
-  El comentario del CSS de la toolbar mobile ("se acerca con gestos") describe algo que no
-  existe. Al hacerlo: mismos límites que la rueda (`radio` 34–190) vía `ubicarCamara()`, y
-  que un pellizco no cuente como arrastre que selecciona.
 - El contador de la tarjeta del proyecto se configura con `CONTADOR_EN_TARJETA` en
   `api/_tarjeta.js` (por slug). Pasarlo a una columna de `settings` / `public_settings`
   necesita migración.

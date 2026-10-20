@@ -9690,13 +9690,45 @@
 
       const lienzo = render.domElement;
       lienzo.style.cursor = 'grab';
+      // Punteros apoyados en el lienzo. Con uno se gira; con dos, el pellizco
+      // acerca o aleja la cámara hacia el objetivo, como la rueda (radio
+      // 34–190). Cada vez que cambia la cantidad de dedos el pellizco vuelve
+      // a medir desde ahí, y el dedo que queda sigue girando sin salto. Un
+      // pellizco nunca cuenta como clic (ver arrastreClic, más abajo).
+      const dedos = new Map();
+      let pellizco = null;
+      function distanciaDedos() {
+        const [a, b] = [...dedos.values()];
+        return Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      }
+      function contarDedos() {
+        pellizco = dedos.size >= 2 ? { d0: distanciaDedos(), r0: radio } : null;
+        arrastrando = dedos.size > 0;
+        if (dedos.size === 1) ultimo = { ...dedos.values().next().value };
+      }
       lienzo.addEventListener('pointerdown', e => {
-        arrastrando = true;
-        ultimo = { x: e.clientX, y: e.clientY };
+        // El primero de un gesto: no hay otro dedo apoyado, así que un
+        // pointerup perdido no deja un dedo fantasma que lo vuelva pellizco.
+        if (e.isPrimary) dedos.clear();
+        dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        contarDedos();
         lienzo.setPointerCapture(e.pointerId);
       });
-      lienzo.addEventListener('pointerup', e => { arrastrando = false; lienzo.releasePointerCapture(e.pointerId); });
+      function soltarDedo(e) {
+        if (!dedos.delete(e.pointerId)) return;
+        if (lienzo.hasPointerCapture(e.pointerId)) lienzo.releasePointerCapture(e.pointerId);
+        contarDedos();
+      }
+      lienzo.addEventListener('pointerup', soltarDedo);
+      lienzo.addEventListener('pointercancel', soltarDedo);
       lienzo.addEventListener('pointermove', e => {
+        const dedo = dedos.get(e.pointerId);
+        if (dedo) { dedo.x = e.clientX; dedo.y = e.clientY; }
+        if (pellizco) {
+          radio = Math.max(34, Math.min(190, pellizco.r0 * pellizco.d0 / distanciaDedos()));
+          ubicarCamara();
+          return;
+        }
         const dx = e.clientX - ultimo.x, dy = e.clientY - ultimo.y;
         ultimo = { x: e.clientX, y: e.clientY };
         // Signo invertido respecto al theta -= de antes: acá lo que gira es
@@ -11753,6 +11785,10 @@
       const UMBRAL_ARRASTRE = 5;
       let inicioClic = null, arrastreClic = 0;
       lienzo.addEventListener('pointerdown', e => {
+        // Un segundo dedo en el lienzo (pellizco; `dedos` ya lo contó, ver el
+        // giro) no arranca otro clic: el gesto entero pasa a ser un arrastre
+        // y al soltar no abre ni cierra nada.
+        if (dedos.size > 1) { arrastreClic = Infinity; return; }
         inicioClic = { x: e.clientX, y: e.clientY };
         arrastreClic = 0;
       });
