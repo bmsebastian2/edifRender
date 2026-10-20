@@ -175,6 +175,18 @@ antes), y actualizar `supabase-schema.sql` solo si es para instalaciones nuevas.
 
 ## Arquitectura de `index.html`
 
+Nada bloquea el primer render (desde 2026-10-20; Lighthouse: FCP de 3,6 a 1,5 s): los
+scripts externos (three, líneas, supabase, `supabase-config.js`, `amenities-iconos.js`)
+van en el `<head>` con `defer`, y la hoja de Fraunces con `media="print"` +
+`onload`. El script principal es `<script type="module">` al final del body: un inline
+no acepta `defer`, y un módulo entra en la misma cola, detrás de ellos. Por ser módulo
+es modo estricto y lo de primer nivel no es global: desde la consola (o un
+`Runtime.evaluate` por CDP) no se llega a `UNIDADES`, `abrir()`, etc. Un `<script>`
+nuevo sin `defer`/`async` o una hoja externa bloqueante vuelve a bloquear el primer
+render. El CSS queda inline a propósito: el overlay tapa todo, así que partirlo solo
+daba ~140 ms y abría una carrera con las mediciones del JS (`rectLibre()`,
+`ajustarResumen()`…).
+
 Secuencia de carga: un overlay `#carga` está visible desde el primer paint →
 `resolverSlug()` (path, después `?p=`, después `DEFAULT_SLUG = 'rosso'`) →
 `cargarProyecto()` trae el proyecto de `public_projects` y después, en paralelo,

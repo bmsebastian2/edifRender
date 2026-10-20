@@ -8,10 +8,34 @@
      un visitante que abrió el link de otro edificio. -->
   <title>Disponibilidad navegable</title>
   <!-- Fraunces: solo el titular del bloque de descripción del panel de la
-     unidad (.p-intro-tit). Sin red, Georgia. -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&display=swap">
+     unidad (.p-intro-tit). Sin red, Georgia. La hoja no bloquea el primer
+     render (media="print" hasta que llega): en la primera pantalla no hay
+     nada en Fraunces, y bloqueante costaba una conexión nueva a otro dominio
+     antes de pintar el overlay de carga (Lighthouse, 2026-10-20). Con
+     display=swap, un panel abierto antes de que llegue la fuente muestra el
+     título en Georgia y cambia solo. Sin preconnect: el archivo de la fuente
+     se pide recién cuando se pinta un título del panel. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&display=swap"
+    media="print" onload="this.media='all'">
+  <!-- Scripts con defer: se piden desde acá, al principio del HTML (antes de
+     ~150 KB de CSS y del markup, así la descarga arranca antes), pero corren
+     recién con el documento parseado, en este orden, y antes del script
+     principal (type="module", al final del body: entra en la misma cola,
+     detrás de estos). Así el overlay #carga se pinta sin esperarlos. -->
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- GLTFLoader y el decoder de meshopt no van acá: solo sirven para los
+       autos y se piden a pedido (ver cargadorGLTF en el script). -->
+  <!-- Líneas gruesas de r128 (mismo patrón clásico que GLTFLoader), para el
+       contorno de la unidad elegida: `linewidth` de LineBasicMaterial se
+       ignora y queda en 1 px físico. ~21 KB entre los tres; el orden importa
+       (LineSegments2 usa los otros dos). Si no cargan, el visor resalta la
+       elegida como antes (ver CONTORNO en el script). -->
+  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegmentsGeometry.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegments2.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script defer src="supabase-config.js"></script>
+  <script defer src="amenities-iconos.js"></script>
   <style>
     :root {
       --fondo: #F7F8F7;
@@ -6804,21 +6828,14 @@
     </div>
   </aside>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- GLTFLoader y el decoder de meshopt no van acá: solo sirven para los
-       autos y se piden a pedido (ver cargadorGLTF en el script). -->
-  <!-- Líneas gruesas de r128 (mismo patrón clásico que GLTFLoader), para el
-       contorno de la unidad elegida: `linewidth` de LineBasicMaterial se
-       ignora y queda en 1 px físico. ~21 KB entre los tres; el orden importa
-       (LineSegments2 usa los otros dos). Si no cargan, el visor resalta la
-       elegida como antes (ver CONTORNO en el script). -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegmentsGeometry.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegments2.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="supabase-config.js"></script>
-  <script src="amenities-iconos.js"></script>
-  <script>
+  <!-- type="module": corre después de los scripts con defer del <head>, que
+     tienen que estar ya ejecutados (THREE, sb, íconos). Un script inline no
+     acepta defer; un módulo sin async sí espera, en la misma cola y en orden
+     de documento. Diferencias con un <script> común: modo estricto (asignar a
+     una variable sin declarar tira error) y sus funciones y constantes de
+     primer nivel no son globales — desde la consola de DevTools ya no se
+     llega a UNIDADES, proyecto, abrir(), etc. -->
+  <script type="module">
     /* ============================================================
        1. DATOS — vienen de Supabase (tablas `public_units`/`public_projects`/
        `public_settings`/`public_amenities`, filtradas por proyecto). El estado
