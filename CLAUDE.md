@@ -247,12 +247,19 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   de `#piso-info`.
 - **Ficha** (`#ficha`): dirección, pisos (por torre si hay `geom.torre`, calculado en
   vivo), unidades, entrega y disponibilidad contada en vivo por `aspectoDe(u)`, solo
-  estados con unidades y solo si `muestra_totales`. En mobile se pliega a una píldora
-  con puntos + cifras y se despliega a pedido (arranca desplegada, salvo con `?u=` o
-  `?sol=`). Desplegada, abrir/usar Filtros o Pisos no
-  la pliega (pedido de Sebastian: los datos del edificio no desaparecen; `enfocar()`
-  encuadra debajo de ella, y el riel y Filtros se acomodan debajo vía `--fin-ficha`,
-  que mide `medirFinFicha()`); arrastrar el edificio, tocar el vacío, otra capa (sol,
+  estados con unidades y solo si `muestra_totales`. En mobile es una sola tarjeta
+  (desde 2026-10-20; antes era una píldora con la leyenda + una tarjeta aparte) que
+  plegada queda en tres renglones (≤ 80px): leyenda con chevron (si no entra,
+  etiquetas abreviadas: `ajustarResumen()`), barra proporcional y
+  "10 pisos · 78 u · Mar 2028 · 7 amenities ›" (`#fc-linea`; "amenities" abre la capa).
+  Desplegada (transición de altura, 180 ms) suma dirección y fila de amenities, y así
+  arranca (salvo con `?u=` o `?sol=`). Con el
+  panel abierto queda solo la leyenda: con los tres renglones la franja libre sobre la
+  hoja bajaba de 80px y `enfocar()` dejaba la unidad debajo de la ficha. Abrir/usar
+  Filtros o Pisos no la pliega (pedido de Sebastian: los datos del edificio no
+  desaparecen; `enfocar()` encuadra debajo de ella con `finFicha()`, y el riel y
+  Filtros van siempre debajo vía `--fin-ficha`, que mide `medirFinFicha()` con un
+  `ResizeObserver`); arrastrar el edificio, tocar el vacío, otra capa (sol,
   renders, avance), Escape o abrir el panel sí la pliegan. Tocar una unidad abre el
   panel, así que también la pliega (desde 2026-10-19; antes mostraba la tarjeta y no).
 - **Barra inferior única** (`#barra-inferior`): en desktop, desplegables Tipología /

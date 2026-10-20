@@ -291,9 +291,20 @@
       box-shadow: var(--sombra);
     }
 
-    /* Solo mobile (ver media query): la ficha plegada a su leyenda. */
-    #ficha-toggle {
+    /* Solo mobile (ver media query): el resumen plegado de la ficha. */
+    #ficha-toggle,
+    .fc-linea {
       display: none
+    }
+
+    /* Fuera de la vista, no del árbol de accesibilidad. */
+    .fc-lector {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap
     }
 
     .cb-direccion {
@@ -4271,50 +4282,69 @@
         height: 30px;
       }
 
-      /* Ficha: en mobile una tarjeta de 300px tapa medio edificio. Queda
-       plegada a una píldora con la leyenda de disponibilidad (puntos +
-       cifras, el nombre del estado va en aria-label) y se despliega a
-       pedido; el edificio manda (ver CLAUDE.md). #ficha es solo el ancla:
-       la píldora (#ficha-toggle) y la tarjeta desplegada (#ficha-cuerpo)
-       son dos superficies separadas, así abrir no cambia el tamaño de la
-       píldora y la tarjeta flota debajo con su propio ancho. */
+      /* Ficha: en mobile una tarjeta de 300px tapa medio edificio. Es una
+       sola tarjeta que plegada queda en tres renglones (≤ 80px): la
+       leyenda de disponibilidad (puntos + cifras, el nombre del estado va
+       en aria-label) con el chevron, la barra proporcional y los datos del
+       proyecto en una línea (#fc-linea). Desplegada suma la dirección y la
+       fila de amenities (#ficha-cuerpo), en el flujo: lo que viene debajo
+       (#piso-info) baja con ella. El edificio manda (ver CLAUDE.md). */
       #ficha {
         position: relative;
-        width: max-content;
-        max-width: calc(100% - 28px);
-        margin: 10px 0 0 14px;
-        padding: 0;
-        border: none;
-        border-radius: 0;
-        background: none;
-        box-shadow: none;
-      }
-
-      #ficha-toggle {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        width: 100%;
-        /* 36px + el borde que antes tenía #ficha: misma píldora de siempre. */
-        min-height: 38px;
-        padding: 8px 12px;
-        border: 1px solid var(--linea);
+        width: auto;
+        max-width: 400px;
+        margin: 10px 14px 0;
+        padding: 0 12px 10px;
         border-radius: 14px;
         background: rgba(255, 255, 255, .9);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        box-shadow: var(--sombra);
-        cursor: pointer;
-        font-size: 12.5px;
-        font-weight: 600;
-        color: var(--tinta);
       }
 
+      /* Renglones 1 y 2: la leyenda, el chevron y la barra. El botón llega
+       hasta los bordes de la tarjeta (margen negativo): todo el tercio de
+       arriba despliega, no solo el chevron. */
+      #ficha-toggle {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 7px 10px;
+        width: calc(100% + 24px);
+        margin: 0 -12px;
+        padding: 10px 12px 0;
+        border: none;
+        border-radius: 14px 14px 0 0;
+        background: none;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 18px;
+        color: var(--tinta);
+        text-align: left;
+      }
+
+      /* Un solo renglón: si las etiquetas no entran (pantallas angostas,
+       muchos estados) pasan a la versión corta (.compacta, ver
+       ajustarResumen()). */
       #ficha-resumen {
         display: flex;
-        flex-wrap: wrap;
-        gap: 4px 12px;
-        flex: 1;
+        gap: 12px;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      #ficha-resumen .aviso-item {
+        font-size: 13px
+      }
+
+      .ai-abrev,
+      #ficha-resumen.compacta .ai-largo {
+        display: none
+      }
+
+      #ficha-resumen.compacta .ai-abrev {
+        display: inline
       }
 
       #ficha-toggle .chev {
@@ -4327,67 +4357,143 @@
         transform: rotate(180deg)
       }
 
-      /* Tarjeta desplegada: apoyada debajo de la píldora, alineada a su
-       borde izquierdo y con el ancho de su contenido (nunca menos que la
-       píldora, nunca más de 280px). La leyenda ya está completa en la
-       píldora: la tarjeta trae solo los datos del proyecto. */
-      #ficha-cuerpo {
-        position: absolute;
-        top: calc(100% + 6px);
-        left: 0;
-        display: flex;
-        flex-direction: column;
-        width: max-content;
-        min-width: 100%;
-        max-width: min(280px, calc(100vw - 28px));
-        padding: 12px 14px 13px;
-        border: 1px solid var(--linea);
-        border-radius: 14px;
-        background: rgba(255, 255, 255, .9);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        box-shadow: var(--sombra);
-        transform-origin: top left;
-        opacity: 0;
-        visibility: hidden;
-        transform: translateY(-4px) scale(.98);
-        transition: opacity var(--t) var(--ease), transform var(--t) var(--ease), visibility 0s linear var(--t);
+      #ficha-barra {
+        grid-column: 1 / -1;
+        margin: 0;
+        border-radius: 999px;
+        overflow: hidden;
       }
 
-      #ficha.abierta #ficha-cuerpo {
-        opacity: 1;
-        visibility: visible;
-        transform: none;
-        transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
-      }
-
-      #ficha-cuerpo #aviso {
+      #ficha-barra:empty {
         display: none
       }
 
-      .cb-direccion[hidden]+.cb-datos {
-        margin-top: 0;
+      #ficha-barra span {
+        border-radius: 0
+      }
+
+      /* Renglón 3: pisos · unidades · entrega, cortado con "…" si no entra;
+       las amenities quedan siempre enteras al final. */
+      .fc-linea {
+        display: flex;
+        align-items: center;
+        margin-top: 7px;
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--suave);
+      }
+
+      .fc-linea[hidden],
+      .fc-amenities[hidden] {
+        display: none
+      }
+
+      .fc-datos {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .fc-datos b {
+        color: var(--tinta);
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* El área de toque crece hacia arriba, hacia abajo (hasta el borde de
+       la tarjeta) y a la derecha, sin mover el renglón: ~34px de alto. */
+      .fc-amenities {
+        display: flex;
+        flex: none;
+        align-items: center;
+        /* ~ un espacio entre "·", la cifra, la palabra y el chevron. */
+        gap: 4px;
+        margin: -7px -12px -9px 0;
+        padding: 7px 12px 9px 0;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 600;
+        color: var(--verde);
+        white-space: nowrap;
+      }
+
+      .fc-datos:not(:empty)~.fc-amenities::before {
+        content: "\00a0·";
+        font-weight: 400;
+        color: var(--suave);
+      }
+
+      .fc-amenities b {
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .fc-amenities .chev {
+        transform: rotate(-90deg)
+      }
+
+      /* Con el panel de una unidad abierto (hoja de hasta 74vh), la ficha
+       plegada queda solo en la leyenda, como la píldora de antes: con los
+       tres renglones, la franja libre entre ella y la hoja bajaba de 80px y
+       enfocar() dejaba la unidad debajo de la ficha. */
+      body:has(#panel.abierto) #ficha:not(.abierta) :is(#ficha-barra, .fc-linea) {
+        display: none
+      }
+
+      /* Desplegable: la altura va de 0 a la del contenido (grid 0fr → 1fr,
+       ~180 ms). #ficha-mas recorta lo que todavía no entra; el margen
+       lateral negativo deja lugar al fondo de la fila de amenities. */
+      #ficha-cuerpo {
+        display: grid;
+        grid-template-rows: 0fr;
+        visibility: hidden;
+        transition: grid-template-rows 180ms var(--ease), visibility 0s linear 180ms;
+      }
+
+      #ficha.abierta #ficha-cuerpo {
+        grid-template-rows: 1fr;
+        visibility: visible;
+        transition: grid-template-rows 180ms var(--ease);
+      }
+
+      #ficha-mas {
+        min-height: 0;
+        overflow: hidden;
+        margin: 0 -8px;
+        padding: 0 8px;
+        opacity: 0;
+        transition: opacity 180ms var(--ease);
+      }
+
+      #ficha.abierta #ficha-mas {
+        opacity: 1
+      }
+
+      /* La leyenda y los datos ya están arriba: desplegada, la ficha suma
+       solo la dirección y las amenities, separadas por una línea. */
+      #ficha-cuerpo #aviso,
+      #ficha-cuerpo .cb-datos {
+        display: none
+      }
+
+      .cb-direccion,
+      .cb-extra {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--linea);
+      }
+
+      .cb-direccion:not([hidden])~.cb-extra {
+        margin-top: 4px;
         padding-top: 0;
         border-top: none;
       }
 
-      /* Los divisores verticales entre pisos/unidades/entrega asumen que las
-       tres celdas entran en un renglón; en mobile pueden envolver a una
-       segunda línea y un divisor colgando al final de un renglón envuelto
-       se ve como un error. Más simple: en mobile no hay divisores, el gap
-       solo ya separa cada celda. */
-      .cb-datos {
-        gap: 10px 14px
-      }
-
-      .cb-div {
-        display: none
-      }
-
-      /* La leyenda ya está en la píldora: desplegada, la ficha muestra la
-       lista con nombres pero no repite la barra. */
-      .aviso-barra {
-        display: none
+      .cb-amenities {
+        margin: 0 -8px
       }
 
       /* Filtros: en desktop es un panel siempre visible abajo a la izquierda;
@@ -4590,7 +4696,8 @@
         z-index: 20;
         width: auto;
         max-width: none;
-        max-height: calc(100vh - var(--alto-barra) - 140px);
+        /* No sube más que hasta la ficha (convive con ella, ver #pisos). */
+        max-height: calc(100vh - var(--fin-ficha, 146px) - 8px - 68px - env(safe-area-inset-bottom));
         padding: 12px 12px 4px;
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -4840,21 +4947,23 @@
        recorre piso por piso con un toque cada uno. Se cierra con el botón,
        con un toque sin arrastre sobre el lienzo o con Escape. (Antes era una
        hoja de 2/3 de pantalla con velo: tapaba justo lo que se elegía.)
-       Arranca debajo de la píldora de la ficha y termina antes de la
-       brújula; con muchos pisos hace scroll adentro. */
+       Arranca debajo de la ficha (plegada o desplegada: convive con las
+       dos, --fin-ficha lo pone el script con medirFinFicha(); el fallback
+       es la ficha plegada) y termina antes de la brújula; con muchos pisos
+       hace scroll adentro. */
       #pisos-backdrop {
         display: none
       }
 
       #pisos {
         position: fixed;
-        top: calc(var(--alto-barra) + 56px);
+        top: calc(var(--fin-ficha, 146px) + 8px);
         right: 10px;
         bottom: auto;
         left: auto;
         z-index: 20;
         width: 60px;
-        max-height: calc(100vh - var(--alto-barra) - 56px - 128px - env(safe-area-inset-bottom));
+        max-height: calc(100vh - var(--fin-ficha, 146px) - 8px - 128px - env(safe-area-inset-bottom));
         display: flex;
         flex-direction: column;
         padding: 8px 0 4px;
@@ -4876,19 +4985,6 @@
         visibility: visible;
         transform: none;
         transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
-      }
-
-      /* Con la ficha desplegada (convive con el riel y con Filtros): el riel
-       arranca debajo de la tarjeta en vez de taparle el costado derecho, y
-       Filtros no sube más que hasta ella. --fin-ficha lo pone el script
-       (medirFinFicha()); el fallback es una tarjeta de dos renglones. */
-      body:has(#ficha.abierta) #pisos {
-        top: calc(var(--fin-ficha, 216px) + 8px);
-        max-height: calc(100vh - var(--fin-ficha, 216px) - 8px - 128px - env(safe-area-inset-bottom));
-      }
-
-      body:has(#ficha.abierta) #filtros {
-        max-height: calc(100vh - var(--fin-ficha, 216px) - 8px - 68px - env(safe-area-inset-bottom));
       }
 
       #pisos .pisos-marca {
@@ -4974,14 +5070,6 @@
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         font-size: 12px;
-      }
-
-      /* Con la ficha desplegada (su tarjeta flota fuera del flujo), el
-       cartel baja debajo de ella en vez de taparle la dirección: 6px de
-       aire arriba y abajo de la tarjeta. --alto-cuerpo-ficha lo pone
-       medirFinFicha(). */
-      #ficha.abierta~#piso-info.visible {
-        margin-top: calc(var(--alto-cuerpo-ficha, 104px) + 12px)
       }
 
       #piso-info.visible> :not(.pi-corto) {
@@ -5641,8 +5729,9 @@
     </div>
 
     <!-- Ficha del proyecto: tarjeta flotante arriba a la izquierda. En
-       mobile se reduce a la leyenda de disponibilidad y se despliega a
-       pedido con #ficha-toggle (el edificio manda, ver CLAUDE.md). -->
+       mobile se reduce a un resumen de tres renglones (#ficha-toggle con la
+       leyenda y la barra, #fc-linea con los datos) y #ficha-cuerpo se
+       despliega a pedido (el edificio manda, ver CLAUDE.md). -->
     <section id="ficha" aria-label="Ficha del proyecto">
       <button id="ficha-toggle" type="button" aria-expanded="false" aria-controls="ficha-cuerpo">
         <span id="ficha-resumen"></span>
@@ -5650,8 +5739,25 @@
           <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
             stroke-linejoin="round" />
         </svg>
+        <span class="aviso-barra" id="ficha-barra" aria-hidden="true"></span>
       </button>
+      <!-- Solo mobile: pisos · unidades · entrega en un renglón (lo mismo
+         que #cb-datos, que en mobile no se muestra) + la puerta a las
+         amenities. -->
+      <div class="fc-linea" id="fc-linea" hidden>
+        <span class="fc-datos" id="fc-datos" aria-hidden="true"></span>
+        <span class="fc-lector" id="fc-datos-lector"></span>
+        <button class="fc-amenities" id="fc-amenities" type="button" aria-haspopup="dialog" aria-expanded="false"
+          aria-controls="capa-edificio" hidden>
+          <b id="fc-amenities-n"></b><span id="fc-amenities-pal">amenities</span>
+          <svg class="chev" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
       <div id="ficha-cuerpo">
+      <div id="ficha-mas">
       <p class="cb-direccion" id="cb-direccion" hidden>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -5708,6 +5814,7 @@
               stroke-linejoin="round" />
           </svg>
         </button>
+      </div>
       </div>
       </div>
     </section>
@@ -6926,6 +7033,7 @@
     function pintarAmenities(lista) {
       const hay = lista.length > 0;
       document.getElementById('cb-extra').hidden = !hay;
+      document.getElementById('fc-amenities').hidden = !hay;
       document.getElementById('p-amenities-bloque').hidden = !hay;
       if (!hay) return;
       const grilla = () => lista.map(a => {
@@ -6947,8 +7055,10 @@
       const muestra = [...new Set(lista.map(a => a.icono).filter(tieneIconoAmenity))].slice(0, 4);
       document.getElementById('cb-amenities-iconos').innerHTML =
         (muestra.length ? muestra : [null]).map(k => svgAmenity(k, 16)).join('');
-      document.getElementById('cb-amenities-n').textContent = lista.length;
-      document.getElementById('cb-amenities-pal').textContent = lista.length === 1 ? 'amenity' : 'amenities';
+      for (const id of ['cb', 'fc']) {
+        document.getElementById(id + '-amenities-n').textContent = lista.length;
+        document.getElementById(id + '-amenities-pal').textContent = lista.length === 1 ? 'amenity' : 'amenities';
+      }
     }
 
     // Capa del edificio (#capa-edificio): las amenities a pedido desde la
@@ -6992,10 +7102,14 @@
       disparadorCapa.setAttribute('aria-expanded', 'false');
       if (capaEdificio.contains(document.activeElement)) disparadorCapa.focus({ preventScroll: true });
     }
-    document.getElementById('cb-amenities').addEventListener('click', e => {
-      capaAbierta() && capaEdificio.dataset.seccion === 'amenities'
-        ? cerrarCapaEdificio() : abrirCapaEdificio('amenities', e.currentTarget);
-    });
+    // Dos puertas: la fila de íconos (desktop, y la ficha desplegada en
+    // mobile) y "N amenities" en el resumen plegado de mobile.
+    for (const id of ['cb-amenities', 'fc-amenities']) {
+      document.getElementById(id).addEventListener('click', e => {
+        capaAbierta() && capaEdificio.dataset.seccion === 'amenities'
+          ? cerrarCapaEdificio() : abrirCapaEdificio('amenities', e.currentTarget);
+      });
+    }
     document.getElementById('ce-cerrar').addEventListener('click', cerrarCapaEdificio);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarCapaEdificio(); });
     // En captura, como el cierre de la ficha: ningún stopPropagation lo frena.
@@ -7691,8 +7805,8 @@
       document.getElementById('cb-direccion').hidden = !direccionTxt;
       document.getElementById('cb-direccion-txt').textContent = direccionTxt;
 
-      // Ficha en mobile: plegada a la leyenda; se despliega a pedido. Se
-      // cierra tocando la píldora de nuevo, tocando fuera o con Escape.
+      // Ficha en mobile: plegada al resumen; se despliega a pedido. Se
+      // cierra tocando el resumen de nuevo, tocando fuera o con Escape.
       const ficha = document.getElementById('ficha');
       const fichaToggle = document.getElementById('ficha-toggle');
       function cerrarFicha() {
@@ -7720,28 +7834,35 @@
         cerrarFicha();
       }, true);
       // Amenities (ver abrirCapaEdificio()): en mobile nunca dos hojas
-      // abiertas. El botón está dentro de la ficha, así que el cierre por
-      // toque afuera de las otras hojas no lo cubre.
-      document.getElementById('cb-amenities').addEventListener('click', () => {
-        cerrarHoja();
-        cerrarFiltros();
-        if (solActivo && solEsHoja.matches) activarSol(false);
-      });
-      // Borde inferior de la tarjeta desplegada, para que el riel de pisos y
-      // Filtros (mobile) se acomoden debajo en vez de taparla. Medido por
-      // layout (offsetTop/offsetHeight): no lo afecta la animación de
-      // apertura ni que esté oculta.
+      // abiertas. Los botones están dentro de la ficha, así que el cierre por
+      // toque afuera de las otras hojas no los cubre.
+      for (const id of ['cb-amenities', 'fc-amenities']) {
+        document.getElementById(id).addEventListener('click', () => {
+          cerrarHoja();
+          cerrarFiltros();
+          if (solActivo && solEsHoja.matches) activarSol(false);
+        });
+      }
+      // Borde inferior de la ficha (mobile) como queda al terminar de
+      // plegarse o desplegarse, sin esperar la transición de altura: la parte
+      // fija (el resumen) + lo que despliega, si está abierta. Lo usan el riel
+      // de pisos y Filtros (--fin-ficha, para ir debajo en vez de taparla,
+      // plegada o no) y enfocar(). La ficha cambia de alto al plegarse, al
+      // abrir o cerrar el panel (ver el CSS) y con refrescarDatos(): el
+      // ResizeObserver mantiene --fin-ficha al día en todos los casos.
       const fichaCuerpo = document.getElementById('ficha-cuerpo');
+      const fichaMas = document.getElementById('ficha-mas');
+      function finFicha() {
+        const fija = ficha.offsetHeight - fichaCuerpo.offsetHeight;
+        return ficha.getBoundingClientRect().top + fija + (ficha.classList.contains('abierta') ? fichaMas.scrollHeight : 0);
+      }
       function medirFinFicha() {
-        const fin = ficha.getBoundingClientRect().top + fichaCuerpo.offsetTop + fichaCuerpo.offsetHeight;
-        document.documentElement.style.setProperty('--fin-ficha', Math.round(fin) + 'px');
-        // Para bajar el cartel del piso (#piso-info) debajo de la tarjeta.
-        document.documentElement.style.setProperty('--alto-cuerpo-ficha', fichaCuerpo.offsetHeight + 'px');
+        document.documentElement.style.setProperty('--fin-ficha', Math.round(finFicha()) + 'px');
       }
       // La primera medición va después de pintar la dirección, los datos y la
-      // leyenda de la píldora (que fija el ancho de la tarjeta): ver el final
-      // de esta sección, antes de ESCENA.
+      // leyenda (ver el final de esta sección, antes de ESCENA).
       addEventListener('resize', medirFinFicha);
+      new ResizeObserver(medirFinFicha).observe(ficha);
       document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarFicha(); });
 
       // Cada celda depende solo de su propio dato — si falta, se saca junto
@@ -7777,10 +7898,40 @@
       document.getElementById('cb-div-1').hidden = !(hayPisos && (hayUnidades || hayEntrega));
       document.getElementById('cb-div-2').hidden = !(hayUnidades && hayEntrega);
       document.getElementById('cb-datos').hidden = !(hayPisos || hayUnidades || hayEntrega);
-      // Mobile: la tarjeta desplegada trae solo dirección + datos + amenities
-      // (la leyenda va en la píldora). Sin nada de eso no hay qué desplegar.
-      if (!direccionTxt && !(hayPisos || hayUnidades || hayEntrega) && document.getElementById('cb-extra').hidden &&
-        proyecto.muestra_totales) {
+      // Mobile: los mismos datos en un renglón del resumen plegado ("10 pisos
+      // · 78 u · Mar 2028"), con la versión entera para el lector de
+      // pantalla. La entrega es texto libre: solo se acorta el mes si es
+      // "<mes> <año>" ("marzo 2028" → "Mar 2028"); si no, va tal cual.
+      const negrita = t => Object.assign(document.createElement('b'), { textContent: t });
+      const entregaCorta = t => {
+        const m = /^\s*([a-záéíóú]+)\s+(?:de\s+)?(\d{4})\s*$/i.exec(t);
+        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'setiembre',
+          'octubre', 'noviembre', 'diciembre'];
+        return m && meses.includes(m[1].toLowerCase())
+          ? m[1][0].toUpperCase() + m[1].slice(1, 3).toLowerCase() + ' ' + m[2] : t.trim();
+      };
+      const piezasLinea = [], lectorLinea = [];
+      if (hayPisos) {
+        piezasLinea.push(torresFicha.length > 1
+          ? [...torresFicha.flatMap((t, i) => [(i ? ' · ' : '') + 'Torre ' + t + ' ', negrita(pisosPorTorre[t])]), ' pisos']
+          : [negrita(proyecto.pisos), ' pisos']);
+        lectorLinea.push(document.getElementById('cb-pisos-txt').textContent.trim());
+      }
+      if (hayUnidades) {
+        piezasLinea.push([negrita(UNIDADES.length), ' u']);
+        lectorLinea.push(UNIDADES.length + ' unidades');
+      }
+      if (hayEntrega) {
+        piezasLinea.push([negrita(entregaCorta(proyecto.entrega))]);
+        lectorLinea.push('entrega ' + proyecto.entrega.trim());
+      }
+      document.getElementById('fc-datos').replaceChildren(...piezasLinea.flatMap((p, i) => i ? [' · ', ...p] : p));
+      document.getElementById('fc-datos-lector').textContent = lectorLinea.join(', ');
+      document.getElementById('fc-linea').hidden = !piezasLinea.length && document.getElementById('fc-amenities').hidden;
+      // Mobile: desplegada, la ficha suma la dirección y la fila de amenities
+      // (la leyenda y los datos ya están en el resumen). Sin ninguna de las
+      // dos no hay qué desplegar.
+      if (!direccionTxt && document.getElementById('cb-extra').hidden) {
         fichaToggle.disabled = true;
         fichaToggle.querySelector('.chev').style.display = 'none';
       }
@@ -7803,14 +7954,23 @@
       // al lado de "En alquiler" se lee como si lo alquilable no estuviera
       // disponible: se nombra por operación ("En venta") — solo en la
       // leyenda; ROSSO y Altamira, sin alquiler, siguen diciendo "Disponible".
-      // En la píldora de mobile cada cifra lleva su etiqueta corta en vez de
+      // En el resumen de mobile cada cifra lleva su etiqueta corta en vez de
       // un punto solo: quien entra por primera vez entiende sin tocar nada.
+      // Si no entran en un renglón, pasan a la abreviada (ajustarResumen()).
       // El mismo nombre por operación va en los chips, la tarjeta y el panel
       // (nombreEstado()).
       const hayAlquiler = UNIDADES.some(esAlquiler);
       function nombreEstado(u) {
         return u.estado === 'disponible' && hayAlquiler ? 'En venta' : aspectoDe(u).nombre;
       }
+      const ABREV_ESTADO = new Map([[ESTADOS.disponible, 'disp'], [ESTADOS.alquiler, 'alquiler'],
+        [ESTADOS.reservado, 'res'], [ESTADOS.vendido, 'vend'], [ESTADOS.sin_dato, 'consultar']]);
+      const fichaResumen = document.getElementById('ficha-resumen');
+      function ajustarResumen() {
+        fichaResumen.classList.remove('compacta');
+        fichaResumen.classList.toggle('compacta', fichaResumen.scrollWidth > fichaResumen.clientWidth);
+      }
+      addEventListener('resize', ajustarResumen);
       // refrescarDatos() la vuelve a llamar si cambió algún estado.
       function pintarDisponibilidad() {
         if (proyecto.muestra_totales) {
@@ -7821,6 +7981,7 @@
               return {
                 nombre: venta ? 'En venta' : e.nombre,
                 corto: venta ? 'en venta' : cantidad === 1 ? (e.singular || e.nombre.toLowerCase()) : e.plural,
+                abrev: venta ? 'venta' : ABREV_ESTADO.get(e),
                 color: e.color,
                 cantidad
               };
@@ -7834,14 +7995,20 @@
               '<div class="aviso-fila"><span class="punto" style="background:' + e.color + '"></span>' +
               '<span class="aviso-label">' + e.nombre + '</span><span class="aviso-cant">' + e.cantidad + '</span></div>'
             ).join('') + '</div>';
-          document.getElementById('ficha-resumen').innerHTML = conteos.map(e =>
+          fichaResumen.innerHTML = conteos.map(e =>
             '<span class="aviso-item" aria-label="' + e.nombre + ': ' + e.cantidad + ' unidades">' +
             '<span class="punto" style="background:' + e.color + '"></span>' + e.cantidad +
-            '<span class="aviso-item-txt">' + e.corto + '</span></span>'
+            '<span class="aviso-item-txt"><span class="ai-largo">' + e.corto + '</span>' +
+            '<span class="ai-abrev">' + e.abrev + '</span></span></span>'
           ).join('');
+          // La misma barra que #aviso, en el resumen de mobile.
+          document.getElementById('ficha-barra').innerHTML = conteos.map(e =>
+            '<span style="flex:' + e.cantidad + ';background:' + e.color + '"></span>'
+          ).join('');
+          ajustarResumen();
         } else {
           document.getElementById('aviso').hidden = true;
-          document.getElementById('ficha-resumen').textContent = 'Ver ficha';
+          fichaResumen.textContent = 'Ver ficha';
         }
         medirFinFicha(); // ficha ya pintada: el riel y Filtros se acomodan debajo
       }
@@ -10831,12 +10998,10 @@
         // caiga en el centro de lo visible.
         const W = innerWidth, H = innerHeight;
         const hoja = matchMedia('(max-width: 860px)').matches; // mismo corte que el @media del panel
-        // En mobile arriba quedan la barra y la ficha: la píldora, o la
-        // tarjeta desplegada debajo (#ficha-cuerpo, que flota fuera de la caja
-        // de #ficha) si sigue abierta; en desktop, la barra superior.
-        const bordeFicha = (ficha.classList.contains('abierta') ? document.getElementById('ficha-cuerpo') : ficha)
-          .getBoundingClientRect().bottom;
-        const techo = hoja ? Math.max(56, bordeFicha + 6) : 64;
+        // En mobile arriba quedan la barra y la ficha, plegada o desplegada
+        // (finFicha(): como queda al terminar de plegarse, abrir() la pliega
+        // justo antes); en desktop, la barra superior.
+        const techo = hoja ? Math.max(56, finFicha() + 6) : 64;
         let libre;
         if (panel.classList.contains('abierto')) {
           libre = hoja
