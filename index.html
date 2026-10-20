@@ -15,18 +15,36 @@
      Como depende del slug, la precarga la arma este script y no un <link>
      fijo (es inline: no pide nada a la red ni demora el primer render). Va
      acá arriba porque el <img> recién aparece después de ~150 KB de CSS
-     inline. Sin el archivo o con un slug raro, sinPoster(): vuelve el degradé
-     de #carga. -->
+     inline. Sin el poster en VERSIONES_POSTER o con un slug raro, sinPoster():
+     vuelve el degradé de #carga. -->
   <script>
+    // Versión de cada poster (8 hex del SHA-256 del archivo), que va como ?v=:
+    // /images/poster-*.webp se sirve con caché de un año (immutable, ver
+    // vercel.json) y al regenerarlo se pisa con el mismo nombre. La reescribe
+    // scripts/posters.mjs con todo lo que hay en images/: no editar a mano.
+    // Un poster que no está acá ni se pide.
+    var VERSIONES_POSTER = {
+      "altamira": "aef69d40",
+      "altamira-movil": "b4317bed",
+      "brusco": "cc9c1973",
+      "brusco-movil": "e665fd2f",
+      "rosso": "7ee20ee3",
+      "rosso-movil": "9a5afc54"
+    };
     // El slug sale igual que en resolverSlug() del script principal: path,
     // después ?p=, después 'rosso' (DEFAULT_SLUG). Si cambia uno, el otro.
     var POSTER = (function () {
       var path = location.pathname.replace(/^\/|\/$/g, '');
       var slug = path && path.toLowerCase() !== 'index.html' ? path : new URLSearchParams(location.search).get('p') || 'rosso';
       if (!/^[a-z0-9-]+$/.test(slug)) return null;
-      var p = matchMedia('(max-width: 860px) and (orientation: portrait)').matches
-        ? { src: '/images/poster-' + slug + '-movil.webp', ancho: 780, alto: 1688 }
-        : { src: '/images/poster-' + slug + '.webp', ancho: 1920, alto: 1080 };
+      var movil = matchMedia('(max-width: 860px) and (orientation: portrait)').matches;
+      var clave = slug + (movil ? '-movil' : '');
+      if (!Object.prototype.hasOwnProperty.call(VERSIONES_POSTER, clave)) return null;
+      var p = {
+        src: '/images/poster-' + clave + '.webp?v=' + VERSIONES_POSTER[clave],
+        ancho: movil ? 780 : 1920,
+        alto: movil ? 1688 : 1080
+      };
       var precarga = document.createElement('link');
       precarga.rel = 'preload';
       precarga.as = 'image';

@@ -61,14 +61,19 @@ Archivos:
 - `images/poster-<slug>.webp` (1920×1080) y `images/poster-<slug>-movil.webp`
   (780×1688) — la vista inicial de cada edificio, que se ve mientras carga y es el LCP
   (ver "Poster" en "Arquitectura de `index.html`"). Opcionales: sin el archivo, el
-  overlay de carga de siempre. Caché default de Vercel (se pueden pisar). Los genera
+  overlay de carga de siempre. Caché de un año (`immutable`, ver `vercel.json`): se
+  pisan con el mismo nombre, pero el src lleva `?v=` con el hash del archivo
+  (`VERSIONES_POSTER` en el `<head>` de `index.html`). Los genera
   `node scripts/posters.mjs [slug ...]` (Chrome headless con los datos reales, "Vista
-  inicial", interfaz escondida con `opacity: 0`, captura → WebP).
+  inicial", interfaz escondida con `opacity: 0`, captura → WebP), que al final
+  reescribe `VERSIONES_POSTER` con todos los posters de `images/`: no se edita a mano,
+  y un `.webp` pisado sin pasar por el script lo sigue viendo viejo quien ya lo tenía.
 - `README.md` — runbook: alta de edificio paso a paso, acceso de plataforma, revocar
   accesos.
 - `vercel.json` — sin build ni framework (`framework: null`, `buildCommand: ""`,
   `outputDirectory: "."`) + la ruta de los crawlers a `api/compartir` + una ruta con
-  `continue` que pone caché larga a `modelos/*.glb`. El resto de los estáticos (HTML,
+  `continue` que pone caché larga a `modelos/*.glb` y otra a `images/poster-*.webp`
+  (versionados, ver arriba). El resto de los estáticos (HTML,
   `supabase-config.js`, `amenities-iconos.js`) queda con el default de Vercel
   (`max-age=0, must-revalidate`) a propósito: cambian en cada deploy con la misma URL.
   `"regions": ["pdx1"]`: las funciones corren en Portland, al lado de Supabase
@@ -196,7 +201,8 @@ daba ~140 ms y abría una carrera con las mediciones del JS (`rectLibre()`,
 **Poster** (desde 2026-10-20): el LCP es una imagen fija de la vista inicial, no la
 escena. Un script inline en el `<head>` (no pide nada a la red) repite la regla de
 `resolverSlug()` —si cambia una, cambiar la otra—, elige `images/poster-<slug>.webp`
-o, en ≤ 860 px vertical, `-movil.webp`, y arma la precarga. `#poster` (`<img>` fijo,
+o, en ≤ 860 px vertical, `-movil.webp`, con el `?v=` de `VERSIONES_POSTER` (un poster
+que no está ahí ni se pide), y arma la precarga. `#poster` (`<img>` fijo,
 z-index 99, justo debajo de `#carga`) recibe el src de otro script inline y tapa toda
 la interfaz todavía vacía; `#carga` va transparente encima (`.sobre-poster`, ícono y
 texto con halo). La escena espera a `window load` + `requestIdleCallback`

@@ -11,6 +11,11 @@
       "continue": true
     },
     {
+      "src": "^/images/poster-[a-z0-9-]+\\.webp$",
+      "headers": { "Cache-Control": "public, max-age=31536000, immutable" },
+      "continue": true
+    },
+    {
       "src": "^/(index\\.html)?$",
       "has": [
         {

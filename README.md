@@ -158,6 +158,11 @@ headless con los datos reales, va a la vista inicial, esconde la interfaz y
 captura solo la escena. Tarda ~20 s por archivo. El poster muestra los colores de
 ese momento: volver a correrlo si cambian muchos estados o la geometría.
 
+El script también actualiza `VERSIONES_POSTER` en `index.html` (el `?v=` de cada
+poster): commitear los `.webp` junto con `index.html`. Los posters se sirven con
+caché de un año, así que un `.webp` reemplazado a mano, sin pasar por el script, lo
+siguen viendo viejo quienes ya lo tenían.
+
 Sin los archivos el visor carga igual, con el fondo de carga de siempre. Solo
 anda con slugs de minúsculas, números y guiones.
 

@@ -10,9 +10,15 @@
 // de siempre en Windows); renderiza por CPU (SwiftShader), más lento que con
 // GPU pero con el mismo resultado. El poster refleja los estados del momento:
 // volver a correrlo si cambian muchas unidades o la geometría.
+//
+// Al final reescribe VERSIONES_POSTER en el <head> de index.html (el ?v= de
+// cada poster): /images/poster-*.webp tiene caché de un año, así que un
+// archivo que cambia tiene que cambiar de URL. Commitear los .webp junto con
+// index.html.
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import http from 'node:http';
-import { mkdirSync, mkdtempSync, readFile, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFile, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -137,6 +143,26 @@ async function capturar(slug, v) {
   }
 }
 
+// VERSIONES_POSTER de index.html, con todos los posters de images/ (no solo
+// los de esta corrida): clave = slug + sufijo, valor = 8 hex del SHA-256.
+function escribirVersiones() {
+  const ruta = join(raiz, 'index.html');
+  const html = readFileSync(ruta, 'utf8');
+  const bloque = /var VERSIONES_POSTER = \{[^}]*\};/;
+  if (!bloque.test(html)) throw new Error('index.html: no está "var VERSIONES_POSTER = {...};"');
+  const fin = html.includes('\r\n') ? '\r\n' : '\n';
+  const lineas = readdirSync(join(raiz, 'images'))
+    .map(archivo => archivo.match(/^poster-([a-z0-9-]+)\.webp$/))
+    .filter(Boolean)
+    .sort((a, b) => (a[1] < b[1] ? -1 : 1))
+    .map(([archivo, clave]) => {
+      const hash = createHash('sha256').update(readFileSync(join(raiz, 'images', archivo))).digest('hex').slice(0, 8);
+      return `      "${clave}": "${hash}"`;
+    });
+  writeFileSync(ruta, html.replace(bloque, `var VERSIONES_POSTER = {${fin}${lineas.join(',' + fin)}${fin}    };`));
+  console.log(`index.html: VERSIONES_POSTER con ${lineas.length} posters`);
+}
+
 const slugs = process.argv.slice(2).length ? process.argv.slice(2) : await slugsPublicados();
 for (const s of slugs) if (!/^[a-z0-9-]+$/.test(s)) throw new Error(`slug "${s}": el visor solo busca poster para [a-z0-9-]`);
 mkdirSync(join(raiz, 'images'), { recursive: true });
@@ -156,4 +182,5 @@ try {
   await espera(500);
   try { rmSync(perfil, { recursive: true, force: true }); } catch { /* Chrome todavía lo tiene abierto: queda en temp */ }
 }
+escribirVersiones();
 process.exit(fallas ? 1 : 0);
