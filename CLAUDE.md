@@ -117,7 +117,8 @@ posteriores:
   o moneda es un insert, no una migración.
 - `orgs` → `projects` (slug, nombre, direccion, ciudad, pais, entrega, pisos, publicado,
   muestra_totales, moneda, locale, `geometria` jsonb, lat/lon, fecha_ocupacion,
-  avance_habilitado, tiene_pb).
+  avance_habilitado, tiene_pb, portada_url, portada_foco, tipo — las tres últimas de
+  `supabase-migration-portada.sql`, ver "Barra superior").
 - Por proyecto (`project_id`): `units`, `typologies`, `media`, `amenities`, `settings`
   (instagram/youtube/sitio_web/whatsapp, `textos` jsonb, `financiacion` jsonb), `leads`,
   `events`, `obra_hitos`, `obra_fotos`.
@@ -163,7 +164,9 @@ Cada archivo es idempotente o tiene guardas. Orden histórico: `schema` → `aut
 `grants-explicitos` (grants de tabla para `authenticated`; no depender de los defaults
 de Supabase — una tabla nueva editable desde admin necesita su propio `grant`) →
 `alquiler` (estado `'alquiler'` + `units.precio_alquiler`, UYU/mes) → `nombre-publico`
-(`typologies.nombre_publico` + `public_typologies` recreada). Solo datos y sin orden:
+(`typologies.nombre_publico` + `public_typologies` recreada) → `portada`
+(`projects.portada_url` / `portada_foco` / `tipo` + `public_projects` recreada; repite el
+`add column if not exists tiene_pb` de `pisos`, así corre con o sin ella). Solo datos y sin orden:
 `calle-cruce-rosso` (`geometria.calle.cruce_x` de ROSSO, esquina Paullier). Migraciones nuevas: archivo nuevo
 `supabase-migration-<tema>.sql`, comentario de cabecera en español explicando el porqué,
 idempotente (`if not exists`, `drop policy if exists`, `on conflict`), puramente aditiva
@@ -217,7 +220,20 @@ El script está organizado en secciones numeradas:
    su unidad). Los meshes de unidades viven en `cajas`.
 4. **CÁMARA** — cámara orbital (`theta`/`phi`/`radio`), vista inicial desde el frente
    del edificio, radio escalado según la altura del edificio y el aspecto de la
-   pantalla; rotación automática lenta (una vuelta cada 80 s) desde el arranque, que se
+   pantalla (`radioBase()`). **Encuadre general** (`encuadreTorre()`, desde
+   2026-10-20; lo usan la vista inicial, "Vista inicial", separar pisos, la vuelta de
+   un piso aislado y el showroom): el edificio entero, de la base al techo, centrado en
+   lo que deja libre la interfaz (`rectLibre()`: arriba el header y en mobile la ficha
+   —`finFicha()`—; abajo la barra inferior y la toolbar; en desktop, a la izquierda el
+   borde derecho de la ficha y a la derecha el riel), corriendo el objetivo sobre los
+   ejes de la cámara como `enfocar()` (sin `setViewOffset`, así `enfocar()` no cambia).
+   Nunca más cerca que `radioBase()`, solo se aleja si no entra. A lo ancho mide la
+   planta con el giro en 0; a lo alto, el cilindro que barre al girar (ni techo ni
+   base pasan debajo de un overlay en todo el giro automático). `reencuadrar()` lo
+   rehace (`ResizeObserver` sobre ficha, header, barra, riel y toolbar + `resize`)
+   solo si la cámara sigue en el último encuadre general (no se acercó ni inclinó,
+   no hay unidad ni piso); arrastrando, espera al `pointerup` porque `moverCamara()`
+   fija el giro mientras dura. Rotación automática lenta (una vuelta cada 80 s) desde el arranque, que se
    corta con cualquier interacción y vuelve tras `INACTIVIDAD_MS` (6 s) sin actividad,
    salvo con un panel, hoja, tarjeta o piso aislado abierto (`puedeGirar()`). Arrastre con
    un dedo (o el mouse) = giro; en táctil, el pellizco con dos dedos acerca o aleja hacia
@@ -239,21 +255,41 @@ El script está organizado en secciones numeradas:
 Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--verde`
 `#2B6656` es el color de marca, reservado para lo disponible y acentos).
 
-- **Barra superior** (`#barra-sup`, 64px, 56px en mobile): logo + nombre partido en
-  "by" (`"ROSSO by Block"` → `ROSSO` / `by Block`; sin "by" en el nombre usa
-  `desarrolla`), ciudad, redes, firma de Cota, y `#brochure` (oculto hasta que exista
-  `settings.brochure_url`, columna que todavía no existe). El blur vive en `#barra-sup`
-  y no en `#cabezal`: un `backdrop-filter` en `#cabezal` rompería el `position: fixed`
-  de `#piso-info`.
-- **Ficha** (`#ficha`): dirección, pisos (por torre si hay `geom.torre`, calculado en
-  vivo), unidades, entrega y disponibilidad contada en vivo por `aspectoDe(u)`, solo
-  estados con unidades y solo si `muestra_totales`. En mobile es una sola tarjeta
-  (desde 2026-10-20; antes era una píldora con la leyenda + una tarjeta aparte) que
-  plegada queda en tres renglones (≤ 80px): leyenda con chevron (si no entra,
-  etiquetas abreviadas: `ajustarResumen()`), barra proporcional y
-  "10 pisos · 78 u · Mar 2028 · 7 amenities ›" (`#fc-linea`; "amenities" abre la capa).
-  Desplegada (transición de altura, 180 ms) suma dirección y fila de amenities, y así
-  arranca (salvo con `?u=` o `?sol=`). Con el
+- **Barra superior** (`#barra-sup`, `--alto-barra`: 72px, 56px en ≤640 — el header
+  tiene su propio corte, no el de 860): logo (la inicial del nombre corto sobre
+  `--verde`) + nombre partido en "by" en dos renglones (`"ROSSO by Block"` → `ROSSO` /
+  `by Block`; sin "by" en el nombre usa `desarrolla`), divisor, bloque de dirección
+  (rótulo del tipo, `projects.tipo`, null = "Edificio"; la calle y debajo número,
+  barrio y ciudad: `direccion` se parte en el número de puerta o, sin número, en la
+  última coma) y a la derecha las redes como chips redondos + la firma de Cota, y
+  `#brochure` (oculto hasta que exista `settings.brochure_url`, columna que todavía no
+  existe). **Portada** (`projects.portada_url`, encuadre con `portada_foco` =
+  object-position, null = center): foto a la derecha (55% del ancho, 60% en mobile)
+  con un degradado desde `--superficie` encima; el header pasa a opaco recién cuando la
+  foto cargó (`.con-portada`), sin dato o si falla queda translúcido como antes. En
+  ≤640: sin divisor ni segundo renglón de la dirección, el rótulo va junto al nombre y
+  se va si lo cortaría (`ajustarTipoNombre()`), y redes + Cota van en un menú `⋯`
+  (`menuRedes()`). El blur vive en `#barra-sup` y no en `#cabezal`: un
+  `backdrop-filter` en `#cabezal` rompería el `position: fixed` de `#piso-info`.
+  `enfocar()` mide el borde de la barra en vez de suponer su alto.
+- **Ficha** (`#ficha`): pisos (por torre si hay `geom.torre`, calculado en vivo),
+  unidades, entrega y disponibilidad contada en vivo por `aspectoDe(u)`, solo estados
+  con unidades y solo si `muestra_totales`. La dirección no va acá: está en el header.
+  Es la misma tarjeta en todos los anchos (desde 2026-10-20; antes, en desktop, una
+  tarjeta de 300px siempre abierta con una fila por estado, y en mobile una píldora +
+  una tarjeta aparte): en desktop flota arriba a la izquierda, 420px como mucho (la
+  capa de amenities, debajo, tiene el mismo ancho); en mobile va a lo ancho debajo del
+  header, hasta 400px. `#cb-datos`, `#aviso` y `#cb-extra` (la ficha vieja de desktop)
+  siguen en el HTML, ocultos: de `#cb-datos` salen los íconos y el texto para lector
+  del renglón de datos. Plegada queda en tres renglones (88px): leyenda en una
+  píldora de fondo sutil con divisores y el chevron adentro (si no entra, etiquetas
+  abreviadas), barra proporcional y "▤ 10 pisos | ▦ 78 u. | ▢ Mar 2028 | 7 amenities ›"
+  (`#fc-linea`; "amenities" abre la capa; si no entra se va "Torre" y después los
+  íconos, todo en `ajustarResumen()`). Desplegada (transición de altura, 180 ms) suma
+  solo la fila de amenities (`#fc-amenities-fila`: ícono + nombre corto — el texto si
+  tiene ≤ 16 letras, si no el nombre del ícono en el catálogo —, sin la cifra; se
+  desliza de costado; tocarla abre la capa). Arranca plegada (hasta 2026-10-20
+  arrancaba desplegada). Sin amenities no se despliega. En mobile, con el
   panel abierto queda solo la leyenda: con los tres renglones la franja libre sobre la
   hoja bajaba de 80px y `enfocar()` dejaba la unidad debajo de la ficha. Abrir/usar
   Filtros o Pisos no la pliega (pedido de Sebastian: los datos del edificio no
@@ -536,7 +572,8 @@ tiene uno solo). Pestañas:
   Crear usuarios no está: necesita service_role (futura Edge Function).
 
 Todavía no editable desde el admin (se carga directo en Supabase): `geometria`,
-`lat`/`lon`, `tiene_pb`, `settings.financiacion`, `fecha_ocupacion`, `publicado`.
+`lat`/`lon`, `tiene_pb`, `settings.financiacion`, `fecha_ocupacion`, `publicado`,
+`portada_url` / `portada_foco` / `tipo`.
 
 ## Geometría de unidades y placa: el sistema de coordenadas de `geom`
 
@@ -823,7 +860,7 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
 
 - En producción `public_projects` no tiene `tiene_pb`: la migración `pisos` parece no
   estar aplicada (el visor no falla porque pide `select('*')`, pero la fila PB nunca se
-  puede ocultar).
+  puede ocultar). La migración `portada` también la agrega.
 - `supabase-js` se carga como `@supabase/supabase-js@2` desde jsdelivr, sin versión
   fija.
 - El contador de la tarjeta del proyecto se configura con `CONTADOR_EN_TARJETA` en
@@ -836,7 +873,8 @@ Un edificio estándar no necesita cambios de código — es todo datos. Seguir `
 (país/moneda → org → proyecto con `publicado = false` → settings → unidades con un
 INSERT generado por script → amenities → usuario de Auth + membership → publicar). Datos
 opcionales por edificio: `geometria` (dimensiones, contornos, calle, norte_grados),
-lat/lon, tiene_pb, financiacion, tipologías + imágenes, avance de obra.
+lat/lon, tiene_pb, portada (`portada_url` / `portada_foco`) y `tipo`, financiacion,
+tipologías + imágenes, avance de obra.
 
 Lo que sigue hardcodeado en `index.html` y puede necesitar cambios: `DEFAULT_SLUG`,
 `BASE`, la marca/colores (variables CSS en `:root`, compartidas por todos los proyectos), y el copy de aviso de demo
