@@ -7,6 +7,10 @@
      cuando cargarProyecto() resuelve (ver el IIFE final) — nunca "ROSSO" para
      un visitante que abrió el link de otro edificio. -->
   <title>Disponibilidad navegable</title>
+  <!-- La marca de Cota, igual para todos los edificios. favicon.ico (la
+     misma, en PNG de 16/32/48) queda en la raíz para quien no toma SVG y
+     pide /favicon.ico de todos modos. -->
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <!-- Poster de la escena (#poster, ver POSTER en el CSS): es el LCP. Uno por
      edificio, así mientras carga nunca se ve otro proyecto, y otro para
      celular vertical (≤ 860 px), donde el apaisado quedaría muy recortado:
@@ -104,7 +108,14 @@
      recién con el documento parseado, en este orden, y antes del script
      principal (type="module", al final del body: entra en la misma cola,
      detrás de estos). Así el overlay #carga se pinta sin esperarlos. -->
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Todo lo de un CDN va con versión exacta e integrity (SRI): si el
+     archivo servido cambia, el navegador no lo ejecuta. Subir una versión =
+     cambiar la URL y recalcular el hash (comando en CLAUDE.md); con el hash
+     viejo la librería no carga y, si es three o supabase, el visor no
+     arranca. crossorigin: SRI necesita CORS (cdnjs y jsDelivr mandan
+     access-control-allow-origin: *). -->
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+    integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
   <!-- GLTFLoader y el decoder de meshopt no van acá: solo sirven para los
        autos y se piden a pedido (ver cargadorGLTF en el script). -->
   <!-- Líneas gruesas de r128 (mismo patrón clásico que GLTFLoader), para el
@@ -112,10 +123,15 @@
        ignora y queda en 1 px físico. ~21 KB entre los tres; el orden importa
        (LineSegments2 usa los otros dos). Si no cargan, el visor resalta la
        elegida como antes (ver CONTORNO en el script). -->
-  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegmentsGeometry.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegments2.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegmentsGeometry.js"
+    integrity="sha384-K16bQ6/nRHsU0eKd3hdm7CCI7l/Wc4UK45tdqGZ2AHDp1J9J+rdIColaZ4H6gue+" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"
+    integrity="sha384-KUlsSdq9I0VYm+p1QmmjxRuyYzwsUg4mG/X1AjjChqhEgxf3QG1fZeGihaCJr8z9" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegments2.js"
+    integrity="sha384-SdmZCNq3efiCrMjlE29B4nkMMBrkOJgoNunzIT8FfiNaynKJ/ZNeIr88NLHyt/Me" crossorigin="anonymous"></script>
+  <!-- La misma versión en admin.html. -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"
+    integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
   <script defer src="supabase-config.js"></script>
   <script defer src="amenities-iconos.js"></script>
   <style>
@@ -10103,9 +10119,12 @@
       // serviría. Meshopt: los .glb salen de `gltf-transform optimize` con
       // --compress meshopt; sin comprimir pesaban ~160-175 KB cada uno, con
       // meshopt ~45 KB, y el decoder es JS puro (sin WASM aparte).
-      function cargarScript(src) {
+      // Con integrity, como los <script> del <head>.
+      function cargarScript(src, integridad) {
         return new Promise((ok, mal) => {
           const s = document.createElement('script');
+          s.integrity = integridad;
+          s.crossOrigin = 'anonymous';
           s.src = src;
           s.onload = ok;
           s.onerror = () => mal(new Error('No cargó ' + src));
@@ -10115,8 +10134,10 @@
       let cargadorGLTF = null; // se pide con el primer auto
       function pedirCargadorGLTF() {
         return cargadorGLTF ||= Promise.all([
-          cargarScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'),
-          cargarScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js'),
+          cargarScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
+            'sha384-fljlqkjWlmSFjkESkQvm77heIZpoWmXEOzlCA7kOpGUH+95Zk0yGfQieWM2q136E'),
+          cargarScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js',
+            'sha384-Ua4+miEfAhtQpWvzgEohUG5UfbDPgyuYVVT+sgb2QvRC3fjACMsy7LV3Zoxnv2xf'),
         ]).then(() => new THREE.GLTFLoader().setMeshoptDecoder(MeshoptDecoder));
       }
       const modelosAutoCache = {}; // ruta -> promesa del Group ya escalado/centrado (fuente para .clone())
@@ -13224,6 +13245,7 @@
          carga recién en el modo: el visor normal no la descarga. Sin red no
          hay QR (reintenta cada 30 s); el resto del modo sigue igual. */
       const LIB_QR = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+      const SRI_QR = 'sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1';
       const cajaQR = document.getElementById('kiosco-qr');
       let libQR = null, urlQR = null, falloQR = -Infinity;
       function actualizarQR() {
@@ -13237,6 +13259,8 @@
         urlQR = url;
         libQR ||= new Promise((ok, mal) => {
           const s = document.createElement('script');
+          s.integrity = SRI_QR;
+          s.crossOrigin = 'anonymous';
           s.src = LIB_QR;
           s.onload = () => ok(window.qrcode);
           s.onerror = mal;

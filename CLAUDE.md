@@ -51,6 +51,11 @@ Archivos:
 - `supabase-config.js` — `SUPABASE_URL` + anon key, crea el cliente global `sb`. La anon
   key es pública a propósito; la seguridad real es RLS. Nunca poner acá la service_role
   key.
+- `favicon.svg` + `favicon.ico` — la marca de Cota (triángulo sobre una línea, en blanco
+  sobre `--verde`), la misma para todos los edificios; los dos HTML apuntan al SVG con
+  `<link rel="icon">`. El `.ico` (PNG de 16/32/48 sacados del SVG con sharp) queda para
+  quien pide `/favicon.ico` igual. Sin ícono, Chrome dejaba un 404 en la consola: era lo
+  único que marcaba Best Practices (2026-10-20).
 - `supabase-schema.sql` — el schema original single-tenant + el seed de ROSSO.
 - `supabase-migration-*.sql` — cada cambio posterior, corridos a mano en orden (ver más
   abajo).
@@ -76,7 +81,10 @@ Archivos:
 - `README.md` — runbook: alta de edificio paso a paso, acceso de plataforma, revocar
   accesos.
 - `vercel.json` — sin build ni framework (`framework: null`, `buildCommand: ""`,
-  `outputDirectory: "."`) + la ruta de los crawlers a `api/compartir` + una ruta con
+  `outputDirectory: "."`) + una primera ruta con `continue` que pone a todo
+  `X-Content-Type-Options: nosniff` y `Referrer-Policy: strict-origin-when-cross-origin`
+  (desde 2026-10-20; HSTS lo pone Vercel solo) + la ruta de los crawlers a
+  `api/compartir` + una ruta con
   `continue` que pone caché larga a `modelos/*.glb` y otra a los posters
   (`images/poster-*`, `.avif` y `.webp`; versionados, ver arriba). El resto de los estáticos (HTML,
   `supabase-config.js`, `amenities-iconos.js`) queda con el default de Vercel
@@ -211,6 +219,15 @@ nuevo sin `defer`/`async` o una hoja externa bloqueante vuelve a bloquear el pri
 render. El CSS queda inline a propósito: el overlay tapa todo, así que partirlo solo
 daba ~140 ms y abría una carrera con las mediciones del JS (`rectLibre()`,
 `ajustarResumen()`…).
+
+**Scripts de CDN** (desde 2026-10-20): todos con versión exacta, `integrity` (SRI) y
+`crossorigin="anonymous"`, también los que se piden por código (GLTFLoader y meshopt
+con `cargarScript()`, el QR con `SRI_QR`). supabase-js va fijo en 2.118.0 en
+`index.html` y en `admin.html` (antes `@2`: cualquier 2.x nueva llegaba sola a
+producción). Para subir una versión: cambiar la URL y recalcular el hash con
+`curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A` (con prefijo
+`sha384-`). Con el hash viejo el navegador no ejecuta el archivo y, si es three o
+supabase, el visor no arranca.
 
 **Poster** (desde 2026-10-20): el LCP es una imagen fija de la vista inicial, no la
 escena. Un script inline en el `<head>` (no pide nada a la red) repite la regla de
@@ -942,8 +959,6 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
 - En producción `public_projects` no tiene `tiene_pb`: la migración `pisos` parece no
   estar aplicada (el visor no falla porque pide `select('*')`, pero la fila PB nunca se
   puede ocultar). La migración `portada` también la agrega.
-- `supabase-js` se carga como `@supabase/supabase-js@2` desde jsdelivr, sin versión
-  fija.
 - El contador de la tarjeta del proyecto se configura con `CONTADOR_EN_TARJETA` en
   `api/_tarjeta.js` (por slug). Pasarlo a una columna de `settings` / `public_settings`
   necesita migración.
