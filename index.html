@@ -7608,6 +7608,16 @@
     document.getElementById('fc-amenities-fila').addEventListener('click', () =>
       document.getElementById('fc-amenities').click());
 
+    // Varios eventos seguidos (resize, scroll) en una sola llamada por
+    // cuadro, dentro del rAF: lo que mide lo hace una vez por cuadro, no una
+    // por evento.
+    function porCuadro(fn) {
+      let pedido = 0;
+      return () => {
+        if (!pedido) pedido = requestAnimationFrame(() => { pedido = 0; fn(); });
+      };
+    }
+
     // Capa del edificio (#capa-edificio): las amenities a pedido desde la
     // ficha. Desktop: tarjeta debajo de la ficha. Mobile: hoja inferior.
     // Se cierra con ×, Escape o tocando cualquier cosa afuera (el edificio,
@@ -7626,12 +7636,17 @@
         capaEdificio.style.top = capaEdificio.style.maxHeight = '';
         return;
       }
-      const top = Math.round(document.getElementById('ficha').getBoundingClientRect().bottom + 10);
-      capaEdificio.style.top = top + 'px';
+      // Primero todas las lecturas, después las escrituras: el borde derecho
+      // de la capa no depende de su top, y medirlo después de cambiarlo
+      // forzaba un segundo layout.
+      const fichaR = document.getElementById('ficha').getBoundingClientRect();
+      const barra = document.getElementById('barra-inferior').getBoundingClientRect();
+      const derechaCapa = capaEdificio.getBoundingClientRect().right;
+      const top = Math.round(fichaR.bottom + 10);
       // Hasta el borde de abajo; si la barra inferior pasa por esta columna
       // (tablet, o corrida a la izquierda), hasta ella.
-      const barra = document.getElementById('barra-inferior').getBoundingClientRect();
-      const piso = barra.left < capaEdificio.getBoundingClientRect().right ? barra.top - 10 : innerHeight - 20;
+      const piso = barra.left < derechaCapa ? barra.top - 10 : innerHeight - 20;
+      capaEdificio.style.top = top + 'px';
       capaEdificio.style.maxHeight = Math.max(160, piso - top) + 'px';
     }
     function abrirCapaEdificio(seccion, disparador) {
@@ -7664,7 +7679,7 @@
       if (!capaAbierta() || capaEdificio.contains(e.target) || disparadorCapa.contains(e.target)) return;
       cerrarCapaEdificio();
     }, true);
-    addEventListener('resize', () => { if (capaAbierta()) ubicarCapaEdificio(); });
+    addEventListener('resize', porCuadro(() => { if (capaAbierta()) ubicarCapaEdificio(); }));
 
     /* ------------------------------------------------------------
        Información del proyecto (ⓘ en la cabecera del panel): popover con el
@@ -8704,15 +8719,20 @@
       // igual no entra, sin los íconos (.compacta).
       const fichaResumen = document.getElementById('ficha-resumen');
       const fcDatos = document.getElementById('fc-datos');
+      // Cada paso mide con la clase del anterior, pero los dos renglones van
+      // juntos (no dependen uno del otro: la ficha tiene ancho fijo): todas
+      // las escrituras de un paso, después todas las lecturas.
       function ajustarResumen() {
         const sobra = el => el.scrollWidth > el.clientWidth;
         fichaResumen.classList.remove('compacta');
-        fichaResumen.classList.toggle('compacta', sobra(fichaResumen));
         fcDatos.classList.remove('sin-torre', 'compacta');
-        if (sobra(fcDatos)) fcDatos.classList.add('sin-torre');
+        const leyendaSobra = sobra(fichaResumen), datosSobran = sobra(fcDatos);
+        fichaResumen.classList.toggle('compacta', leyendaSobra);
+        if (!datosSobran) return;
+        fcDatos.classList.add('sin-torre');
         if (sobra(fcDatos)) fcDatos.classList.add('compacta');
       }
-      addEventListener('resize', ajustarResumen);
+      addEventListener('resize', porCuadro(ajustarResumen));
       // refrescarDatos() la vuelve a llamar si cambió algún estado.
       function pintarDisponibilidad() {
         if (proyecto.muestra_totales) {
@@ -11544,12 +11564,15 @@
           if (!b.disabled) b.setAttribute('aria-pressed', String(pisoAislado === PISOS - i));
         });
         if (tienePB) btnPB.setAttribute('aria-pressed', String(pisoAislado === 0));
-        const sel = filasNavegables.find(b => b.getAttribute('aria-pressed') === 'true');
-        if (sel) sel.scrollIntoView({ block: 'nearest', behavior: REDUCIR_MOVIMIENTO ? 'auto' : 'smooth' });
         pisosTriggerLabel.textContent =
           pisoAislado === null ? 'Pisos' : pisoAislado === 0 ? 'PB' : 'Piso ' + pisoAislado;
         actualizarInfoPiso();
         actualizarFlechasPiso();
+        // scrollIntoView mide: va al final, en el rAF, después de todas las
+        // escrituras (antes estaba en el medio y forzaba un layout).
+        const sel = filaSeleccionada();
+        if (sel) requestAnimationFrame(() =>
+          sel.scrollIntoView({ block: 'nearest', behavior: REDUCIR_MOVIMIENTO ? 'auto' : 'smooth' }));
       }
 
       // Flechas del riel: "arriba" sin piso elegido arranca desde abajo (el
@@ -11571,13 +11594,17 @@
         btnArriba.disabled = i === 0;
         btnAbajo.disabled = i === filasNavegables.length - 1;
       }
+      // Lecturas primero, escrituras después: el primer toggle invalidaba el
+      // layout que medía el segundo. Scroll y resize, una vez por cuadro.
       function actualizarBordesLista() {
         const L = listaPisos;
-        L.classList.toggle('mas-arriba', L.scrollTop > 2);
-        L.classList.toggle('mas-abajo', L.scrollTop + L.clientHeight < L.scrollHeight - 2);
+        const arriba = L.scrollTop > 2, abajo = L.scrollTop + L.clientHeight < L.scrollHeight - 2;
+        L.classList.toggle('mas-arriba', arriba);
+        L.classList.toggle('mas-abajo', abajo);
       }
-      listaPisos.addEventListener('scroll', actualizarBordesLista, { passive: true });
-      addEventListener('resize', actualizarBordesLista);
+      const bordesListaPorCuadro = porCuadro(actualizarBordesLista);
+      listaPisos.addEventListener('scroll', bordesListaPorCuadro, { passive: true });
+      addEventListener('resize', bordesListaPorCuadro);
       requestAnimationFrame(actualizarBordesLista);
       btnArriba.addEventListener('click', () => moverPisoAislado(true));
       btnAbajo.addEventListener('click', () => moverPisoAislado(false));
@@ -11589,7 +11616,7 @@
       // los datos del edificio no desaparecen). Ver --fin-ficha en el CSS.
       fichaToggle.addEventListener('click', () => {
         medirFinFicha();
-        actualizarBordesLista(); // el riel cambia de alto: recalcular el fundido
+        bordesListaPorCuadro(); // el riel cambia de alto: recalcular el fundido
       });
 
       /* ============================================================
@@ -13560,13 +13587,26 @@
       // ahora la escena puede reemplazar al poster.
       quitarPoster();
 
-      addEventListener('resize', () => {
-        camara.aspect = innerWidth / innerHeight;
+      // Tamaño del lienzo: ResizeObserver sobre su contenedor (body, que mide
+      // la pantalla: html y body van con height 100% y overflow hidden), no
+      // el resize de la ventana. Llega después del layout con la medida ya
+      // calculada, así no lee innerWidth/innerHeight con el layout invalidado.
+      // También avisa al empezar a observar: con la misma medida no hace nada.
+      // Cambiar el tamaño borra el lienzo y el cuadro de este rAF ya se
+      // dibujó: se vuelve a dibujar en el acto, si no parpadea al redimensionar.
+      let anchoLienzo = innerWidth, altoLienzo = innerHeight;
+      new ResizeObserver(([entrada]) => {
+        const w = Math.round(entrada.contentRect.width), h = Math.round(entrada.contentRect.height);
+        if (!w || !h || (w === anchoLienzo && h === altoLienzo)) return;
+        anchoLienzo = w;
+        altoLienzo = h;
+        camara.aspect = w / h;
         camara.updateProjectionMatrix();
-        render.setSize(innerWidth, innerHeight);
-        if (CONTORNO) CONTORNO.resolucion(innerWidth, innerHeight);
+        render.setSize(w, h);
+        if (CONTORNO) CONTORNO.resolucion(w, h);
         if (!EXTENSION) pintarFondo();
-      });
+        render.render(escena, camara);
+      }).observe(document.body);
 
     } // fin de iniciar()
 
