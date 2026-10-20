@@ -288,8 +288,10 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   íconos, todo en `ajustarResumen()`). Desplegada (transición de altura, 180 ms) suma
   solo la fila de amenities (`#fc-amenities-fila`: ícono + nombre corto — el texto si
   tiene ≤ 16 letras, si no el nombre del ícono en el catálogo —, sin la cifra; se
-  desliza de costado; tocarla abre la capa). Arranca plegada (hasta 2026-10-20
-  arrancaba desplegada). Sin amenities no se despliega. En mobile, con el
+  desliza de costado; tocarla abre la capa). Arranca desplegada (pedido de
+  Sebastian, 2026-10-20: con un solo renglón más queda compacta), salvo en mobile con
+  `?u=` o `?sol=`; el encuadre inicial ya cuenta con ella. Sin amenities no se
+  despliega. En mobile, con el
   panel abierto queda solo la leyenda: con los tres renglones la franja libre sobre la
   hoja bajaba de 80px y `enfocar()` dejaba la unidad debajo de la ficha. Abrir/usar
   Filtros o Pisos no la pliega (pedido de Sebastian: los datos del edificio no

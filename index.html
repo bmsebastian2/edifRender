@@ -8386,12 +8386,23 @@
       document.getElementById('fc-datos').replaceChildren(...piezasLinea);
       document.getElementById('fc-datos-lector').textContent = lectorLinea.join(', ');
       document.getElementById('fc-linea').hidden = !piezasLinea.length && document.getElementById('fc-amenities').hidden;
-      // Mobile: desplegada, la ficha suma solo la fila de amenities (la
-      // leyenda y los datos ya están en el resumen, la dirección en el
-      // header). Sin amenities no hay qué desplegar. Arranca plegada.
+      // Desplegada, la ficha suma solo la fila de amenities (la leyenda y los
+      // datos ya están en el resumen, la dirección en el header). Sin
+      // amenities no hay qué desplegar.
       if (document.getElementById('fc-amenities-fila').hidden) {
         fichaToggle.disabled = true;
         fichaToggle.querySelector('.chev').style.display = 'none';
+      }
+      // Arranca desplegada (es un renglón más): quien entra ve las amenities
+      // sin tocar nada; se pliega sola al primer toque fuera, al arrastrar el
+      // edificio o al abrir una unidad. En mobile, con ?u= no (abrir() la
+      // pliega igual) ni con ?sol= (la hoja del sol ya ocupa la pantalla).
+      // Va antes de la ESCENA: el encuadre inicial ya cuenta con ella.
+      const paramsFicha = new URLSearchParams(location.search);
+      if (!fichaToggle.disabled && !(matchMedia('(max-width: 860px)').matches &&
+        (paramsFicha.has('u') || paramsFicha.has('sol')))) {
+        ficha.classList.add('abierta');
+        fichaToggle.setAttribute('aria-expanded', 'true');
       }
 
       // Disponibilidad: contada en vivo por aspectoDe(u) (así "En alquiler"
