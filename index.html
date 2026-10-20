@@ -7,6 +7,42 @@
      cuando cargarProyecto() resuelve (ver el IIFE final) — nunca "ROSSO" para
      un visitante que abrió el link de otro edificio. -->
   <title>Disponibilidad navegable</title>
+  <!-- Poster de la escena (#poster, ver POSTER en el CSS): es el LCP. Uno por
+     edificio, así mientras carga nunca se ve otro proyecto, y otro para
+     celular vertical (≤ 860 px), donde el apaisado quedaría muy recortado:
+       /images/poster-<slug>.webp        1920×1080
+       /images/poster-<slug>-movil.webp   780×1688 (390×844 a 2x)
+     Como depende del slug, la precarga la arma este script y no un <link>
+     fijo (es inline: no pide nada a la red ni demora el primer render). Va
+     acá arriba porque el <img> recién aparece después de ~150 KB de CSS
+     inline. Sin el archivo o con un slug raro, sinPoster(): vuelve el degradé
+     de #carga. -->
+  <script>
+    // El slug sale igual que en resolverSlug() del script principal: path,
+    // después ?p=, después 'rosso' (DEFAULT_SLUG). Si cambia uno, el otro.
+    var POSTER = (function () {
+      var path = location.pathname.replace(/^\/|\/$/g, '');
+      var slug = path && path.toLowerCase() !== 'index.html' ? path : new URLSearchParams(location.search).get('p') || 'rosso';
+      if (!/^[a-z0-9-]+$/.test(slug)) return null;
+      var p = matchMedia('(max-width: 860px) and (orientation: portrait)').matches
+        ? { src: '/images/poster-' + slug + '-movil.webp', ancho: 780, alto: 1688 }
+        : { src: '/images/poster-' + slug + '.webp', ancho: 1920, alto: 1080 };
+      var precarga = document.createElement('link');
+      precarga.rel = 'preload';
+      precarga.as = 'image';
+      precarga.href = p.src;
+      precarga.setAttribute('fetchpriority', 'high');
+      document.head.appendChild(precarga);
+      return p;
+    })();
+    // Saca el poster y devuelve el degradé de #carga. La llaman el onerror
+    // del <img> y el script que le pone el src (sin POSTER).
+    function sinPoster() {
+      var poster = document.getElementById('poster');
+      if (poster) poster.remove();
+      document.getElementById('carga').classList.remove('sobre-poster');
+    }
+  </script>
   <!-- Fraunces: solo el titular del bloque de descripción del panel de la
      unidad (.p-intro-tit). Sin red, Georgia. La hoja no bloquea el primer
      render (media="print" hasta que llega): en la primera pantalla no hay
@@ -5925,6 +5961,48 @@
       border-color: var(--tinta);
     }
 
+    /* ============================================================
+       POSTER — imagen fija de la vista inicial del edificio (archivos y
+       medidas en el script del poster, en el <head>) que llega con el HTML
+       y es el LCP: three.js arranca recién después de
+       window load (ver paginaCargada en el script). Tapa todo lo que está
+       debajo de #carga (header y barras todavía vacíos incluidos) y se
+       funde en 300 ms cuando la escena pinta su primer cuadro
+       (quitarPoster()).
+       ============================================================ */
+    #poster {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 99;
+      width: 100%;
+      /* 1 px menos que la pantalla, a propósito: Chrome no cuenta como LCP
+         una imagen que la tapa entera (la toma por un fondo; probado en
+         Chrome 155 el 2026-10-20: tapando todo el LCP era un texto). La
+         franja de abajo no se nota y el encuadre sigue igual al de la
+         escena. */
+      height: calc(100% - 1px);
+      object-fit: cover;
+      pointer-events: none;
+      transition: opacity .3s ease;
+    }
+
+    #poster.poster-oculto {
+      opacity: 0;
+    }
+
+    /* Con poster, el overlay va transparente: ícono y texto quedan sobre la
+       imagen, con un halo blanco para leerse (como los íconos sobre el 3D).
+       Si el poster no carga, o ante un error, se saca la clase y vuelve el
+       degradé de siempre. */
+    #carga.sobre-poster {
+      background: transparent;
+    }
+
+    #carga.sobre-poster #carga-contenido {
+      filter: drop-shadow(0 0 2px rgba(255, 255, 255, .95)) drop-shadow(0 0 8px rgba(255, 255, 255, .9));
+    }
+
     /* Movimiento reducido: todo casi instantáneo (los fundidos del 3D y la
        cámara también, ver REDUCIR_MOVIMIENTO en el script). */
     @media (prefers-reduced-motion:reduce) {
@@ -5956,7 +6034,7 @@
      medio), así que nunca se ve el edificio ni los datos de otro proyecto
      mientras cargarProyecto() resuelve. Se oculta (clase carga-oculta) o
      pasa a error (clase carga-error-activo) desde el IIFE final. -->
-  <div id="carga" role="status" aria-live="polite">
+  <div id="carga" class="sobre-poster" role="status" aria-live="polite">
     <div id="carga-contenido">
       <svg id="carga-icono" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -5976,6 +6054,21 @@
       <button id="carga-reintentar" type="button" hidden>Reintentar</button>
     </div>
   </div>
+
+  <!-- Poster de la escena (ver el script del poster en el <head> y POSTER en
+     el CSS). Va después de #carga en el HTML (queda debajo por z-index) para
+     que sinPoster() ya lo encuentre. El src y el tamaño (el real del
+     archivo) se los pone el script de abajo según el edificio y la
+     pantalla: es la misma URL que ya se está precargando. -->
+  <img id="poster" alt="" fetchpriority="high" onerror="sinPoster()">
+  <script>
+    (function (img) {
+      if (!POSTER) return sinPoster();
+      img.width = POSTER.ancho;
+      img.height = POSTER.alto;
+      img.src = POSTER.src;
+    })(document.getElementById('poster'));
+  </script>
 
   <header id="cabezal">
     <!-- Barra superior: el blur vive acá y no en #cabezal a propósito —
@@ -6874,6 +6967,8 @@
     // Vercel que todavía no existe pero deja la puerta abierta), después
     // ?p=<slug>, y si no hay ninguno de los dos, ROSSO — así el link que ya
     // está en manos del cliente (sin querystring) no se rompe.
+    // El script del poster (en el <head>) repite esta regla para elegir la
+    // imagen antes de que corra este script: si cambia acá, cambiarla ahí.
     const DEFAULT_SLUG = 'rosso';
     function resolverSlug() {
       const porPath = location.pathname.replace(/^\/|\/$/g, '');
@@ -7589,6 +7684,9 @@
       const carga = document.getElementById('carga');
       carga.classList.remove('carga-oculta');
       carga.classList.add('carga-error-activo');
+      // El error va sobre el degradé, no sobre la foto de un edificio.
+      carga.classList.remove('sobre-poster');
+      document.getElementById('poster')?.remove();
       document.getElementById('carga-error-msg').textContent = msg;
       document.getElementById('carga-reintentar').hidden = !conReintentar;
     }
@@ -13295,6 +13393,9 @@
         if (elegida || unidadMarca) actualizarMarca(ahora);
       }
       animar();
+      // animar() pinta el primer cuadro en el acto (no espera al rAF): recién
+      // ahora la escena puede reemplazar al poster.
+      quitarPoster();
 
       addEventListener('resize', () => {
         camara.aspect = innerWidth / innerHeight;
@@ -13324,6 +13425,28 @@
       carga.classList.remove('carga-oculta', 'carga-error-activo');
     }
 
+    // Fundido de salida del poster (300 ms, la transition de #poster en CSS)
+    // y después afuera del DOM. Lo llama iniciar() con el primer cuadro.
+    function quitarPoster() {
+      const poster = document.getElementById('poster');
+      if (!poster) return;
+      poster.classList.add('poster-oculto');
+      setTimeout(() => poster.remove(), 320);
+    }
+
+    // La escena arranca recién con la página cargada (window load) y el hilo
+    // libre, así el poster (el LCP) se pinta sin competir con three.js. Los
+    // datos no esperan: cargarProyecto() corre en paralelo. Una sola promesa:
+    // "Reintentar" no vuelve a esperar.
+    const paginaCargada = new Promise(resolver => {
+      const enReposo = () => {
+        if ('requestIdleCallback' in window) requestIdleCallback(() => resolver(), { timeout: 1000 });
+        else setTimeout(resolver, 0);
+      };
+      if (document.readyState === 'complete') enReposo();
+      else addEventListener('load', enReposo, { once: true });
+    });
+
     async function cargarTodo() {
       const resultado = await cargarProyecto();
       if (resultado.error === 'no-encontrado') {
@@ -13335,6 +13458,9 @@
         return;
       }
       document.title = resultado.proyecto.nombre + ' · disponibilidad navegable';
+      // Antes de pintar: las imágenes que suman pintarRenders() y compañía
+      // demorarían el load que se espera.
+      await paginaCargada;
       pintarRedes(resultado.settings);
       pintarAmenities(resultado.amenities);
       pintarLegal(resultado.settings.textos);

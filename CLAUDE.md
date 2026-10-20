@@ -58,6 +58,12 @@ Archivos:
   `gltf-transform optimize`) usados como utilería en la calle. Se sirven con caché de un
   año (`immutable`, ver `vercel.json`): **un modelo que cambia va con nombre nuevo**;
   si se pisa el archivo, quien ya lo tenía en caché sigue viendo el viejo hasta un año.
+- `images/poster-<slug>.webp` (1920×1080) y `images/poster-<slug>-movil.webp`
+  (780×1688) — la vista inicial de cada edificio, que se ve mientras carga y es el LCP
+  (ver "Poster" en "Arquitectura de `index.html`"). Opcionales: sin el archivo, el
+  overlay de carga de siempre. Caché default de Vercel (se pueden pisar). Los genera
+  `node scripts/posters.mjs [slug ...]` (Chrome headless con los datos reales, "Vista
+  inicial", interfaz escondida con `opacity: 0`, captura → WebP).
 - `README.md` — runbook: alta de edificio paso a paso, acceso de plataforma, revocar
   accesos.
 - `vercel.json` — sin build ni framework (`framework: null`, `buildCommand: ""`,
@@ -187,14 +193,31 @@ render. El CSS queda inline a propósito: el overlay tapa todo, así que partirl
 daba ~140 ms y abría una carrera con las mediciones del JS (`rectLibre()`,
 `ajustarResumen()`…).
 
-Secuencia de carga: un overlay `#carga` está visible desde el primer paint →
+**Poster** (desde 2026-10-20): el LCP es una imagen fija de la vista inicial, no la
+escena. Un script inline en el `<head>` (no pide nada a la red) repite la regla de
+`resolverSlug()` —si cambia una, cambiar la otra—, elige `images/poster-<slug>.webp`
+o, en ≤ 860 px vertical, `-movil.webp`, y arma la precarga. `#poster` (`<img>` fijo,
+z-index 99, justo debajo de `#carga`) recibe el src de otro script inline y tapa toda
+la interfaz todavía vacía; `#carga` va transparente encima (`.sobre-poster`, ícono y
+texto con halo). La escena espera a `window load` + `requestIdleCallback`
+(`paginaCargada`, con `setTimeout` de respaldo) mientras los datos se piden en
+paralelo; con el primer cuadro, `quitarPoster()` lo funde en 300 ms y lo saca del DOM.
+Sin archivo (`onerror`), con un slug que no sea `[a-z0-9-]` o ante un error de carga,
+`sinPoster()` / `mostrarErrorCarga()` lo sacan y vuelve el degradé. Mide 1 px menos de
+alto que la pantalla a propósito: Chrome no cuenta como LCP una imagen que la tapa
+entera (probado en Chrome 155: el LCP pasaba a ser un texto). Un poster casi liso o
+comprimido de más tampoco cuenta (Chrome descarta las imágenes de baja entropía).
+
+Secuencia de carga: un overlay `#carga` (sobre el poster, si hay) está visible desde el
+primer paint →
 `resolverSlug()` (path, después `?p=`, después `DEFAULT_SLUG = 'rosso'`) →
 `cargarProyecto()` trae el proyecto de `public_projects` y después, en paralelo,
 unidades, settings, amenities, renders del proyecto, media de tipologías, el huso
 horario del país, e hitos/fotos de obra. Cada consulta tiene un timeout de 15s vía
 `abortSignal`. Error de red → el overlay muestra "Reintentar"; slug inexistente o no
 publicado → mensaje amable sin reintentar. Cada fila de unidad pasa por
-`normalizarUnidad(r)` (que también usa la vista previa al compartir). Si sale bien,
+`normalizarUnidad(r)` (que también usa la vista previa al compartir). Si sale bien, y
+con la página ya cargada (`paginaCargada`),
 `iniciar(proyecto, settings, UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra, tipologias)`
 arma todo. Las respuestas de Supabase no traen encabezados de caché (verificado el
 2026-10-14: sin `Cache-Control`/`ETag`, `CF-Cache-Status: DYNAMIC`), así que cada carga
@@ -888,7 +911,8 @@ Un edificio estándar no necesita cambios de código — es todo datos. Seguir `
 INSERT generado por script → amenities → usuario de Auth + membership → publicar). Datos
 opcionales por edificio: `geometria` (dimensiones, contornos, calle, norte_grados),
 lat/lon, tiene_pb, portada (`portada_url` / `portada_foco`) y `tipo`, financiacion,
-tipologías + imágenes, avance de obra.
+tipologías + imágenes, avance de obra. Y un archivo, no un dato: el poster de carga
+(`images/poster-<slug>.webp` + `-movil.webp`, paso 10 del README).
 
 Lo que sigue hardcodeado en `index.html` y puede necesitar cambios: `DEFAULT_SLUG`,
 `BASE`, la marca/colores (variables CSS en `:root`, compartidas por todos los proyectos), y el copy de aviso de demo
