@@ -10,26 +10,30 @@
   <!-- Poster de la escena (#poster, ver POSTER en el CSS): es el LCP. Uno por
      edificio, así mientras carga nunca se ve otro proyecto, y otro para
      celular vertical (≤ 860 px), donde el apaisado quedaría muy recortado:
-       /images/poster-<slug>.webp        1920×1080
-       /images/poster-<slug>-movil.webp   780×1688 (390×844 a 2x)
-     Como depende del slug, la precarga la arma este script y no un <link>
-     fijo (es inline: no pide nada a la red ni demora el primer render). Va
-     acá arriba porque el <img> recién aparece después de ~150 KB de CSS
-     inline. Sin el poster en VERSIONES_POSTER o con un slug raro, sinPoster():
-     vuelve el degradé de #carga. -->
+       /images/poster-<slug>.avif|webp         1920×1080
+       /images/poster-<slug>.1440.avif|webp    1440×810 (laptops)
+       /images/poster-<slug>-movil.avif|webp    780×1688 (390×844 a 2x)
+     AVIF pesa ~40 % menos que WebP a la misma vista; el WebP queda para los
+     navegadores sin AVIF (Safari < 16.4), que lo eligen solos en el
+     <picture> e ignoran la precarga (type="image/avif"). Como depende del
+     slug, la precarga la arma este script y no un <link> fijo (es inline: no
+     pide nada a la red ni demora el primer render). Va acá arriba porque el
+     <img> recién aparece después de ~150 KB de CSS inline. Sin el poster en
+     VERSIONES_POSTER o con un slug raro, sinPoster(): vuelve el degradé de
+     #carga. -->
   <script>
-    // Versión de cada poster (8 hex del SHA-256 del archivo), que va como ?v=:
-    // /images/poster-*.webp se sirve con caché de un año (immutable, ver
+    // Versión de cada poster (8 hex del SHA-256 de todos sus archivos), que va
+    // como ?v=: /images/poster-* se sirve con caché de un año (immutable, ver
     // vercel.json) y al regenerarlo se pisa con el mismo nombre. La reescribe
     // scripts/posters.mjs con todo lo que hay en images/: no editar a mano.
     // Un poster que no está acá ni se pide.
     var VERSIONES_POSTER = {
-      "altamira": "aef69d40",
-      "altamira-movil": "b4317bed",
-      "brusco": "cc9c1973",
-      "brusco-movil": "e665fd2f",
-      "rosso": "7ee20ee3",
-      "rosso-movil": "9a5afc54"
+      "altamira": "ffc833dc",
+      "altamira-movil": "7a924d39",
+      "brusco": "5fd29a50",
+      "brusco-movil": "b8f8f8a9",
+      "rosso": "a7fc934f",
+      "rosso-movil": "04b1685e"
     };
     // El slug sale igual que en resolverSlug() del script principal: path,
     // después ?p=, después 'rosso' (DEFAULT_SLUG). Si cambia uno, el otro.
@@ -40,25 +44,49 @@
       var movil = matchMedia('(max-width: 860px) and (orientation: portrait)').matches;
       var clave = slug + (movil ? '-movil' : '');
       if (!Object.prototype.hasOwnProperty.call(VERSIONES_POSTER, clave)) return null;
+      var base = '/images/poster-' + clave, v = '?v=' + VERSIONES_POSTER[clave];
+      // En escritorio, 1440 o 1920 según la pantalla (1440 = ANCHO_LAPTOP de
+      // scripts/assets/posters-codificar.mjs). sizes: el ancho que cubre el
+      // object-fit: cover; en una pantalla más alta que 16:9 lo da el alto.
+      var srcset = function (ext) {
+        return movil ? base + ext + v : base + '.1440' + ext + v + ' 1440w, ' + base + ext + v + ' 1920w';
+      };
       var p = {
-        src: '/images/poster-' + clave + '.webp?v=' + VERSIONES_POSTER[clave],
+        avif: srcset('.avif'),
+        webp: srcset('.webp'),
+        sizes: movil ? '' : '(min-aspect-ratio: 16/9) 100vw, 178vh',
         ancho: movil ? 780 : 1920,
         alto: movil ? 1688 : 1080
       };
+      // Mismo srcset y sizes que la <source> AVIF del <picture>: el navegador
+      // elige el mismo archivo y usa lo precargado. Sin href en escritorio: un
+      // navegador sin imagesrcset bajaría el de 1920 aunque después elija el
+      // de 1440 (ese, sin precarga, lo pide al llegar al <img>).
       var precarga = document.createElement('link');
       precarga.rel = 'preload';
       precarga.as = 'image';
-      precarga.href = p.src;
+      precarga.type = 'image/avif';
+      if (movil) precarga.href = p.avif;
+      else {
+        precarga.setAttribute('imagesrcset', p.avif);
+        precarga.setAttribute('imagesizes', p.sizes);
+      }
       precarga.setAttribute('fetchpriority', 'high');
       document.head.appendChild(precarga);
       return p;
     })();
     // Saca el poster y devuelve el degradé de #carga. La llaman el onerror
-    // del <img> y el script que le pone el src (sin POSTER).
+    // del <img>, el script que le pone los srcset (sin POSTER) y
+    // mostrarErrorCarga().
     function sinPoster() {
-      var poster = document.getElementById('poster');
-      if (poster) poster.remove();
+      sacarPoster();
       document.getElementById('carga').classList.remove('sobre-poster');
+    }
+    // Con el <picture> entero: un <img> sacado de su <picture> vuelve a elegir
+    // con su propio srcset (sin la <source> AVIF) y baja el WebP para nada.
+    function sacarPoster() {
+      var poster = document.getElementById('poster');
+      if (poster) (poster.closest('picture') || poster).remove();
     }
   </script>
   <!-- Fraunces: solo el titular del bloque de descripción del panel de la
@@ -6075,17 +6103,24 @@
 
   <!-- Poster de la escena (ver el script del poster en el <head> y POSTER en
      el CSS). Va después de #carga en el HTML (queda debajo por z-index) para
-     que sinPoster() ya lo encuentre. El src y el tamaño (el real del
+     que sinPoster() ya lo encuentre. Los srcset y el tamaño (el real del
      archivo) se los pone el script de abajo según el edificio y la
-     pantalla: es la misma URL que ya se está precargando. -->
-  <img id="poster" alt="" fetchpriority="high" onerror="sinPoster()">
+     pantalla: el AVIF es el mismo que ya se está precargando. El <picture>
+     no ocupa lugar (el <img> es fixed); sin el <img> no muestra nada. -->
+  <picture>
+    <source id="poster-avif" type="image/avif">
+    <img id="poster" alt="" fetchpriority="high" onerror="sinPoster()">
+  </picture>
   <script>
-    (function (img) {
+    (function (fuente, img) {
       if (!POSTER) return sinPoster();
+      // La <source> antes que el <img>: el navegador elige una sola vez.
+      fuente.srcset = POSTER.avif;
+      if (POSTER.sizes) fuente.sizes = img.sizes = POSTER.sizes;
       img.width = POSTER.ancho;
       img.height = POSTER.alto;
-      img.src = POSTER.src;
-    })(document.getElementById('poster'));
+      img.srcset = POSTER.webp;
+    })(document.getElementById('poster-avif'), document.getElementById('poster'));
   </script>
 
   <header id="cabezal">
@@ -7703,10 +7738,101 @@
       carga.classList.remove('carga-oculta');
       carga.classList.add('carga-error-activo');
       // El error va sobre el degradé, no sobre la foto de un edificio.
-      carga.classList.remove('sobre-poster');
-      document.getElementById('poster')?.remove();
+      sinPoster();
       document.getElementById('carga-error-msg').textContent = msg;
       document.getElementById('carga-reintentar').hidden = !conReintentar;
+    }
+
+    // Variantes de Storage: las imágenes de Supabase Storage (portada, renders,
+    // planos, fotos de obra) se piden por /render/image/ en la medida en que se
+    // muestran, en WebP (Supabase lo elige por el Accept del navegador). Antes
+    // bajaba el original: la portada, una franja de 72 px de alto, pesaba
+    // ~310 KB y era lo que marcaba Lighthouse; un plano PNG, hasta 430 KB.
+    // Usa las transformaciones de imagen de Supabase (plan Pro): si fallan
+    // (400), respaldoOriginal() vuelve una vez al archivo tal cual. Ojo: con
+    // solo `width`, el resize por defecto (cover) recorta en vez de achicar,
+    // así que sin proporción va siempre resize=contain. Supabase no agranda:
+    // pedir más que el original devuelve el original recodificado. Las mismas
+    // medidas las mide scripts/assets/optimizar.mjs (npm run optimize:assets).
+    const RE_STORAGE = /^(https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1)\/object\/public\/(.+)$/;
+    const VARIANTES_STORAGE = {
+      // Franja del header: 8:1, y 4:1 en el header compacto (≤640). Recorte
+      // centrado, como el object-fit: cover de siempre.
+      portada: { anchos: [640, 960, 1280, 1920], proporcion: 8, calidad: 70, sizes: '55vw' },
+      portadaMovil: { anchos: [480, 720, 1080], proporcion: 4, calidad: 70, sizes: '60vw' },
+      // Con portada_foco no se recorta: el encuadre lo da object-position.
+      portadaFoco: { anchos: [640, 960, 1280, 1920], calidad: 70, sizes: '(max-width: 640px) 60vw, 55vw' },
+      // Cabecera del panel: 180 px de alto por el ancho del panel
+      // (--ancho-panel, clamp(400px, 37vw, 720px), escrito como media queries).
+      cabecera: {
+        anchos: [640, 800, 960, 1280, 1600], proporcion: 2.5, calidad: 75,
+        sizes: '(max-width: 860px) 100vw, (max-width: 1081px) 400px, (max-width: 1946px) 37vw, 720px',
+      },
+      // Tarjeta del plano (columna derecha de #p-intro, contain).
+      plano: {
+        anchos: [400, 800, 1200], calidad: 85,
+        sizes: '(max-width: 480px) calc(100vw - 76px), (max-width: 860px) calc(45vw - 60px), 300px',
+      },
+      // Fotos de obra: grilla de cuadrados de 120 px o más.
+      miniatura: { anchos: [240, 480], proporcion: 1, calidad: 70, sizes: '(max-width: 480px) 33vw, 160px' },
+    };
+    function urlStorage(url, { ancho, alto, proporcion, calidad }) {
+      const m = RE_STORAGE.exec(url);
+      if (!m) return url;
+      const p = new URLSearchParams();
+      if (ancho) p.set('width', ancho);
+      if (ancho && proporcion) {
+        p.set('height', Math.round(ancho / proporcion));
+        p.set('resize', 'cover');
+      } else if (ancho) {
+        if (alto) p.set('height', alto);
+        p.set('resize', 'contain');
+      }
+      p.set('quality', calidad);
+      return m[1] + '/render/image/public/' + m[2] + '?' + p;
+    }
+    // srcset + sizes de una variante; una URL que no es de Storage va tal cual.
+    // dataset.original es la URL de la base: con ella se compara si cambió.
+    function ponerImagenStorage(img, url, variante) {
+      img.dataset.original = url;
+      if (!RE_STORAGE.test(url)) {
+        img.removeAttribute('srcset');
+        img.removeAttribute('sizes');
+        img.src = url;
+        return;
+      }
+      img.sizes = variante.sizes;
+      img.srcset = variante.anchos.map(a => urlStorage(url, { ...variante, ancho: a }) + ' ' + a + 'w').join(', ');
+      img.src = urlStorage(url, { ...variante, ancho: variante.anchos[1] || variante.anchos[0] });
+    }
+    function sacarImagenStorage(img) {
+      img.removeAttribute('srcset');
+      img.removeAttribute('sizes');
+      img.removeAttribute('src');
+      delete img.dataset.original;
+    }
+    // Para el 'error' de cada imagen: si falló una variante, vuelve una sola
+    // vez al original (true); si ya era el original, false.
+    function respaldoOriginal(img) {
+      const original = img.dataset.original;
+      if (!original || img.getAttribute('src') === original) return false;
+      img.removeAttribute('srcset');
+      img.removeAttribute('sizes');
+      img.src = original;
+      return true;
+    }
+    // Lightbox: una sola URL, sin srcset. La imagen no tiene medida fija (su
+    // caja es la medida natural topeada a 88vw × 82vh) y con srcset el
+    // navegador la mostraría a otra escala. Se pide esa caja en px de
+    // pantalla con resize=contain, en escalones (más aciertos de caché): una
+    // foto vertical viene a la altura que se ve. Con zoom (el plano y los
+    // renders de su tipología), la medida original; el plano, con más calidad.
+    const ESCALONES_LIGHTBOX = [720, 1080, 1440, 1920, 2560];
+    function urlLightbox(url, zoom, esPlano) {
+      if (zoom) return urlStorage(url, { calidad: esPlano ? 90 : 80 });
+      const dpr = window.devicePixelRatio || 1;
+      const escalon = n => ESCALONES_LIGHTBOX.find(e => e >= n) || ESCALONES_LIGHTBOX[ESCALONES_LIGHTBOX.length - 1];
+      return urlStorage(url, { ancho: escalon(innerWidth * 0.88 * dpr), alto: escalon(innerHeight * 0.82 * dpr), calidad: 80 });
     }
 
     // Lightbox genérico (una imagen a la vez, con flechas/teclado/contador):
@@ -7720,7 +7846,8 @@
       const contador = document.getElementById('renders-contador');
       const btnPrev = document.getElementById('renders-prev');
       const btnNext = document.getElementById('renders-next');
-      let lista = [], indice = 0;
+      let lista = [], indice = 0, conZoom = false;
+      imgEl.addEventListener('error', () => respaldoOriginal(imgEl));
 
       /* Zoom del plano: pellizco, arrastre, doble toque/doble click, rueda y
          deslizar hacia abajo para cerrar. Solo si lo pide quien abre (el
@@ -8031,7 +8158,9 @@
 
       function mostrarIndice(i) {
         indice = i;
-        imgEl.src = lista[indice].url;
+        const item = lista[indice];
+        imgEl.dataset.original = item.url;
+        imgEl.src = urlLightbox(item.url, conZoom, item.tipo === 'planta');
         contador.textContent = (indice + 1) + ' / ' + lista.length;
         btnPrev.disabled = indice === 0;
         btnNext.disabled = indice === lista.length - 1;
@@ -8041,7 +8170,8 @@
       function abrir(nuevaLista, indiceInicial, opciones) {
         if (!nuevaLista.length) return;
         lista = nuevaLista;
-        zoomGaleria.activar(!!(opciones && opciones.zoom));
+        conZoom = !!(opciones && opciones.zoom);
+        zoomGaleria.activar(conZoom);
         mostrarIndice(indiceInicial || 0);
         modal.hidden = false;
         document.addEventListener('keydown', alTeclado);
@@ -8076,8 +8206,11 @@
     // El primer render del proyecto: la foto de la cabecera del panel cuando
     // la tipología de la unidad no tiene uno propio (ver pintarPanel()).
     let renderPortada = null;
-    // Si la foto no carga, queda el fondo verde de la cabecera.
-    document.getElementById('p-hero-img').addEventListener('error', ev => { ev.target.hidden = true; });
+    // Si la foto no carga (ni la variante ni el original), queda el fondo
+    // verde de la cabecera.
+    document.getElementById('p-hero-img').addEventListener('error', ev => {
+      if (!respaldoOriginal(ev.target)) ev.target.hidden = true;
+    });
     function pintarRenders(lista) {
       if (!lista.length) return;
       renderPortada = lista[0].url;
@@ -8153,9 +8286,10 @@
         grid.className = 'avance-mes-grid';
         grupo.items.forEach((f, i) => {
           const img = document.createElement('img');
-          img.src = f.url;
-          img.alt = 'Avance de obra, ' + tit.textContent;
           img.loading = 'lazy';
+          img.alt = 'Avance de obra, ' + tit.textContent;
+          img.addEventListener('error', () => respaldoOriginal(img));
+          ponerImagenStorage(img, f.url, VARIANTES_STORAGE.miniatura);
           img.addEventListener('click', () => galeria.abrir(grupo.items, i));
           grid.appendChild(img);
         });
@@ -8352,17 +8486,26 @@
       cbCalle.title = cbZona.title = [calle, zonaTxt].filter(Boolean).join(', ');
 
       // Portada (projects.portada_url / portada_foco): se prende recién al
-      // cargar la foto; si no carga, el header queda como siempre.
+      // cargar la foto; si no carga, el header queda como siempre. Se pide la
+      // franja que se ve (ver VARIANTES_STORAGE), que cambia de proporción
+      // con el header compacto; con portada_foco, la foto entera.
       const barraSup = document.getElementById('barra-sup');
       const portadaUrl = typeof proyecto.portada_url === 'string' ? proyecto.portada_url.trim() : '';
       if (/^https?:\/\//i.test(portadaUrl)) {
         const img = document.getElementById('bs-portada-img');
-        img.style.objectPosition = proyecto.portada_foco || 'center';
+        const foco = (proyecto.portada_foco || '').trim();
+        img.style.objectPosition = foco || 'center';
         img.addEventListener('load', () => {
           img.hidden = false;
           barraSup.classList.add('con-portada');
         }, { once: true });
-        img.src = portadaUrl;
+        img.addEventListener('error', () => respaldoOriginal(img));
+        const centrada = !foco || /^(center|center center|50% 50%)$/i.test(foco);
+        const compacto = matchMedia('(max-width: 640px)');
+        const pintarPortada = () => ponerImagenStorage(img, portadaUrl, !centrada ? VARIANTES_STORAGE.portadaFoco
+          : compacto.matches ? VARIANTES_STORAGE.portadaMovil : VARIANTES_STORAGE.portada);
+        pintarPortada();
+        if (centrada) compacto.addEventListener('change', pintarPortada);
       }
 
       // Mobile: el rótulo del tipo va junto al nombre solo si entra sin
@@ -11512,7 +11655,9 @@
       }
       // getAttribute: sin src (estado vacío) no hay nada que resolver.
       intro.img.addEventListener('load', () => { if (intro.img.getAttribute('src')) estadoPlano('listo'); });
-      intro.img.addEventListener('error', () => { if (intro.img.getAttribute('src')) estadoPlano('vacio'); });
+      intro.img.addEventListener('error', () => {
+        if (!respaldoOriginal(intro.img) && intro.img.getAttribute('src')) estadoPlano('vacio');
+      });
       // "Ver plano" y la tarjeta abren el lightbox de siempre en la planta, y
       // desde ahí se sigue a los renders de la tipología.
       function ampliarPlano() {
@@ -11536,11 +11681,11 @@
         const url = media && media.planta.length ? media.planta[0].url : '';
         intro.img.alt = url ? 'Plano de la unidad ' + numeroDe(u) : '';
         if (!url) {
-          intro.img.removeAttribute('src');
+          sacarImagenStorage(intro.img);
           estadoPlano('vacio');
-        } else if (intro.img.getAttribute('src') !== url) {
+        } else if (intro.img.dataset.original !== url) {
           estadoPlano('cargando');
-          intro.img.src = url;
+          ponerImagenStorage(intro.img, url, VARIANTES_STORAGE.plano);
         } else if (intro.img.complete) estadoPlano(intro.img.naturalWidth ? 'listo' : 'vacio');
         intro.m2.textContent = u.m2 != null ? formatearM2(u.m2, proyecto.locale) + ' m²' : '';
 
@@ -12572,7 +12717,7 @@
         const mediaTipo = u.typologyId && MEDIA_POR_TIPOLOGIA[u.typologyId];
         const foto = (mediaTipo && mediaTipo.render.length && mediaTipo.render[0].url) || renderPortada;
         const heroImg = document.getElementById('p-hero-img');
-        if (foto && heroImg.getAttribute('src') !== foto) heroImg.src = foto;
+        if (foto && heroImg.dataset.original !== foto) ponerImagenStorage(heroImg, foto, VARIANTES_STORAGE.cabecera);
         heroImg.hidden = !foto;
         pintarIntro(u);
         const tipologia = tipologiaDe(u, NOMBRES_TIPOLOGIA);
@@ -13444,12 +13589,13 @@
     }
 
     // Fundido de salida del poster (300 ms, la transition de #poster en CSS)
-    // y después afuera del DOM. Lo llama iniciar() con el primer cuadro.
+    // y después afuera del DOM, con su <picture> (sacarPoster(), en el
+    // <head>). Lo llama iniciar() con el primer cuadro.
     function quitarPoster() {
       const poster = document.getElementById('poster');
       if (!poster) return;
       poster.classList.add('poster-oculto');
-      setTimeout(() => poster.remove(), 320);
+      setTimeout(sacarPoster, 320);
     }
 
     // La escena arranca recién con la página cargada (window load) y el hilo

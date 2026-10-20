@@ -1,8 +1,11 @@
 {
   "private": true,
-  "description": "Solo para las funciones de api/ (imagen de vista previa). El visor no tiene build: ver vercel.json.",
+  "description": "Dependencias: solo las de las funciones de api/ (imagen de vista previa). El visor no tiene build: ver vercel.json. optimize:assets instala lo suyo en scripts/assets/, no acá.",
   "engines": {
     "node": "24.x"
+  },
+  "scripts": {
+    "optimize:assets": "npm --prefix scripts/assets install --no-audit --no-fund --loglevel=error && node scripts/assets/optimizar.mjs"
   },
   "dependencies": {
     "@vercel/og": "0.11.1"

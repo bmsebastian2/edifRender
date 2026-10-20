@@ -146,22 +146,25 @@ logueada de `admin.html`, no hace falta usarla acá.)
 ### 10. Poster de carga (opcional)
 
 Imagen fija de la vista inicial que se ve mientras carga el visor (y es lo que
-Lighthouse mide como LCP). Dos archivos en `images/`, con el slug tal cual:
+Lighthouse mide como LCP). Seis archivos en `images/`, con el slug tal cual, cada
+uno en AVIF (el que se usa) y WebP (para navegadores sin AVIF):
 
-- `poster-slug-edificio.webp` — 1920×1080, para desktop y celular apaisado.
-- `poster-slug-edificio-movil.webp` — 780×1688 (390×844 a 2x), para pantallas
-  de hasta 860 px en vertical.
+- `poster-slug-edificio.avif` / `.webp` — 1920×1080, para desktop y celular apaisado.
+- `poster-slug-edificio.1440.avif` / `.webp` — 1440×810, para laptops.
+- `poster-slug-edificio-movil.avif` / `.webp` — 780×1688 (390×844 a 2x), para
+  pantallas de hasta 860 px en vertical.
 
 Se generan con `node scripts/posters.mjs slug-edificio` (sin slug, todos los
 publicados; el edificio ya tiene que estar publicado): abre el visor en un Chrome
 headless con los datos reales, va a la vista inicial, esconde la interfaz y
-captura solo la escena. Tarda ~20 s por archivo. El poster muestra los colores de
-ese momento: volver a correrlo si cambian muchos estados o la geometría.
+captura solo la escena. Tarda ~30 s por captura (dos por edificio). La primera vez
+instala sharp en `scripts/assets/`. El poster muestra los colores de ese momento:
+volver a correrlo si cambian muchos estados o la geometría.
 
 El script también actualiza `VERSIONES_POSTER` en `index.html` (el `?v=` de cada
-poster): commitear los `.webp` junto con `index.html`. Los posters se sirven con
-caché de un año, así que un `.webp` reemplazado a mano, sin pasar por el script, lo
-siguen viendo viejo quienes ya lo tenían.
+poster): commitear los `.avif` y `.webp` junto con `index.html`. Los posters se
+sirven con caché de un año, así que un archivo reemplazado a mano, sin pasar por el
+script, lo siguen viendo viejo quienes ya lo tenían.
 
 Sin los archivos el visor carga igual, con el fondo de carga de siempre. Solo
 anda con slugs de minúsculas, números y guiones.

@@ -1,3 +1,7 @@
 node_modules/
 # PNG de muestra de /api/og (node scripts/muestras-og.mjs): para revisar, no se commitean.
 muestras-og/
+# Salida de npm run optimize:assets (scripts/assets/optimizar.mjs): candidatos e
+# informe para revisar, no se commitean. Y los PNG sin pérdida de los posters.
+optimizado/
+datos/posters/

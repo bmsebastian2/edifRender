@@ -1,5 +1,6 @@
-// Posters de carga del visor: images/poster-<slug>.webp y -movil.webp (ver
-// "Poster" en CLAUDE.md y el paso 10 del README).
+// Posters de carga del visor: images/poster-<slug>.avif/.webp (más la variante
+// .1440 para laptops) y -movil.avif/.webp (ver "Poster" en CLAUDE.md y el paso
+// 10 del README).
 //
 //   node scripts/posters.mjs [slug ...]      (default: todos los publicados)
 //
@@ -11,11 +12,16 @@
 // GPU pero con el mismo resultado. El poster refleja los estados del momento:
 // volver a correrlo si cambian muchas unidades o la geometría.
 //
+// La captura sin pérdida queda en datos/posters/<archivo>.png (ignorada por
+// git; con ella npm run optimize:assets puede probar otras calidades) y se
+// codifica con sharp (scripts/assets/posters-codificar.mjs; si sharp no está
+// instalado, lo instala la primera vez).
+//
 // Al final reescribe VERSIONES_POSTER en el <head> de index.html (el ?v= de
-// cada poster): /images/poster-*.webp tiene caché de un año, así que un
-// archivo que cambia tiene que cambiar de URL. Commitear los .webp junto con
+// cada poster): /images/poster-* tiene caché de un año, así que un archivo que
+// cambia tiene que cambiar de URL. Commitear los .avif y .webp junto con
 // index.html.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import http from 'node:http';
 import { mkdirSync, mkdtempSync, readdirSync, readFile, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -31,7 +37,6 @@ const VARIANTES = [
   { sufijo: '', ancho: 1920, alto: 1080, dpr: 1, movil: false },
   { sufijo: '-movil', ancho: 390, alto: 844, dpr: 2, movil: true },
 ];
-const CALIDAD = 0.82;
 // Desde "Vista inicial": 750 ms de recorrido de cámara y el giro automático
 // frenado 6 s (INACTIVIDAD_MS). Se captura en el medio.
 const MS_ANTES_DE_VISTA = 6000, MS_DESPUES_DE_VISTA = 1800;
@@ -46,7 +51,23 @@ async function slugsPublicados() {
 }
 
 // El repo tal cual, como lo sirve Vercel.
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.webp': 'image/webp', '.png': 'image/png', '.glb': 'model/gltf-binary' };
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.webp': 'image/webp', '.avif': 'image/avif', '.png': 'image/png', '.glb': 'model/gltf-binary' };
+
+// sharp vive en su propio paquete (scripts/assets/package.json: en el de la
+// raíz, Vercel lo instalaría y @vercel/og lo usaría). Si falta, se instala.
+async function cargarCodificador() {
+  try {
+    return await import('./assets/posters-codificar.mjs');
+  } catch (e) {
+    if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e;
+    console.log('Instalando las herramientas de scripts/assets/ (una sola vez)…');
+    const r = spawnSync('npm', ['--prefix', 'scripts/assets', 'install', '--no-audit', '--no-fund', '--loglevel=error'],
+      { cwd: raiz, stdio: 'inherit', shell: process.platform === 'win32' });
+    if (r.status !== 0) throw new Error('no se pudo instalar scripts/assets/');
+    // Con otra URL: el import fallido queda en la caché de módulos.
+    return import('./assets/posters-codificar.mjs?instalado');
+  }
+}
 function servir() {
   const servidor = http.createServer((req, res) => {
     let ruta = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -125,39 +146,54 @@ async function capturar(slug, v) {
       s.textContent = 'body > :not(canvas) { opacity: 0 !important; }';
       document.head.appendChild(s);
       return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))); })()`);
-    const png = (await p.send('Page.captureScreenshot', { format: 'png' })).result.data;
-    // PNG → WebP en el mismo navegador, con la calidad de acá.
-    const webp = await p.evaluar(`new Promise((r, f) => { const img = new Image();
-      img.onload = () => { const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
-        c.getContext('2d').drawImage(img, 0, 0); r(c.width + 'x' + c.height + ',' + c.toDataURL('image/webp', ${CALIDAD}).split(',')[1]); };
-      img.onerror = f; img.src = 'data:image/png;base64,${png}'; })`);
-    const [medidas, base64] = webp.split(',');
-    const datos = Buffer.from(base64, 'base64');
-    const archivo = `poster-${slug}${v.sufijo}.webp`;
-    writeFileSync(join(raiz, 'images', archivo), datos);
-    // Chrome no toma como LCP una imagen casi lisa (< 0,05 bits por píxel mostrado).
-    const bpp = datos.length * 8 / (v.ancho * v.alto);
-    console.log(`images/${archivo}  ${medidas}  ${Math.round(datos.length / 1024)} KB  ${bpp.toFixed(2)} bpp${bpp < 0.1 ? '  ⚠ poca entropía para LCP' : ''}`);
+    const png = Buffer.from((await p.send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64');
+    const base = `poster-${slug}${v.sufijo}`;
+    writeFileSync(join(raiz, 'datos', 'posters', base + '.png'), png);
+    for (const { archivo, datos } of await codificador.codificarPoster(png, base)) {
+      writeFileSync(join(raiz, 'images', archivo), datos);
+      // Chrome no toma como LCP una imagen casi lisa (< 0,05 bits por píxel
+      // mostrado). Contra la pantalla más grande en que se muestra: la de la
+      // captura, o la de laptop (hasta su ancho, en 16:9) para esa variante.
+      const laptop = archivo.includes(`.${codificador.ANCHO_LAPTOP}.`);
+      const area = laptop ? codificador.ANCHO_LAPTOP * codificador.ANCHO_LAPTOP * 9 / 16 : v.ancho * v.alto;
+      const bpp = datos.length * 8 / area;
+      console.log(`images/${archivo}  ${Math.round(datos.length / 1024)} KB  ${bpp.toFixed(2)} bpp${bpp < 0.1 ? '  ⚠ poca entropía para LCP' : ''}`);
+    }
   } finally {
     await p.cerrar();
   }
 }
 
 // VERSIONES_POSTER de index.html, con todos los posters de images/ (no solo
-// los de esta corrida): clave = slug + sufijo, valor = 8 hex del SHA-256.
+// los de esta corrida): clave = slug + sufijo, valor = 8 hex del SHA-256 de
+// todos sus archivos (AVIF, WebP y la variante de laptop van juntos). Solo
+// claves completas: el visor pide cualquiera de ellos sin preguntar.
 function escribirVersiones() {
   const ruta = join(raiz, 'index.html');
   const html = readFileSync(ruta, 'utf8');
   const bloque = /var VERSIONES_POSTER = \{[^}]*\};/;
   if (!bloque.test(html)) throw new Error('index.html: no está "var VERSIONES_POSTER = {...};"');
   const fin = html.includes('\r\n') ? '\r\n' : '\n';
-  const lineas = readdirSync(join(raiz, 'images'))
-    .map(archivo => archivo.match(/^poster-([a-z0-9-]+)\.webp$/))
+  const carpeta = join(raiz, 'images');
+  const hay = new Set(readdirSync(carpeta));
+  const archivosDe = clave => {
+    const base = 'poster-' + clave, laptop = '.' + codificador.ANCHO_LAPTOP;
+    return [base + '.avif', base + '.webp', ...(clave.endsWith('-movil') ? [] : [base + laptop + '.avif', base + laptop + '.webp'])];
+  };
+  const lineas = [...hay]
+    .map(archivo => archivo.match(/^poster-([a-z0-9-]+)\.avif$/))
     .filter(Boolean)
-    .sort((a, b) => (a[1] < b[1] ? -1 : 1))
-    .map(([archivo, clave]) => {
-      const hash = createHash('sha256').update(readFileSync(join(raiz, 'images', archivo))).digest('hex').slice(0, 8);
-      return `      "${clave}": "${hash}"`;
+    .map(m => m[1])
+    .filter(clave => {
+      const faltan = archivosDe(clave).filter(a => !hay.has(a));
+      if (faltan.length) console.error(`✗ ${clave}: faltan ${faltan.join(', ')} (queda sin poster)`);
+      return !faltan.length;
+    })
+    .sort()
+    .map(clave => {
+      const hash = createHash('sha256');
+      for (const archivo of archivosDe(clave)) hash.update(readFileSync(join(carpeta, archivo)));
+      return `      "${clave}": "${hash.digest('hex').slice(0, 8)}"`;
     });
   writeFileSync(ruta, html.replace(bloque, `var VERSIONES_POSTER = {${fin}${lineas.join(',' + fin)}${fin}    };`));
   console.log(`index.html: VERSIONES_POSTER con ${lineas.length} posters`);
@@ -165,7 +201,9 @@ function escribirVersiones() {
 
 const slugs = process.argv.slice(2).length ? process.argv.slice(2) : await slugsPublicados();
 for (const s of slugs) if (!/^[a-z0-9-]+$/.test(s)) throw new Error(`slug "${s}": el visor solo busca poster para [a-z0-9-]`);
+const codificador = await cargarCodificador();
 mkdirSync(join(raiz, 'images'), { recursive: true });
+mkdirSync(join(raiz, 'datos', 'posters'), { recursive: true });
 const perfil = mkdtempSync(join(tmpdir(), 'posters-'));
 const servidor = await servir();
 const chrome = await abrirChrome(perfil);

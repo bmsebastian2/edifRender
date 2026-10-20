@@ -34,8 +34,8 @@ administrar accesos); este archivo es la arquitectura.
 Un sitio estático sin build: una visualización 3D navegable de la disponibilidad de
 unidades de un edificio residencial (Three.js **r128** desde cdnjs), con Supabase como
 backend. No hay bundler, tests ni linter (solo los controles del pre-commit, ver
-"Correr / probar"); el `package.json` existe solo para la dependencia de `api/og.mjs`
-y no hay build. Se despliega en Vercel en `https://armadoporcota.vercel.app/`,
+"Correr / probar"); el `package.json` existe para la dependencia de `api/og.mjs` (y el
+atajo `npm run optimize:assets`, ver `scripts/assets/`) y no hay build. Se despliega en Vercel en `https://armadoporcota.vercel.app/`,
 sirviendo la raíz del repo tal cual (menos lo que excluye `.vercelignore`), más dos
 funciones para la vista previa al compartir (ver "Vista previa al compartir").
 
@@ -58,22 +58,27 @@ Archivos:
   `gltf-transform optimize`) usados como utilería en la calle. Se sirven con caché de un
   año (`immutable`, ver `vercel.json`): **un modelo que cambia va con nombre nuevo**;
   si se pisa el archivo, quien ya lo tenía en caché sigue viendo el viejo hasta un año.
-- `images/poster-<slug>.webp` (1920×1080) y `images/poster-<slug>-movil.webp`
-  (780×1688) — la vista inicial de cada edificio, que se ve mientras carga y es el LCP
-  (ver "Poster" en "Arquitectura de `index.html`"). Opcionales: sin el archivo, el
-  overlay de carga de siempre. Caché de un año (`immutable`, ver `vercel.json`): se
-  pisan con el mismo nombre, pero el src lleva `?v=` con el hash del archivo
-  (`VERSIONES_POSTER` en el `<head>` de `index.html`). Los genera
-  `node scripts/posters.mjs [slug ...]` (Chrome headless con los datos reales, "Vista
-  inicial", interfaz escondida con `opacity: 0`, captura → WebP), que al final
-  reescribe `VERSIONES_POSTER` con todos los posters de `images/`: no se edita a mano,
-  y un `.webp` pisado sin pasar por el script lo sigue viendo viejo quien ya lo tenía.
+  No tienen texturas: KTX2 no aplica, y Draco no conviene (su decoder WASM pesa más que
+  los tres autos con brotli). Reprocesarlos no gana nada (`optimize:assets`, 2026-10-20).
+- `images/poster-<slug>.avif|webp` (1920×1080), `poster-<slug>.1440.avif|webp`
+  (laptops) y `poster-<slug>-movil.avif|webp` (780×1688) — la vista inicial de cada
+  edificio, que se ve mientras carga y es el LCP (ver "Poster" en "Arquitectura de
+  `index.html`"). Opcionales: sin los archivos, el overlay de carga de siempre. Caché
+  de un año (`immutable`, ver `vercel.json`): se pisan con el mismo nombre, pero los
+  URLs llevan `?v=` con el hash de todos los archivos de la clave (`VERSIONES_POSTER`
+  en el `<head>` de `index.html`). Los genera `node scripts/posters.mjs [slug ...]`
+  (Chrome headless con los datos reales, "Vista inicial", interfaz escondida con
+  `opacity: 0`, captura PNG → sharp con `scripts/assets/posters-codificar.mjs`: AVIF 55,
+  WebP 80), que deja el PNG sin pérdida en `datos/posters/` (ignorada por git) y al
+  final reescribe `VERSIONES_POSTER` con las claves completas de `images/`: no se edita
+  a mano, y un archivo pisado sin pasar por el script lo sigue viendo viejo quien ya lo
+  tenía.
 - `README.md` — runbook: alta de edificio paso a paso, acceso de plataforma, revocar
   accesos.
 - `vercel.json` — sin build ni framework (`framework: null`, `buildCommand: ""`,
   `outputDirectory: "."`) + la ruta de los crawlers a `api/compartir` + una ruta con
-  `continue` que pone caché larga a `modelos/*.glb` y otra a `images/poster-*.webp`
-  (versionados, ver arriba). El resto de los estáticos (HTML,
+  `continue` que pone caché larga a `modelos/*.glb` y otra a los posters
+  (`images/poster-*`, `.avif` y `.webp`; versionados, ver arriba). El resto de los estáticos (HTML,
   `supabase-config.js`, `amenities-iconos.js`) queda con el default de Vercel
   (`max-age=0, must-revalidate`) a propósito: cambian en cada deploy con la misma URL.
   `"regions": ["pdx1"]`: las funciones corren en Portland, al lado de Supabase
@@ -81,7 +86,7 @@ Archivos:
   En producción se ve en el header `x-vercel-id` (`gru1::pdx1::…` = borde en São
   Paulo, función en Portland; verificado el 2026-10-15).
 - `.vercelignore` — no se publican `CLAUDE.md`, `*.sql`, `scripts/`, `datos/`,
-  `.githooks/` ni `node_modules/`.
+  `.githooks/`, `node_modules/` ni `optimizado/`.
 - `api/compartir.js` — HTML con las etiquetas Open Graph para los crawlers.
   `api/og.mjs` — la imagen de esa tarjeta (PNG 1200×630). Los archivos con prefijo `_`
   no son funciones: `api/_tarjeta.js` (qué datos muestra cada tarjeta, escrito a mano),
@@ -91,6 +96,15 @@ Archivos:
   `scripts/generar-compartido.mjs`, no se edita a mano.
 - `package.json` + `package-lock.json` + `.npmrc` — solo `@vercel/og`, versión exacta;
   `.npmrc` (`omit=optional`) deja afuera `sharp` (ver "Vista previa al compartir").
+- `scripts/assets/` — `npm run optimize:assets [-- posters | modelos | storage]`: sharp
+  y glTF-Transform en **su propio** `package.json` (en el de la raíz, Vercel instalaría
+  sharp y `@vercel/og` lo usaría; `posters.mjs` lo instala solo si falta). Ahí vive
+  también el codificador de los posters, compartido con `posters.mjs`. Genera
+  candidatos optimizados de posters, modelos e imágenes de Storage en `optimizado/`
+  (ignorada por git y Vercel) con
+  `optimizado/informe.md` (antes/después por archivo). **Nunca pisa un original**:
+  reemplazar es un paso aparte, a mano. Mide las mismas variantes de Storage que pide
+  `index.html` (ver "Imágenes de Storage"); si cambian allá, cambiarlas en el script.
 
 ## Correr / probar
 
@@ -200,19 +214,43 @@ daba ~140 ms y abría una carrera con las mediciones del JS (`rectLibre()`,
 
 **Poster** (desde 2026-10-20): el LCP es una imagen fija de la vista inicial, no la
 escena. Un script inline en el `<head>` (no pide nada a la red) repite la regla de
-`resolverSlug()` —si cambia una, cambiar la otra—, elige `images/poster-<slug>.webp`
-o, en ≤ 860 px vertical, `-movil.webp`, con el `?v=` de `VERSIONES_POSTER` (un poster
-que no está ahí ni se pide), y arma la precarga. `#poster` (`<img>` fijo,
-z-index 99, justo debajo de `#carga`) recibe el src de otro script inline y tapa toda
-la interfaz todavía vacía; `#carga` va transparente encima (`.sobre-poster`, ícono y
-texto con halo). La escena espera a `window load` + `requestIdleCallback`
-(`paginaCargada`, con `setTimeout` de respaldo) mientras los datos se piden en
-paralelo; con el primer cuadro, `quitarPoster()` lo funde en 300 ms y lo saca del DOM.
-Sin archivo (`onerror`), con un slug que no sea `[a-z0-9-]` o ante un error de carga,
-`sinPoster()` / `mostrarErrorCarga()` lo sacan y vuelve el degradé. Mide 1 px menos de
+`resolverSlug()` —si cambia una, cambiar la otra—, elige el poster del slug (en
+≤ 860 px vertical, el `-movil`) con el `?v=` de `VERSIONES_POSTER` (un poster que no
+está ahí ni se pide) y arma la precarga del AVIF (`type="image/avif"`; en escritorio
+con `imagesrcset` 1440w/1920w e `imagesizes` `(min-aspect-ratio: 16/9) 100vw, 178vh`,
+el ancho que cubre el `object-fit: cover`). `#poster` (`<img>` fijo, z-index 99, justo
+debajo de `#carga`) va en un `<picture>` con una `<source>` AVIF; otro script inline
+les pone los mismos `srcset`, así el navegador elige el archivo precargado. Un
+navegador sin AVIF (Safari < 16.4) saltea la precarga y toma el WebP del `<img>`.
+Verificado el 2026-10-20: un solo pedido por pantalla (1920 → `.avif`, 1366 →
+`.1440.avif`, celular → `-movil.avif`) y el LCP es `#poster`. Tapa toda la interfaz
+todavía vacía; `#carga` va transparente encima (`.sobre-poster`, ícono y texto con
+halo). La escena espera a `window load` + `requestIdleCallback` (`paginaCargada`, con
+`setTimeout` de respaldo) mientras los datos se piden en paralelo; con el primer
+cuadro, `quitarPoster()` lo funde en 300 ms y lo saca del DOM. Sin archivo
+(`onerror`), con un slug que no sea `[a-z0-9-]` o ante un error de carga,
+`sinPoster()` / `mostrarErrorCarga()` lo sacan y vuelve el degradé. Siempre con
+`sacarPoster()`, que saca el `<picture>` entero: un `<img>` sacado de su `<picture>`
+vuelve a elegir sin la `<source>` y baja el WebP para nada (pasaba). Mide 1 px menos de
 alto que la pantalla a propósito: Chrome no cuenta como LCP una imagen que la tapa
 entera (probado en Chrome 155: el LCP pasaba a ser un texto). Un poster casi liso o
 comprimido de más tampoco cuenta (Chrome descarta las imágenes de baja entropía).
+
+**Imágenes de Storage** (desde 2026-10-20): portada, renders, planos y fotos de obra no
+se piden al archivo original sino a `/storage/v1/render/image/` (transformaciones de
+imagen de Supabase, plan Pro), en la medida en que se muestran y en WebP (Supabase lo
+elige por el `Accept`). `VARIANTES_STORAGE` + `ponerImagenStorage()` arman `srcset` /
+`sizes` donde la caja la fija el CSS: la portada pide una franja recortada (8:1, 4:1 en
+el header compacto; sin recorte si hay `portada_foco`), la cabecera del panel 5:2, el
+plano y las miniaturas de obra. El lightbox no lleva `srcset` (su caja sale de la
+medida natural): `urlLightbox()` pide la caja de la pantalla con alto y ancho, y con
+zoom la medida original. Antes bajaba el original: la portada de 72 px de alto pesaba
+~310 KB (los 299 KiB que marcaba Lighthouse) y un plano PNG hasta 430 KB; ahora
+10–47 KB y 7–27 KB. Si una variante falla (400, p. ej. sin plan Pro),
+`respaldoOriginal()` vuelve una vez al original. Ojo con la API: con solo `width`, el
+resize por defecto (`cover`) **recorta** en vez de achicar (por eso sin proporción va
+`resize=contain`), y Supabase no agranda. `dataset.original` guarda la URL de la base:
+las comparaciones de "¿cambió la imagen?" van contra él, no contra `src`.
 
 Secuencia de carga: un overlay `#carga` (sobre el poster, si hay) está visible desde el
 primer paint →
@@ -918,7 +956,7 @@ INSERT generado por script → amenities → usuario de Auth + membership → pu
 opcionales por edificio: `geometria` (dimensiones, contornos, calle, norte_grados),
 lat/lon, tiene_pb, portada (`portada_url` / `portada_foco`) y `tipo`, financiacion,
 tipologías + imágenes, avance de obra. Y un archivo, no un dato: el poster de carga
-(`images/poster-<slug>.webp` + `-movil.webp`, paso 10 del README).
+(`images/poster-<slug>*.avif|webp`, paso 10 del README).
 
 Lo que sigue hardcodeado en `index.html` y puede necesitar cambios: `DEFAULT_SLUG`,
 `BASE`, la marca/colores (variables CSS en `:root`, compartidas por todos los proyectos), y el copy de aviso de demo
