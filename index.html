@@ -10104,16 +10104,18 @@
 
       // Autos: modelos GLB low-poly (Kenney/Quaternius, CC0) cargados una
       // sola vez con GLTFLoader y reutilizados con .clone() por instancia —
-      // sin animación, quietos. Solo 3 — no justifica InstancedMesh (a partir
-      // de ~20 repeticiones del mismo modelo sí valdría la pena).
+      // sin animación, quietos. Solo 3 y cada modelo una vez: InstancedMesh
+      // no ahorra nada (sería una instancia por geometría). Los autos de
+      // contexto, que sí se repiten, ya van instanciados (instanciar()).
       const LARGO_AUTO_OBJETIVO = 4.5; // metros — mismo target que tenía la geometría procedural que reemplaza
 
       // GLTFLoader y el decoder de meshopt se piden recién acá y no como
       // <script> en el HTML: solo sirven para los autos y eran 28 KB
-      // (Brotli) bloqueantes antes del primer cuadro (~0,3 s en 3G). Los
-      // .glb se bajan en paralelo con fetch() y se parsean cuando llegaron
-      // los scripts. Si algo falla no hay autos y el resto sigue igual, como
-      // con las líneas gruesas del contorno.
+      // (Brotli) bloqueantes antes del primer cuadro (~0,3 s en 3G). Todo
+      // esto arranca después del primer cuadro (cargarAutos(), al final de
+      // iniciar()): primero los dos scripts y después cada .glb de a uno.
+      // Si algo falla no hay autos y el resto sigue igual, como con las
+      // líneas gruesas del contorno.
       // GLTFLoader: build "clásica" (no ES module) de r128, como three.min.js
       // — sin importmap ni <script type="module"> el paquete three/addons no
       // serviría. Meshopt: los .glb salen de `gltf-transform optimize` con
@@ -10131,7 +10133,7 @@
           document.head.appendChild(s);
         });
       }
-      let cargadorGLTF = null; // se pide con el primer auto
+      let cargadorGLTF = null; // se pide con el primer auto; un solo GLTFLoader para los tres
       function pedirCargadorGLTF() {
         return cargadorGLTF ||= Promise.all([
           cargarScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
@@ -10153,11 +10155,10 @@
       const matOscuroAuto = new THREE.MeshStandardMaterial({ color: 0x24292C, roughness: 0.6 });
 
       function cargarModeloAuto(ruta, colorCarroceria) {
-        return modelosAutoCache[ruta] ||= Promise.all([
-          pedirCargadorGLTF(),
-          fetch(ruta).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }),
-        ])
-          .then(([cargador, datos]) => new Promise((ok, mal) => cargador.parse(datos, '', ok, mal)))
+        return modelosAutoCache[ruta] ||= pedirCargadorGLTF()
+          .then(cargador => fetch(ruta)
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+            .then(datos => new Promise((ok, mal) => cargador.parse(datos, '', ok, mal))))
           .then(gltf => {
             const bruto = gltf.scene;
 
@@ -10200,7 +10201,7 @@
           });
       }
 
-      [
+      const AUTOS = [
         // Posiciones pasadas a mano por la maqueta (captura con 3 puntos
         // rojos marcados sobre la escena real): los 3 en el carril más
         // cercano al edificio (el de arriba de la línea punteada en esa
@@ -10218,14 +10219,21 @@
         { modelo: 'modelos/autos/sedan.glb', x: -2, colorCarroceria: 0x5D6367 },
         { modelo: 'modelos/autos/suv.glb', x: -8, colorCarroceria: 0x9BA1A4 },
         { modelo: 'modelos/autos/hatchback.glb', x: -14, colorCarroceria: 0x5A6B78 },
-      ].forEach((c, _, todos) => {
+      ];
+      AUTOS.forEach(c => {
         // Un auto que caería en un cruce o su cebra (ROSSO: Paullier) pasa al
         // primer lugar libre, de a 6 m hacia +X.
         let x = c.x;
-        while (enCruce(x, LARGO_AUTO_OBJETIVO / 2 + 1 + ZONA_CEBRA) || todos.some(o => o !== c && o.xFinal === x)) x += 6;
+        while (enCruce(x, LARGO_AUTO_OBJETIVO / 2 + 1 + ZONA_CEBRA) || AUTOS.some(o => o !== c && o.xFinal === x)) x += 6;
         c.xFinal = x;
-        cargarModeloAuto(c.modelo, c.colorCarroceria).then(modelo => {
-          if (!modelo) return; // ver el warn del onError de arriba
+      });
+      // En secuencia: cada .glb se pide cuando el anterior ya está en la
+      // calle, así no le disputan la red a las imágenes del panel ni el hilo
+      // al giro. Lo llama iniciar() después del primer cuadro.
+      async function cargarAutos() {
+        for (const c of AUTOS) {
+          const modelo = await cargarModeloAuto(c.modelo, c.colorCarroceria);
+          if (!modelo) continue; // ver el warn de cargarModeloAuto()
           const auto = modelo.clone();
           auto.position.set(c.xFinal, 0.02, Z_CALLE + 2.5);
           // El "adelante" de estos modelos (Quaternius) mira +Z local —
@@ -10236,8 +10244,8 @@
           // sentido, en fila sobre el mismo carril.
           auto.rotation.y = Math.PI / 2;
           grupoCalle.add(auto);
-        });
-      });
+        }
+      }
 
       // Mobiliario urbano: farolas, bancos + cesto + bicicletero, y un
       // cartel de tránsito genérico — mismo criterio que los árboles
@@ -13610,6 +13618,10 @@
       // animar() pinta el primer cuadro en el acto (no espera al rAF): recién
       // ahora la escena puede reemplazar al poster.
       quitarPoster();
+      // La utilería de la calle, con el edificio ya a la vista y el hilo
+      // libre (como mucho 1,5 s; sin requestIdleCallback, a los 1,5 s).
+      if ('requestIdleCallback' in window) requestIdleCallback(cargarAutos, { timeout: 1500 });
+      else setTimeout(cargarAutos, 1500);
 
       // Tamaño del lienzo: ResizeObserver sobre su contenedor (body, que mide
       // la pantalla: html y body van con height 100% y overflow hidden), no

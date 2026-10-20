@@ -307,9 +307,14 @@ El script está organizado en secciones numeradas:
    (estables entre recargas), autos GLB cargados una vez y reutilizados con `.clone()`
    (la malla del pack, con sus materiales reemplazados por dos tonos: carrocería y
    oscuro; sin faros ni luces de color), faroles, bancos. GLTFLoader y el decoder de
-   meshopt no son `<script>` del HTML: `pedirCargadorGLTF()` los pide con el primer
-   auto, mientras los `.glb` se bajan en paralelo con `fetch()`. Si algo falla, no hay
-   autos (o falta uno) y el visor sigue igual.
+   meshopt no son `<script>` del HTML. Nada de los autos está en el camino crítico
+   (desde 2026-10-20): `cargarAutos()` arranca después del primer cuadro, con
+   `requestIdleCallback` (como mucho 1,5 s; sin él, `setTimeout` de 1,5 s), pide los
+   dos scripts (`pedirCargadorGLTF()`, un solo GLTFLoader) y después cada `.glb` de a
+   uno, poniendo cada auto en la calle a medida que llega. Antes se pedía todo en
+   paralelo en medio de `iniciar()`, antes del primer cuadro. Cada modelo se usa una vez:
+   InstancedMesh no aplica (los autos de contexto, que se repiten, ya van instanciados).
+   Si algo falla, no hay autos (o falta uno) y el visor sigue igual.
 3. **TORRE** — `for (let piso = 1; piso <= PISOS; piso++)` con `PISOS = proyecto.pisos`:
    losa, núcleo, y un mesh por unidad, coloreado con `aspectoDe(u).color`, con
    `userData.unidad` apuntando al objeto de la unidad (así el raycasting mapea un mesh a
