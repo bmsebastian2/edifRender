@@ -327,6 +327,30 @@ resize por defecto (`cover`) **recorta** en vez de achicar (por eso sin proporci
 `resize=contain`), y Supabase no agranda. `dataset.original` guarda la URL de la base:
 las comparaciones de "¿cambió la imagen?" van contra él, no contra `src`.
 
+**Compilación de shaders por partes** (desde 2026-10-21, `CALENTAMIENTO` al final de
+`iniciar()`; ver "Cambio 2" en "Optimización del arranque"): compilar los ~12
+programas de shader era ~85 % del primer cuadro (~400 ms con GPU real), en una sola
+tarea. three r128 no tiene `compileAsync` (llegó en r158) y su `compile()` bloquea
+igual: `getProgram()` llama enseguida a `getUniforms()`, que espera el enlace de cada
+programa. Así que se compila dibujando: `gruposCalentar()` toma un representante por
+programa (`firmaPrograma()`: tipo de material, `map`, `side`, `vertexColors`,
+`onBeforeCompile` propio —el de `conFundido()`—, instanciado y con `instanceColor`) y,
+al final, uno por variante de la pasada de sombra; `calentar()` dibuja solo ese objeto
+(y las luces) en un render target de 1×1 fuera de pantalla, sin recorte por cámara, y
+deja todo como estaba. Entre grupo y grupo se cede el hilo, y el primer cuadro va en
+su propia tarea. Compila lo mismo que compilaba el primer cuadro (también la sombra) y
+sube las texturas: el primer cuadro ya no compila nada. El poster sigue tapando todo, y
+el aviso de carga se va recién con el primer cuadro (`ocultarCarga()` pasó de
+`cargarTodo()` al `.then()` del calentamiento). Tope `TOPE_CALENTAR_MS` (3 s): pasado,
+se dibuja igual (el primer cuadro compila lo que falte) y avisa con `console.warn`. Los
+autos pasan por `calentar()` al llegar, antes del primer cuadro en que se ven (en
+general no compilan nada: usan los programas del mobiliario). Si una firma junta dos
+programas distintos (p. ej. un material nuevo con otra opción que cambie el shader), el
+segundo se compila en el primer cuadro: más lento, nada roto; agregar esa opción a
+`firmaPrograma()`. `render.debug.checkShaderErrors` va apagado en producción y
+prendido en localhost o con `?debug=1`. `KHR_parallel_shader_compile` no se usa: con
+r128 no serviría, y SwiftShader no la tiene.
+
 Secuencia de carga: un overlay `#carga` (sobre el poster, si hay) está visible desde el
 primer paint →
 `resolverSlug()` (path, después `?p=`, después `DEFAULT_SLUG = 'rosso'`) →
@@ -341,7 +365,8 @@ con la página ya cargada (`paginaCargada`) y las texturas de la calzada
 datos; con `fetch` y no con un `<img>`, que demoraría el `load`; las que fallan o no
 llegan en 5 s quedan afuera y esa calzada va gris lisa),
 `iniciar(proyecto, settings, UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra, tipologias)`
-arma todo. Las respuestas de Supabase no traen encabezados de caché (verificado el
+arma todo y el primer cuadro sale después de compilar los shaders por partes (ver
+arriba). Las respuestas de Supabase no traen encabezados de caché (verificado el
 2026-10-14: sin `Cache-Control`/`ETag`, `CF-Cache-Status: DYNAMIC`), así que cada carga
 trae datos frescos. Al volver a la pestaña (`visibilitychange`), `refrescarDatos()`
 (antes de la sección KIOSCO) vuelve a pedir unidades, tipologías y su media y actualiza
@@ -410,7 +435,9 @@ El script está organizado en secciones numeradas:
    objetivos (`userData.opObj` / `colorObj` / `bordeObj`) y el bucle los interpola (fundido
    al filtrar); el hover hace lo mismo con `userData.emObj`. Toolbar de vista y brújula
    (ver "Interfaz" más abajo) también viven acá.
-6. **BUCLE** — loop de render + las interpolaciones de arriba + la brújula.
+6. **BUCLE** — loop de render + las interpolaciones de arriba + la brújula. Arranca
+   después del calentamiento de shaders (`CALENTAMIENTO`, ver "Compilación de shaders
+   por partes").
 
 ### Interfaz alrededor del visor
 
@@ -1021,6 +1048,58 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
   de muestra de los casos típicos en `muestras-og/` (ignorada por git) y regenera
   `api/_marca-cota.png`.
 
+## Optimización del arranque (perf/fase11)
+
+Desde 2026-10-21, cambios de a uno en la rama `perf/fase11`, cada uno con diff, tabla
+de medición (mediana de 3 en frío, ROSSO, BRUSCO y Altamira, con una copia
+instrumentada del visor) y capturas comparativas, y un hard stop hasta el OK de
+Sebastian. Las mediciones van con SwiftShader (render por CPU), nunca con la GPU real
+de la notebook: el 2026-10-21 una tanda larga con la GPU real la colgó.
+
+- **Cambio 1** — asfalto horneado a WebP (`assets/textures/`, ver "Archivos"). En
+  producción desde `9d26d58`.
+- **Cambio 2** — compilación de shaders sin bloquear el hilo principal. El pedido
+  original, tal cual:
+
+  > Cambio 2 — Compilación de shaders sin bloquear el hilo principal (three.js r128,
+  > sin cambiar de versión).
+  > Desde perf/fase11 (9d26d58). Reglas: SwiftShader, sin GPU real, sin cambios
+  > visuales (materiales, sombras, resolución y configuración del renderer quedan
+  > iguales).
+  >
+  > 1. render.debug.checkShaderErrors = false solo en producción; mantenerlo en true en
+  >    localhost o con ?debug=1.
+  > 2. Con la escena armada (edificio, unidades, calles; sin autos), llamar a
+  >    render.compile(escena, camara) mientras el poster sigue visible.
+  > 3. Si existe KHR_parallel_shader_compile, consultar en cada rAF COMPLETION_STATUS_KHR
+  >    de los programas (render.info.programs) y dibujar el primer cuadro recién cuando
+  >    todos terminaron. Tope: 3 s; si se supera, dibujar igual y registrar un
+  >    console.warn.
+  > 4. Sin la extensión: comportamiento actual.
+  > 5. Autos: al terminar de cargarlos, repetir compile + espera antes de agregarlos a
+  >    la escena.
+  > 6. Shaders de la pasada de sombra: medir cuánto tardan en el primer cuadro y
+  >    reportarlo, sin cambiarlos todavía.
+  > 7. Medición, mediana de 3 en frío, en ROSSO, BRUSCO y Altamira: duración del primer
+  >    cuadro, tarea más larga del hilo principal y tiempo total de iniciar() → primer
+  >    cuadro, antes y después.
+  > 8. Capturas comparativas como en el cambio 1.
+  >
+  > Diff + tabla + capturas. Dejá este prompt guardado en CLAUDE.md como "Cambio 2".
+  > HARD STOP.
+
+  Acordado con Sebastian antes de implementarlo (2026-10-21): en r128 `compile()`
+  bloquea programa por programa (`getUniforms()` espera cada enlace) y SwiftShader no
+  tiene `KHR_parallel_shader_compile`, así que los puntos 2–4 se reemplazaron por la
+  **compilación por partes** (ver "Compilación de shaders por partes"). Se mantuvieron:
+  `checkShaderErrors` apagado solo en producción, el tope de 3 s con `console.warn`, el
+  mismo tratamiento para los autos al cargarlos, la medición y las capturas, más la
+  duración de la tarea más larga por grupo (objetivo: < 50 ms; en SwiftShader un solo
+  programa ya tarda más que eso, así que el objetivo se verifica en GPU real). La
+  sombra (punto 6) quedó medida: son 2 programas (`MeshDepthMaterial` con y sin
+  instancing; el color por instancia no la cambia), ~10–20 % del costo de compilar,
+  que ahora tienen su propio grupo.
+
 ## Pendientes (fuera de alcance por ahora)
 
 - En producción `public_projects` no tiene `tiene_pb`: la migración `pisos` parece no
@@ -1029,6 +1108,14 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
 - El contador de la tarjeta del proyecto se configura con `CONTADOR_EN_TARJETA` en
   `api/_tarjeta.js` (por slug). Pasarlo a una columna de `settings` / `public_settings`
   necesita migración.
+- **Bug (preexistente, a confirmar en celular real):** en BRUSCO a 390 px, un toque en
+  el centro de una unidad abre la vecina, casi siempre la del piso de abajo. Visto el
+  2026-10-21 con toques emulados por CDP (5 de 8 toques), igual antes y después del
+  cambio 2 de "Optimización del arranque"; en ROSSO a 390 px y en desktop el clic abre
+  la unidad tocada. Puede ser de la emulación: primero probarlo en un celular.
+- **Próximo candidato de optimización:** la parte sincrónica de `iniciar()` (DOM,
+  escena, calles, torre, interfaz hasta el calentamiento), ~0,4 s en SwiftShader. Desde
+  el cambio 2 es la tarea más larga de la carga.
 
 ## Dar de alta un edificio nuevo
 

@@ -2059,6 +2059,11 @@
       // había antes (ya no existe) y apagaba el blanco de la losa/núcleo/
       // base — sin ese shader no hay motivo para tocarlo.
       document.body.appendChild(render.domElement);
+      // Los chequeos de errores de shader de three (los logs y el LINK_STATUS
+      // de cada programa) solo sirven al desarrollar: en producción van
+      // apagados. En localhost o con ?debug=1, prendidos.
+      render.debug.checkShaderErrors = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ||
+        new URLSearchParams(location.search).get('debug') === '1';
 
       // ENTORNO EXTENDIDO (EXTENSION > 0): piso, calles y veredas siguen hasta
       // EXTENSION metros y se funden con el horizonte. Tres piezas:
@@ -3287,6 +3292,11 @@
           // sentido, en fila sobre el mismo carril.
           auto.rotation.y = Math.PI / 2;
           grupoCalle.add(auto);
+          // Sus shaders se compilan antes del primer cuadro en que se ve (ver
+          // CALENTAMIENTO); en general ya están: son los del mobiliario.
+          const mallas = [];
+          auto.traverse(o => { if (o.material) mallas.push(o); });
+          calentar(mallas, true);
         }
       }
 
@@ -6669,14 +6679,87 @@
         if (cajaTarjeta) actualizarGuia(ahora);
         if (elegida || unidadMarca) actualizarMarca(ahora);
       }
-      animar();
-      // animar() pinta el primer cuadro en el acto (no espera al rAF): recién
-      // ahora la escena puede reemplazar al poster.
-      quitarPoster();
-      // La utilería de la calle, con el edificio ya a la vista y el hilo
-      // libre (como mucho 1,5 s; sin requestIdleCallback, a los 1,5 s).
-      if ('requestIdleCallback' in window) requestIdleCallback(cargarAutos, { timeout: 1500 });
-      else setTimeout(cargarAutos, 1500);
+      /* CALENTAMIENTO: los shaders se compilan por partes antes del primer
+         cuadro. Hasta 2026-10-21 el primer render compilaba los ~12
+         programas de una: ~85 % del primer cuadro (~400 ms en una GPU real)
+         en una sola tarea que congelaba la página. three r128 no tiene
+         compileAsync (llegó en r158) y su compile() bloquea igual, programa
+         por programa (getUniforms() espera cada enlace), así que se compila
+         dibujando: un grupo por tarea, cada uno con un representante por
+         programa (firmaPrograma()) y las luces, en un render target de 1×1
+         fuera de pantalla, devolviendo el hilo entre grupo y grupo. El poster
+         sigue tapando todo. Así se compilan los mismos programas que en el
+         primer cuadro, también los de la pasada de sombra (al final, uno por
+         variante), y se suben las texturas: el primer cuadro ya no compila
+         nada. Pasado TOPE_CALENTAR_MS se dibuja igual (el primer cuadro
+         compila lo que falte) y avisa en la consola. */
+      const LIENZO_CALENTAR = new THREE.WebGLRenderTarget(1, 1), TOPE_CALENTAR_MS = 3000;
+      // Lo que cambia el programa de un objeto en r128: el tipo de material y
+      // sus opciones (map, side, vertexColors, un onBeforeCompile propio como
+      // el de conFundido(); cada ShaderMaterial es el suyo) y si es
+      // instanciado, con o sin color por instancia (los autos de contexto).
+      // receiveShadow no: es un uniform.
+      function firmaPrograma(o) {
+        return [].concat(o.material).map(m => [m.type, m.isShaderMaterial ? m.uuid : '', !!m.map, m.side, m.vertexColors,
+          m.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile].join(':')).join('+') +
+          '|' + !!o.isInstancedMesh + ':' + !!(o.isInstancedMesh && o.instanceColor);
+      }
+      // Dibuja solo `objetos` (y las luces) en LIENZO_CALENTAR, sin recorte
+      // por cámara. Con sombra = false no entran en la pasada de sombra: así
+      // cada grupo compila un solo programa. Deja todo como estaba.
+      function calentar(objetos, sombra) {
+        const ocultos = [], previo = objetos.map(o => [o, o.visible, o.frustumCulled, o.castShadow]);
+        escena.traverse(o => { if (o.material && o.visible && !objetos.includes(o)) { o.visible = false; ocultos.push(o); } });
+        try {
+          for (const o of objetos) { o.visible = true; o.frustumCulled = false; if (!sombra) o.castShadow = false; }
+          render.setRenderTarget(LIENZO_CALENTAR);
+          render.render(escena, camara);
+        } finally {
+          render.setRenderTarget(null);
+          for (const [o, visible, recorte, proyecta] of previo) { o.visible = visible; o.frustumCulled = recorte; o.castShadow = proyecta; }
+          for (const o of ocultos) o.visible = true;
+        }
+      }
+      // Un representante por programa y, al final, uno por variante de la
+      // pasada de sombra: instanciado o no (el color por instancia no la
+      // cambia, medido).
+      function gruposCalentar() {
+        const porFirma = new Map(), porSombra = new Map();
+        escena.traverseVisible(o => {
+          if (!o.material) return;
+          const f = firmaPrograma(o);
+          if (!porFirma.has(f)) porFirma.set(f, o);
+          if (o.castShadow && !porSombra.has(!!o.isInstancedMesh)) porSombra.set(!!o.isInstancedMesh, o);
+        });
+        return [...porFirma.values()].map(o => ({ objetos: [o], sombra: false }))
+          .concat([...porSombra.values()].map(o => ({ objetos: [o], sombra: true })));
+      }
+      // Cada grupo en su propia tarea, y el primer cuadro en otra: ni el
+      // primero se suma a la de iniciar() ni el último a la del primer cuadro.
+      const cederHilo = () => new Promise(listo => setTimeout(listo));
+      async function calentarEscena() {
+        const inicio = performance.now();
+        for (const grupo of gruposCalentar()) {
+          await cederHilo();
+          if (performance.now() - inicio > TOPE_CALENTAR_MS) {
+            console.warn(`Compilación de shaders por partes: pasaron ${TOPE_CALENTAR_MS} ms; el primer cuadro compila lo que falta.`);
+            break;
+          }
+          calentar(grupo.objetos, grupo.sombra);
+        }
+        await cederHilo();
+      }
+      calentarEscena().catch(e => console.warn('Compilación de shaders por partes:', e)).then(() => {
+        animar();
+        // animar() pinta el primer cuadro en el acto (no espera al rAF): recién
+        // ahora la escena puede reemplazar al poster y se va el aviso de carga.
+        quitarPoster();
+        ocultarCarga();
+        // La utilería de la calle, con el edificio ya a la vista y el hilo
+        // libre (como mucho 1,5 s; sin requestIdleCallback, a los 1,5 s).
+        if ('requestIdleCallback' in window) requestIdleCallback(cargarAutos, { timeout: 1500 });
+        else setTimeout(cargarAutos, 1500);
+      });
 
       // Tamaño del lienzo: ResizeObserver sobre su contenedor (body, que mide
       // la pantalla: html y body van con height 100% y overflow hidden), no
@@ -6797,8 +6880,9 @@
       pintarLegal(resultado.settings.textos);
       pintarRenders(resultado.renders);
       pintarAvance(resultado.proyecto, resultado.hitosObra, resultado.fotosObra);
+      // El aviso de carga se va con el primer cuadro (ver CALENTAMIENTO en
+      // iniciar()), no acá: los shaders todavía se están compilando.
       iniciar(resultado.proyecto, resultado.settings, resultado.unidades, resultado.mediaTipologias, resultado.tzOffsetHoras, resultado.hitosObra, resultado.tipologias);
-      ocultarCarga();
     }
 
     document.getElementById('carga-reintentar').addEventListener('click', () => {
