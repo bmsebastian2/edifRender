@@ -1,10 +1,14 @@
 #!/bin/sh
 # Antes de cada commit, sobre las versiones en stage (no las del disco: son
-# las que van a quedar en el commit):
-#  1. Si toca index.html: el flujo de selección de unidad del visor sigue
-#     armado (ver "Selección de unidad: comportamiento protegido" en
-#     CLAUDE.md y scripts/control-seleccion.mjs).
-#  2. Si toca index.html, supabase-config.js o api/_compartido.js:
+# las que van a quedar en el commit). El visor son dos archivos: index.html y
+# app.<hash>.js (el script principal); los controles 2 y 3 los leen unidos.
+#  1. Si toca index.html o app.<hash>.js: el nombre del script sigue siendo
+#     el hash de su contenido y index.html carga ese (ver
+#     scripts/app-visor.mjs). Si no, lo renombra y frena el commit.
+#  2. Si toca index.html o app.<hash>.js: el flujo de selección de unidad del
+#     visor sigue armado (ver "Selección de unidad: comportamiento protegido"
+#     en CLAUDE.md y scripts/control-seleccion.mjs).
+#  3. Si toca el visor, supabase-config.js o api/_compartido.js:
 #     api/_compartido.js sigue siendo lo que genera
 #     scripts/generar-compartido.mjs (ver "Vista previa al compartir" en
 #     CLAUDE.md). Si quedó desactualizado, lo regenera y frena el commit.
@@ -12,22 +16,48 @@
 # Se activa una vez por clon:  git config core.hooksPath .githooks
 
 cambios=$(git diff --cached --name-only)
-echo "$cambios" | grep -qxE 'index\.html|supabase-config\.js|api/_compartido\.js' || exit 0
+echo "$cambios" | grep -qxE 'index\.html|app\.[0-9a-f]{10}\.js|supabase-config\.js|api/_compartido\.js' || exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: no encontré node; no se controló el visor ni api/_compartido.js." >&2
   exit 0
 fi
 
-html=$(mktemp); cfg=$(mktemp); comp=$(mktemp)
+app=$(git ls-files -- 'app.*.js')
+if [ "$(echo "$app" | grep -c .)" -ne 1 ]; then
+  echo "Commit frenado: en stage tiene que haber un solo app.<hash>.js (hay: $(echo $app))." >&2
+  echo "Si se renombró, agregá también el borrado del viejo: git add -A index.html 'app.*.js'" >&2
+  exit 1
+fi
+
+html=$(mktemp); js=$(mktemp); visor=$(mktemp); cfg=$(mktemp); comp=$(mktemp)
+limpiar() { rm -f "$html" "$js" "$visor" "$cfg" "$comp"; }
 git show :index.html > "$html"
+git show ":$app" > "$js"
 git show :supabase-config.js > "$cfg"
 git show :api/_compartido.js > "$comp" 2>/dev/null
 
-if echo "$cambios" | grep -qx 'index.html'; then
-  node scripts/control-seleccion.mjs "$html"
+tocaVisor=0
+echo "$cambios" | grep -qxE 'index\.html|app\.[0-9a-f]{10}\.js' && tocaVisor=1
+
+if [ $tocaVisor -eq 1 ]; then
+  node scripts/app-visor.mjs control "$html" "$js" "$app"
   if [ $? -ne 0 ]; then
-    rm -f "$html" "$cfg" "$comp"
+    limpiar
+    node scripts/app-visor.mjs nombre
+    echo "" >&2
+    echo "Commit frenado: app.<hash>.js no tenía el nombre de su contenido. Ya lo renombré" >&2
+    echo "y actualicé index.html; agregalos (git add -A index.html 'app.*.js') y volvé a commitear." >&2
+    exit 1
+  fi
+fi
+
+node scripts/app-visor.mjs unir "$html" "$js" > "$visor"
+
+if [ $tocaVisor -eq 1 ]; then
+  node scripts/control-seleccion.mjs "$visor"
+  if [ $? -ne 0 ]; then
+    limpiar
     echo "" >&2
     echo "Commit frenado: el cambio rompe el flujo de selección de unidad (ver arriba)." >&2
     echo "Si es a propósito, actualizá scripts/control-seleccion.mjs y CLAUDE.md en el mismo commit." >&2
@@ -35,21 +65,21 @@ if echo "$cambios" | grep -qx 'index.html'; then
   fi
 fi
 
-node scripts/generar-compartido.mjs "$html" "$cfg" --control "$comp"
+node scripts/generar-compartido.mjs "$visor" "$cfg" --control "$comp"
 estado=$?
 if [ $estado -eq 2 ]; then
-  rm -f "$html" "$cfg" "$comp"
+  limpiar
   echo "" >&2
-  echo "Commit frenado: index.html ya no tiene algo que copia api/_compartido.js (ver arriba)." >&2
+  echo "Commit frenado: el visor ya no tiene algo que copia api/_compartido.js (ver arriba)." >&2
   echo "Si se renombró a propósito, actualizá scripts/generar-compartido.mjs y api/compartir.js." >&2
   exit 1
 fi
 if [ $estado -ne 0 ]; then
-  node scripts/generar-compartido.mjs "$html" "$cfg"
-  rm -f "$html" "$cfg" "$comp"
+  node scripts/generar-compartido.mjs "$visor" "$cfg"
+  limpiar
   echo "" >&2
   echo "Commit frenado: api/_compartido.js estaba desactualizado. Ya lo regeneré;" >&2
   echo "revisalo, agregalo (git add api/_compartido.js) y volvé a commitear." >&2
   exit 1
 fi
-rm -f "$html" "$cfg" "$comp"
+limpiar

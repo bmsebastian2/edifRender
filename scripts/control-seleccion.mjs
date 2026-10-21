@@ -3,18 +3,20 @@
 // en CLAUDE.md (clic → cámara con recorrido + resaltado + panel directo;
 // la tarjeta con línea guía queda para la demo del showroom; ?u= directo).
 //
-//   node scripts/control-seleccion.mjs [archivo]      (default: index.html)
+//   node scripts/control-seleccion.mjs [archivo]
+//       (default: index.html con app.<hash>.js adentro, ver app-visor.mjs)
 //
 // Lo corre el hook .githooks/pre-commit sobre la versión en stage de
-// index.html. Revisa el código, no cómo se ve: después de tocar la
+// index.html y app.<hash>.js, unidos. Revisa el código, no cómo se ve: después de tocar la
 // interacción igual hay que probarlo en el navegador. Si un cambio a
 // propósito rompe un control, se actualiza este archivo junto con CLAUDE.md.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { leerVisor } from './app-visor.mjs';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
-const html = readFileSync(process.argv[2] || join(raiz, 'index.html'), 'utf8');
+const html = process.argv[2] ? readFileSync(process.argv[2], 'utf8') : leerVisor(raiz);
 
 // Desde la primera llave a partir de `i` hasta la que la cierra.
 function bloqueDesde(i) {

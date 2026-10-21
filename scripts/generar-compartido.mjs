@@ -1,21 +1,22 @@
 // Genera api/_compartido.js: lo que las funciones de api/ (la vista previa
-// al compartir) comparten con el visor, copiado TAL CUAL de index.html y
-// supabase-config.js. Así la tarjeta que muestra WhatsApp y el visor no
+// al compartir) comparten con el visor, copiado TAL CUAL del visor (index.html
+// y app.<hash>.js, unidos por app-visor.mjs) y supabase-config.js. Así la tarjeta que muestra WhatsApp y el visor no
 // pueden divergir, y las funciones no leen index.html en runtime: usan este
 // archivo, que se commitea.
 //
-//   node scripts/generar-compartido.mjs [index.html] [supabase-config.js]
-//        escribe api/_compartido.js
-//   node scripts/generar-compartido.mjs <index.html> <supabase-config.js> --control <_compartido.js>
+//   node scripts/generar-compartido.mjs [visor.html] [supabase-config.js]
+//        escribe api/_compartido.js (sin visor.html: el del repo, unido)
+//   node scripts/generar-compartido.mjs <visor.html> <supabase-config.js> --control <_compartido.js>
 //        sale con 1 si <_compartido.js> no es lo que se generaría
 //
 // El hook .githooks/pre-commit corre el control sobre las versiones en
-// stage; si quedó desactualizado, lo regenera y frena el commit. Si se
+// stage (el visor ya unido); si quedó desactualizado, lo regenera y frena el commit. Si se
 // renombra o mueve algo de la lista de abajo en index.html, este script
 // falla diciendo qué no encontró.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { leerVisor } from './app-visor.mjs';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SALIDA = join(raiz, 'api', '_compartido.js');
@@ -113,7 +114,7 @@ export function generar(html, cfg) {
 const args = process.argv.slice(2);
 const iControl = args.indexOf('--control');
 const fuentes = iControl < 0 ? args : args.slice(0, iControl);
-const html = readFileSync(fuentes[0] || join(raiz, 'index.html'), 'utf8');
+const html = fuentes[0] ? readFileSync(fuentes[0], 'utf8') : leerVisor(raiz);
 const cfg = readFileSync(fuentes[1] || join(raiz, 'supabase-config.js'), 'utf8');
 let generado;
 try {

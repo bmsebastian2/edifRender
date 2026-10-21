@@ -45,7 +45,14 @@ mismo proyecto de Supabase aloja varios edificios (`projects`) de varios cliente
 
 Archivos:
 
-- `index.html` (~5.3k líneas) — el visor público. HTML + CSS + JS en un solo archivo.
+- `index.html` (~7k líneas) — el visor público: HTML + CSS (inline, ver "Arquitectura
+  de `index.html`") y los dos scripts chicos del poster.
+- `app.<hash>.js` (~6.8k líneas) — el script principal del visor (desde 2026-10-20;
+  antes iba inline en `index.html`). El nombre lleva los primeros 10 hex del SHA-256 de
+  su contenido y se sirve con caché de un año (`immutable`, ver `vercel.json`): **no se
+  renombra a mano**. Después de editarlo, `node scripts/app-visor.mjs nombre` le pone
+  el nombre nuevo y actualiza el `<script src>` de `index.html`; si no, lo hace el
+  pre-commit y frena el commit. Para buscar o editar: `app.*.js` (hay uno solo).
 - `admin.html` (~1.8k líneas) — panel interno para clientes/vendedores, detrás de
   Supabase Auth.
 - `supabase-config.js` — `SUPABASE_URL` + anon key, crea el cliente global `sb`. La anon
@@ -85,8 +92,8 @@ Archivos:
   `X-Content-Type-Options: nosniff` y `Referrer-Policy: strict-origin-when-cross-origin`
   (desde 2026-10-20; HSTS lo pone Vercel solo) + la ruta de los crawlers a
   `api/compartir` + una ruta con
-  `continue` que pone caché larga a `modelos/*.glb` y otra a los posters
-  (`images/poster-*`, `.avif` y `.webp`; versionados, ver arriba). El resto de los estáticos (HTML,
+  `continue` que pone caché larga a `modelos/*.glb`, otra a `app.<hash>.js` y otra a
+  los posters (`images/poster-*`, `.avif` y `.webp`; versionados, ver arriba). El resto de los estáticos (HTML,
   `supabase-config.js`, `amenities-iconos.js`) queda con el default de Vercel
   (`max-age=0, must-revalidate`) a propósito: cambian en cada deploy con la misma URL.
   `"regions": ["pdx1"]`: las funciones corren en Portland, al lado de Supabase
@@ -116,8 +123,8 @@ Archivos:
 
 ## Correr / probar
 
-No hay dev server ni build. Abrir `index.html` directo o servir la carpeta
-(`npx serve .`). Elegir edificio con `?p=<slug>` (por defecto `rosso`). Deploy = push a
+No hay dev server ni build. Servir la carpeta (`npx serve .`): desde `file://` el
+script principal no carga (un módulo externo necesita http). Elegir edificio con `?p=<slug>` (por defecto `rosso`). Deploy = push a
 `main` (Vercel). Un push a otra rama arma un preview, que tiene Deployment Protection:
 para probarlo con curl hace falta el header `x-vercel-protection-bypass` (Settings →
 Deployment Protection → Protection Bypass for Automation).
@@ -128,17 +135,23 @@ Production** (vuelve en segundos, sin rebuild). Ojo: después de un Promote manu
 en git (`git revert` + push), hay que volver a promover a mano el deploy bueno; recién
 ahí los pushes vuelven a ir a producción solos.
 
-El hook `.githooks/pre-commit` corre dos controles sobre las versiones en stage. Se
+El hook `.githooks/pre-commit` corre tres controles sobre las versiones en stage. Se
 activa una vez por clon con `git config core.hooksPath .githooks` (ya activo en la
-máquina de Sebastian).
+máquina de Sebastian). Los dos últimos leen el visor unido (`index.html` con
+`app.<hash>.js` adentro, `scripts/app-visor.mjs unir`): el texto es el mismo que antes
+de separarlos, así que lo que controlan y generan no cambió.
 
-- `node scripts/control-seleccion.mjs` revisa que `index.html` siga teniendo armado el
+- `node scripts/app-visor.mjs control` revisa que `app.<hash>.js` se llame por el hash
+  de su contenido y que `index.html` cargue ese. Si no, lo renombra, actualiza
+  `index.html` y frena el commit: `git add -A index.html 'app.*.js'` y volver a
+  commitear (así entra también el borrado del nombre viejo).
+- `node scripts/control-seleccion.mjs` revisa que el visor siga teniendo armado el
   flujo de selección de unidad (ver "Selección de unidad: comportamiento protegido"). Corre
-  en cada commit que toque `index.html`. Controla el código, no cómo se ve: igual hay que
+  en cada commit que toque `index.html` o `app.<hash>.js`. Controla el código, no cómo se ve: igual hay que
   probar en el navegador.
 - `node scripts/generar-compartido.mjs ... --control` revisa que `api/_compartido.js`
-  siga siendo lo que se genera desde `index.html` y `supabase-config.js`. Corre en cada
-  commit que toque alguno de los tres; si quedó desactualizado lo regenera y frena el
+  siga siendo lo que se genera desde el visor y `supabase-config.js`. Corre en cada
+  commit que toque alguno de los cuatro archivos; si quedó desactualizado lo regenera y frena el
   commit (hay que agregarlo y volver a commitear).
 
 ## Modelo de datos en Supabase (multi-tenant)
@@ -211,14 +224,42 @@ antes), y actualizar `supabase-schema.sql` solo si es para instalaciones nuevas.
 Nada bloquea el primer render (desde 2026-10-20; Lighthouse: FCP de 3,6 a 1,5 s): los
 scripts externos (three, líneas, supabase, `supabase-config.js`, `amenities-iconos.js`)
 van en el `<head>` con `defer`, y la hoja de Fraunces con `media="print"` +
-`onload`. El script principal es `<script type="module">` al final del body: un inline
-no acepta `defer`, y un módulo entra en la misma cola, detrás de ellos. Por ser módulo
+`onload`. El script principal es `app.<hash>.js`, un `<script type="module" src>` al
+final del body: un módulo entra en la misma cola que los `defer`, detrás de ellos. Va
+aparte desde 2026-10-20 (eran dos tercios del HTML): queda en caché un año entre
+deploys que no lo tocan y V8 guarda su compilación para la próxima visita (con un
+script inline no lo hace). Por ser módulo
 es modo estricto y lo de primer nivel no es global: desde la consola (o un
 `Runtime.evaluate` por CDP) no se llega a `UNIDADES`, `abrir()`, etc. Un `<script>`
 nuevo sin `defer`/`async` o una hoja externa bloqueante vuelve a bloquear el primer
 render. El CSS queda inline a propósito: el overlay tapa todo, así que partirlo solo
 daba ~140 ms y abría una carrera con las mediciones del JS (`rectLibre()`,
-`ajustarResumen()`…).
+`ajustarCabezal()`…).
+
+**Medir sin forzar el layout** (desde 2026-10-20; Lighthouse marcaba "Forced reflow"
+en 8 lugares de `iniciar()`): `iniciar()` arma casi todo el DOM de una vez, y cada
+lectura de layout en el medio recalculaba la página entera. En Chrome de celular eso
+incluye `innerWidth`/`innerHeight` (con viewport, Blink actualiza el layout antes de
+contestar). Reglas:
+- La medida de la pantalla sale de `pantalla` (`{ ancho, alto }`, de un
+  `ResizeObserver` sobre body creado al cargar el módulo; `medirPantalla()` lee de
+  `window` una sola vez si todavía no avisó, p. ej. en una pestaña en segundo plano).
+  Lo usan cámara, lienzo, fondo, `CIELO_ALTA`, `radioBase()`, `rectLibre()` y el
+  encuadre. `enfocar()`, la tarjeta, la guía y la marca siguen con `innerWidth`: leen el
+  layout igual (el panel, la tarjeta) y son del flujo protegido.
+- Lo que se mide del header y la ficha (rótulo del tipo, leyenda, renglón de datos,
+  `--fin-ficha`) va en `ajustarCabezal()`, y `reencuadrar()`, los dos en `obsInterfaz`:
+  un solo `ResizeObserver` (body, header, ficha, barra inferior, riel y toolbar) que
+  avisa después del layout, primero lo que solo lee y después lo que escribe. El evento
+  `resize` llega antes del layout y vería `pantalla` vieja: nada que la use va ahí.
+  Contenido nuevo sin cambio de tamaño (`refrescarDatos()`): `pedirAjusteCabezal()`.
+- El único layout forzado de la carga es el del encuadre inicial (`encuadreTorre()` →
+  `rectLibre()`), a propósito: el primer cuadro sale con ese encuadre. `--fin-ficha` se
+  pone ahí mismo (`medirFinFicha()`): va en `:root` y cada cambio recalcula el estilo de
+  toda la página.
+- Medido con CPU 4× (celular emulado, ROSSO): reflow forzado de ~200 a ~125 ms y la
+  tarea de `iniciar()` ~200 ms más corta. En desktop casi no cambia (ahí `innerWidth` no
+  fuerza nada).
 
 **Scripts de CDN** (desde 2026-10-20): todos con versión exacta, `integrity` (SRI) y
 `crossorigin="anonymous"`, también los que se piden por código (GLTFLoader y meshopt
@@ -331,7 +372,7 @@ El script está organizado en secciones numeradas:
    Nunca más cerca que `radioBase()`, solo se aleja si no entra. A lo ancho mide la
    planta con el giro en 0; a lo alto, el cilindro que barre al girar (ni techo ni
    base pasan debajo de un overlay en todo el giro automático). `reencuadrar()` lo
-   rehace (`ResizeObserver` sobre ficha, header, barra, riel y toolbar + `resize`)
+   rehace (`obsInterfaz`: pantalla, ficha, header, barra, riel y toolbar)
    solo si la cámara sigue en el último encuadre general (no se acercó ni inclinó,
    no hay unidad ni piso); arrastrando, espera al `pointerup` porque `moverCamara()`
    fija el giro mientras dura. Rotación automática lenta (una vuelta cada 80 s) desde el arranque, que se
@@ -369,7 +410,7 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   con un degradado desde `--superficie` encima; el header pasa a opaco recién cuando la
   foto cargó (`.con-portada`), sin dato o si falla queda translúcido como antes. En
   ≤640: sin divisor ni segundo renglón de la dirección, el rótulo va junto al nombre y
-  se va si lo cortaría (`ajustarTipoNombre()`), y redes + Cota van en un menú `⋯`
+  se va si lo cortaría (`ajustarCabezal()`), y redes + Cota van en un menú `⋯`
   (`menuRedes()`). El blur vive en `#barra-sup` y no en `#cabezal`: un
   `backdrop-filter` en `#cabezal` rompería el `position: fixed` de `#piso-info`.
   `enfocar()` mide el borde de la barra en vez de suponer su alto.
@@ -386,7 +427,7 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   píldora de fondo sutil con divisores y el chevron adentro (si no entra, etiquetas
   abreviadas), barra proporcional y "▤ 10 pisos | ▦ 78 u. | ▢ Mar 2028 | 7 amenities ›"
   (`#fc-linea`; "amenities" abre la capa; si no entra se va "Torre" y después los
-  íconos, todo en `ajustarResumen()`). Desplegada (transición de altura, 180 ms) suma
+  íconos, todo en `ajustarCabezal()`). Desplegada (transición de altura, 180 ms) suma
   solo la fila de amenities (`#fc-amenities-fila`: ícono + nombre corto — el texto si
   tiene ≤ 16 letras, si no el nombre del ícono en el catálogo —, sin la cifra; se
   desliza de costado; tocarla abre la capa). Arranca desplegada (pedido de
@@ -397,8 +438,8 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   hoja bajaba de 80px y `enfocar()` dejaba la unidad debajo de la ficha. Abrir/usar
   Filtros o Pisos no la pliega (pedido de Sebastian: los datos del edificio no
   desaparecen; `enfocar()` encuadra debajo de ella con `finFicha()`, y el riel y
-  Filtros van siempre debajo vía `--fin-ficha`, que mide `medirFinFicha()` con un
-  `ResizeObserver`); arrastrar el edificio, tocar el vacío, otra capa (sol,
+  Filtros van siempre debajo vía `--fin-ficha`, que mide `ajustarCabezal()` en
+  `obsInterfaz`); arrastrar el edificio, tocar el vacío, otra capa (sol,
   renders, avance), Escape o abrir el panel sí la pliegan. Tocar una unidad abre el
   panel, así que también la pliega (desde 2026-10-19; antes mostraba la tarjeta y no).
 - **Barra inferior única** (`#barra-inferior`): en desktop, desplegables Tipología /
@@ -855,7 +896,7 @@ según la orientación geométrica, sin sombras de vecinos, y descarta franjas d
 de 30 min. Precedencia: `units.orientacion` (texto libre, ROSSO/Altamira) >
 `units.geom.fachadas` (override manual, p.ej. `["norte"]`; `[]` = interior) > cálculo.
 Tabla de control para revisar a mano: `node scripts/fachadas-control.mjs <slug>` →
-`datos/<slug>-fachadas.csv` (usa las funciones de `index.html` tal cual).
+`datos/<slug>-fachadas.csv` (usa las funciones del visor tal cual).
 
 ## Selector de pisos: `projects.tiene_pb`
 
@@ -946,7 +987,7 @@ no pasan por ningún código nuevo: reciben el `index.html` estático de siempre
     locales distintas de producción.
   - Tamaño: lo nuestro (código + Inter 400/600/700 + marca) ~230 KB; la librería suma
     ~2,4 MB (casi todo `resvg.wasm`).
-- **`api/_compartido.js`** se genera desde `index.html` (`DEFAULT_SLUG`, `ESTADOS`,
+- **`api/_compartido.js`** se genera desde el visor (`DEFAULT_SLUG`, `ESTADOS`,
   `fmtAlquiler`, `aspectoDe`, `normalizarUnidad`, `versionCompartir`, `numeroDe`,
   `nombresPublicosDe`, `tipologiaDe`, `torreDe`,
   `etiquetaDorms`, `formatoMoneda`, `formatearPrecio`, `formatearM2`, `unirConY`,
@@ -978,6 +1019,6 @@ lat/lon, tiene_pb, portada (`portada_url` / `portada_foco`) y `tipo`, financiaci
 tipologías + imágenes, avance de obra. Y un archivo, no un dato: el poster de carga
 (`images/poster-<slug>*.avif|webp`, paso 10 del README).
 
-Lo que sigue hardcodeado en `index.html` y puede necesitar cambios: `DEFAULT_SLUG`,
-`BASE`, la marca/colores (variables CSS en `:root`, compartidas por todos los proyectos), y el copy de aviso de demo
+Lo que sigue hardcodeado y puede necesitar cambios: `DEFAULT_SLUG` y `BASE` (en
+`app.<hash>.js`; `DEFAULT_SLUG` también en el script del poster del `<head>`), la marca/colores (variables CSS en `:root`, compartidas por todos los proyectos), y el copy de aviso de demo
 (`#aviso`, y `#p-info-nota` en el popover ⓘ del panel).

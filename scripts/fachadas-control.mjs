@@ -1,6 +1,6 @@
 // Tabla de control de fachadas y asoleamiento por unidad, para revisar a mano
-// antes de publicar. Usa EXACTAMENTE las funciones de index.html (las lee del
-// archivo), así la tabla y el visor no pueden divergir.
+// antes de publicar. Usa EXACTAMENTE las funciones del visor (las lee de
+// app.<hash>.js, ver app-visor.mjs), así la tabla y el visor no pueden divergir.
 //
 //   node scripts/fachadas-control.mjs [slug]      (default: brusco)
 //
@@ -10,11 +10,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { leerVisor } from './app-visor.mjs';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const slug = process.argv[2] || 'brusco';
 
-const html = readFileSync(join(raiz, 'index.html'), 'utf8');
+const html = leerVisor(raiz);
 function funcion(nombre) {
   const i = html.indexOf('function ' + nombre + '(');
   if (i < 0) throw new Error('No encontré ' + nombre + ' en index.html');
