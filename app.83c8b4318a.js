@@ -2366,55 +2366,34 @@
         polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
       }));
 
-      // Textura de asfalto: un canvas generado una vez, sin archivos. Grano
-      // fino, manchas suaves y algo de árido claro, todo muy bajo: de lejos
+      // Textura de asfalto: dos imágenes fijas (assets/textures/) que dibujó
+      // una vez tools/textura-asfalto.js. Hasta 2026-10-21 se dibujaban en un
+      // canvas en cada carga, 70–130 ms antes del primer cuadro. Grano fino,
+      // manchas suaves y algo de árido claro, todo muy bajo: de lejos
       // (mipmaps) se lee el mismo gris de siempre (#686F72). Dos variantes:
       // - con línea central discontinua (guiones de 1,6 m cada 2,8 m, como
       //   los de siempre): u a lo largo de la calle (repite cada
       //   TRAMO_TEXTURA), v a lo ancho de la calzada (0 a 1). La línea va en
       //   la textura y no como geometría: miles de guiones finos titilaban al
       //   girar el edificio; filtrada (mipmaps + anisotropía) no, y no suma
-      //   draw calls.
+      //   draw calls. Está dibujada para una calzada de ANCHO_ASFALTO m (el
+      //   ancho por defecto, el de todos los edificios hoy): con otro
+      //   geometria.calle.ancho la línea y las manchas se estiran a lo ancho;
+      //   para ese caso hay que regenerarla con el ancho nuevo (tools/), y
+      //   lo avisa la consola.
       // - lisa, para los cruces y los primeros metros de cada cuadra (la
       //   línea se corta antes de la esquina y de la cebra), en metros.
-      const TRAMO_TEXTURA = 2.8 * 4, LADO_TEXTURA_LISA = 8;
-      function texturaAsfalto(conLinea) {
-        const W = conLinea ? 1024 : 512, H = 512;
-        const mU = conLinea ? TRAMO_TEXTURA : LADO_TEXTURA_LISA, mV = conLinea ? ANCHO_CALLE : LADO_TEXTURA_LISA;
-        const cv = document.createElement('canvas');
-        cv.width = W; cv.height = H;
-        const ctx = cv.getContext('2d');
-        const rnd = prngSemilla(conLinea ? 7 : 11); // fija: misma textura en cada carga
-        ctx.fillStyle = '#686F72';
-        ctx.fillRect(0, 0, W, H);
-        // Manchas (desgaste, bacheo), repetidas del otro lado de cada borde que
-        // repite, para que empalme sin costura.
-        for (let i = 0; i < 16; i++) {
-          const x = rnd() * W, y = rnd() * H, r = (1 + rnd() * 2) * W / mU;
-          const c = rnd() < 0.45 ? 'rgba(255,255,255,0.014)' : 'rgba(0,0,0,0.02)';
-          for (const dx of [-W, 0, W]) for (const dy of conLinea ? [0] : [-H, 0, H]) {
-            const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
-            g.addColorStop(0, c);
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = g;
-            ctx.fillRect(x + dx - r, y + dy - r, 2 * r, 2 * r);
-          }
-        }
-        if (conLinea) {
-          const pxU = W / mU, pxV = H / mV;
-          ctx.fillStyle = '#E4E7E7';
-          for (let k = 0; k < TRAMO_TEXTURA / 2.8; k++)
-            ctx.fillRect((k * 2.8 + 0.6) * pxU, H / 2 - 0.1 * pxV, 1.6 * pxU, 0.2 * pxV);
-        }
-        // Grano por píxel (±6) y árido claro suelto; también sobre la pintura,
-        // que así no queda como un plano liso.
-        const img = ctx.getImageData(0, 0, W, H), d = img.data;
-        for (let i = 0; i < d.length; i += 4) {
-          const n = (rnd() - 0.5) * 12 + (rnd() < 0.012 ? 22 : 0);
-          d[i] += n; d[i + 1] += n; d[i + 2] += n;
-        }
-        ctx.putImageData(img, 0, 0);
-        const t = new THREE.CanvasTexture(cv); // potencia de 2: mipmaps por defecto
+      // Las dos llegan antes de iniciar() (ver texturasAsfalto). Si una no
+      // cargó, esa calzada va en el gris liso, sin textura.
+      const TRAMO_TEXTURA = 2.8 * 4, LADO_TEXTURA_LISA = 8, ANCHO_ASFALTO = 8;
+      if (EXTENSION && ANCHO_CALLE !== ANCHO_ASFALTO) {
+        console.warn(`geometria.calle.ancho es ${ANCHO_CALLE} m y las texturas de asfalto están dibujadas ` +
+          `para ${ANCHO_ASFALTO} m: la línea central se ve más gruesa. Regenerarlas con ` +
+          `tools/textura-asfalto.html?ancho=${ANCHO_CALLE} (ver tools/textura-asfalto.js).`);
+      }
+      function mapaAsfalto(conLinea) {
+        const t = conLinea ? ASFALTO.linea : ASFALTO.liso;
+        if (!t) return null;
         t.wrapS = THREE.RepeatWrapping;
         t.wrapT = conLinea ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
         t.anisotropy = render.capabilities.getMaxAnisotropy();
@@ -2444,8 +2423,9 @@
           cuadra(a, b, (p, q, linea) => [x - m, x + m, p, q, linea ? uvLinea(false, x) : uvLiso]);
         for (const x of EJES_X) for (const z of EJES_Z) lisos.push([x - m, x + m, z - m, z + m, uvLiso]);
         for (const [rects, conTextura] of [[conLinea, true], [lisos, false]]) {
-          const malla = new THREE.Mesh(geometriaPiezas({ rects, y: 0.02 }),
-            conFundido(new THREE.MeshStandardMaterial({ map: texturaAsfalto(conTextura), roughness: 0.95 })));
+          const mapa = mapaAsfalto(conTextura);
+          const malla = new THREE.Mesh(geometriaPiezas({ rects, y: 0.02 }), conFundido(new THREE.MeshStandardMaterial(
+            mapa ? { map: mapa, roughness: 0.95 } : { color: 0x686F72, roughness: 0.95 })));
           malla.receiveShadow = true;
           grupoCalle.add(malla);
         }
@@ -6762,6 +6742,41 @@
       else addEventListener('load', enReposo, { once: true });
     });
 
+    // Texturas de la calzada (ver mapaAsfalto() en iniciar()): se piden con el
+    // módulo, en paralelo con los datos, y cargarTodo() las espera junto con
+    // la página; casi siempre ya llegaron (~150 KB las dos, contra ~1 s de
+    // datos). Se bajan con fetch y no con el <img> de TextureLoader: un <img>
+    // en descarga demora el load de la página (paginaCargada), y uno colgado
+    // dejaba el visor sin arrancar. TextureLoader recibe el archivo ya bajado
+    // (blob local) y se decodifica acá: si no, la decodificación caería en la
+    // subida a la GPU, dentro del primer cuadro. La que falla o no llega en
+    // ESPERA_ASFALTO_MS queda en null (esa calzada va sin textura): nunca
+    // frenan la carga. Todo pasa adentro de la cadena de promesas, también el
+    // TextureLoader: si three.js no cargó, un error acá arriba mataba el
+    // módulo entero y el overlay no llegaba a mostrar "Reintentar". Llevan el
+    // hash de su contenido en el nombre (caché de un año, ver vercel.json):
+    // una textura nueva va con otro nombre.
+    const ASFALTO = { linea: null, liso: null }, ESPERA_ASFALTO_MS = 5000;
+    const texturasAsfalto = (() => {
+      const corte = new AbortController();
+      setTimeout(() => corte.abort(), ESPERA_ASFALTO_MS);
+      const pedir = (cual, url) => fetch(url, { signal: corte.signal })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+        .then(archivo => {
+          const local = URL.createObjectURL(archivo);
+          return new Promise((listo, mal) => new THREE.TextureLoader().load(local, listo, undefined, mal))
+            .then(t => Promise.resolve(t.image.decode && t.image.decode()).catch(() => {}).then(() => {
+              ASFALTO[cual] = t;
+            }))
+            .finally(() => URL.revokeObjectURL(local));
+        })
+        .catch(() => {}); // no llegó: esa calzada va sin textura
+      return Promise.all([
+        pedir('linea', 'assets/textures/asfalto-linea.1b5d835d25.webp'),
+        pedir('liso', 'assets/textures/asfalto-liso.6c9c721c75.webp'),
+      ]);
+    })();
+
     async function cargarTodo() {
       const resultado = await cargarProyecto();
       if (resultado.error === 'no-encontrado') {
@@ -6774,8 +6789,9 @@
       }
       document.title = resultado.proyecto.nombre + ' · disponibilidad navegable';
       // Antes de pintar: las imágenes que suman pintarRenders() y compañía
-      // demorarían el load que se espera.
-      await paginaCargada;
+      // demorarían el load que se espera. Las de la calzada vienen pedidas
+      // desde que cargó el módulo (texturasAsfalto).
+      await Promise.all([paginaCargada, texturasAsfalto]);
       pintarRedes(resultado.settings);
       pintarAmenities(resultado.amenities);
       pintarLegal(resultado.settings.textos);

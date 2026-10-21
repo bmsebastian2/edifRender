@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Texturas de asfalto</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 24px; color: #1A2124; background: #F7F9F7; }
+    canvas { display: block; max-width: 100%; margin: 8px 0; border: 1px solid #CBCFCF; }
+    pre { background: #fff; border: 1px solid #CBCFCF; padding: 12px; overflow-x: auto; }
+    a { color: #2B6656; }
+  </style>
+</head>
+<body>
+  <!--
+    Regenera las texturas de la calzada del visor (ver tools/textura-asfalto.js).
+    1. Servir la raíz del repo (npx serve .) y abrir /tools/textura-asfalto.html
+       (?ancho=12 para una calzada que no sea de 8 m).
+    2. Descargar los dos WebP (calidad 0.9, el nombre lleva los primeros 10 hex
+       del SHA-256 del archivo) a assets/textures/.
+    3. Cambiar las dos URL de texturasAsfalto en app.<hash>.js y correr
+       node scripts/app-visor.mjs nombre. Las texturas viejas se pueden borrar.
+    Con el mismo ancho y el mismo navegador sale el mismo archivo (mismo hash).
+  -->
+  <h1>Texturas de asfalto</h1>
+  <p id="estado">Generando…</p>
+  <div id="salida"></div>
+  <script type="module">
+    import { texturaAsfalto } from './textura-asfalto.js';
+
+    const ancho = Number(new URLSearchParams(location.search).get('ancho')) || 8;
+    const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    const salida = document.getElementById('salida'), lineas = [];
+    window.resultado = {};
+    for (const [cual, conLinea] of [['linea', true], ['liso', false]]) {
+      const cv = texturaAsfalto(conLinea, ancho);
+      const blob = await new Promise(ok => cv.toBlob(ok, 'image/webp', 0.9));
+      const nombre = `asfalto-${cual}.${hex(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())).slice(0, 10)}.webp`;
+      const px = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      window.resultado[cual] = { nombre, bytes: blob.size, hashPixeles: hex(await crypto.subtle.digest('SHA-256', px)).slice(0, 16) };
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: nombre,
+        textContent: `Descargar ${nombre} (${Math.round(blob.size / 1024)} KB)` });
+      const h = Object.assign(document.createElement('h2'), { textContent: conLinea ? `Con línea (calzada de ${ancho} m)` : 'Lisa' });
+      salida.append(h, cv, a);
+      lineas.push(`pedir('${cual}', 'assets/textures/${nombre}'),`);
+    }
+    const pre = document.createElement('pre');
+    pre.textContent = 'En texturasAsfalto (app.<hash>.js):\n' + lineas.join('\n');
+    salida.append(pre);
+    document.getElementById('estado').textContent = 'Listo.';
+  </script>
+</body>
+</html>

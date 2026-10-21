@@ -3,6 +3,7 @@
 CLAUDE.md
 *.sql
 scripts/
+tools/
 datos/
 .githooks/
 node_modules/

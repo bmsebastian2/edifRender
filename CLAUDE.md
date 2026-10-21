@@ -85,6 +85,22 @@ Archivos:
   final reescribe `VERSIONES_POSTER` con las claves completas de `images/`: no se edita
   a mano, y un archivo pisado sin pasar por el script lo sigue viendo viejo quien ya lo
   tenía.
+- `assets/textures/asfalto-linea.<hash>.webp` (1024×512) y `asfalto-liso.<hash>.webp`
+  (512×512) — las texturas de la calzada (ver "Entorno extendido"), WebP calidad 90,
+  ~150 KB las dos. Desde 2026-10-21; antes `texturaAsfalto()` las dibujaba en canvas
+  en cada carga (70–130 ms antes del primer cuadro). El nombre lleva los primeros 10 hex
+  del SHA-256 del archivo y se sirven con caché de un año (`immutable`, ver
+  `vercel.json`): una textura nueva va con otro nombre y las dos URL de
+  `texturasAsfalto` en `app.<hash>.js` cambian. **No usar una carpeta `public/`** en
+  la raíz: Vercel puede tomarla como output directory de un proyecto estático y dejar
+  `index.html` afuera (por eso `assets/`).
+- `tools/textura-asfalto.js` + `tools/textura-asfalto.html` — el generador de esas
+  texturas (el `texturaAsfalto()` del visor, tal cual: PRNG con semilla fija, mismo
+  resultado en cada corrida) y una página que las dibuja y las descarga con su hash
+  (`npx serve .` → `/tools/textura-asfalto.html`, `?ancho=` para otra calzada). Están
+  dibujadas para una calzada de 8 m (`ANCHO_ASFALTO`): con otro
+  `geometria.calle.ancho` la línea se ve más gruesa y el visor lo avisa con un
+  `console.warn`; regenerarlas con ese ancho.
 - `README.md` — runbook: alta de edificio paso a paso, acceso de plataforma, revocar
   accesos.
 - `vercel.json` — sin build ni framework (`framework: null`, `buildCommand: ""`,
@@ -93,14 +109,15 @@ Archivos:
   (desde 2026-10-20; HSTS lo pone Vercel solo) + la ruta de los crawlers a
   `api/compartir` + una ruta con
   `continue` que pone caché larga a `modelos/*.glb`, otra a `app.<hash>.js` y otra a
-  los posters (`images/poster-*`, `.avif` y `.webp`; versionados, ver arriba). El resto de los estáticos (HTML,
+  los posters (`images/poster-*`, `.avif` y `.webp`; versionados, ver arriba) y otra a
+  las texturas (`assets/textures/*.<hash>.webp`). El resto de los estáticos (HTML,
   `supabase-config.js`, `amenities-iconos.js`) queda con el default de Vercel
   (`max-age=0, must-revalidate`) a propósito: cambian en cada deploy con la misma URL.
   `"regions": ["pdx1"]`: las funciones corren en Portland, al lado de Supabase
   (`us-west-2`, Oregón; verificado el 2026-10-13 por la IP de `db.<ref>.supabase.co`).
   En producción se ve en el header `x-vercel-id` (`gru1::pdx1::…` = borde en São
   Paulo, función en Portland; verificado el 2026-10-15).
-- `.vercelignore` — no se publican `CLAUDE.md`, `*.sql`, `scripts/`, `datos/`,
+- `.vercelignore` — no se publican `CLAUDE.md`, `*.sql`, `scripts/`, `tools/`, `datos/`,
   `.githooks/`, `node_modules/` ni `optimizado/`.
 - `api/compartir.js` — HTML con las etiquetas Open Graph para los crawlers.
   `api/og.mjs` — la imagen de esa tarjeta (PNG 1200×630). Los archivos con prefijo `_`
@@ -319,7 +336,10 @@ horario del país, e hitos/fotos de obra. Cada consulta tiene un timeout de 15s 
 `abortSignal`. Error de red → el overlay muestra "Reintentar"; slug inexistente o no
 publicado → mensaje amable sin reintentar. Cada fila de unidad pasa por
 `normalizarUnidad(r)` (que también usa la vista previa al compartir). Si sale bien, y
-con la página ya cargada (`paginaCargada`),
+con la página ya cargada (`paginaCargada`) y las texturas de la calzada
+(`texturasAsfalto`: pedidas con `fetch` al cargar el módulo, en paralelo con los
+datos; con `fetch` y no con un `<img>`, que demoraría el `load`; las que fallan o no
+llegan en 5 s quedan afuera y esa calzada va gris lisa),
 `iniciar(proyecto, settings, UNIDADES, mediaTipologias, tzOffsetHoras, hitosObra, tipologias)`
 arma todo. Las respuestas de Supabase no traen encabezados de caché (verificado el
 2026-10-14: sin `Cache-Control`/`ETag`, `CF-Cache-Status: DYNAMIC`), así que cada carga
@@ -795,8 +815,9 @@ filtro de árboles y dónde empieza el fundido.
   (la del frente y, si existe, la de atrás) y transversales, cada `cuadra` hacia afuera de
   las calles reales, hasta `extension`. Cada pieza es una sola malla por material
   (`geometriaPiezas()`: rectángulos horizontales y caras verticales):
-  - **Calzada** con textura de canvas generada (`texturaAsfalto()`: grano, manchas
-    suaves y árido, de lejos el `#686F72` de siempre; mipmaps y anisotropía máxima). La
+  - **Calzada** con textura (`mapaAsfalto()`, las imágenes de `assets/textures/`:
+    grano, manchas suaves y árido, de lejos el `#686F72` de siempre; mipmaps y
+    anisotropía máxima; sin la imagen, ese gris liso). La
     **línea central** va en la textura, no como geometría: miles de guiones finos
     titilaban al girar. Se corta 5 m antes de cada esquina (`TOPE`: esos tramos y los
     cruces usan la variante lisa).
