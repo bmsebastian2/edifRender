@@ -222,15 +222,22 @@ posteriores:
   `'whatsapp'`, `'formulario'` (`consulta_url`), `'espera_ir'` ("Avisarme si se libera")
   y `'plano'` ("Solicitar plano"). `origen` sigue con su regex; `'preview'` y `'local'`
   ya la cumplen (para separar pruebas). El trigger `filtrar_eventos()` descarta en
-  silencio (`return null`) el mismo `(project_id, unit_id, sesion, tipo)` dentro de 60 s,
-  para todos los tipos, y más de 20 consultas por sesión por hora (solo los tipos de
-  consulta). `demanda_resumen(p_project_id)` (RPC, solo `authenticated`, miembro o
-  admin de plataforma) devuelve eventos y sesiones agrupados por unidad, tipo y origen,
-  sin bajar una fila por evento. **Orden obligatorio: migración → deploy del visor que
-  manda los tipos nuevos → admin.html que usa la RPC.** Al revés, los inserts nuevos
-  fallan (el visor solo hace `console.warn`) o admin llama a una función que no existe.
-  Escrita el 2026-10-22; **no está aplicada** hasta que Sebastian la corra, y el visor y
-  admin todavía no la usan.
+  silencio (`return null`) el mismo `(project_id, unit_id, sesion, tipo, pct_entrega)`
+  dentro de 60 s, para todos los tipos (así el simulador guarda cada valor distinto; volver
+  a uno ya elegido dentro del minuto se descarta), y más de 20 consultas por sesión por
+  hora (solo los tipos de consulta). `demanda_resumen(p_project_id, p_incluir_pruebas
+  default false)` (RPC, solo `authenticated`, miembro o admin de plataforma) devuelve un
+  solo `jsonb` —sin el tope de filas de la API—: un array de `{unit_id, tipo, origen,
+  eventos, sesiones}` y, en los de `'simulacion'`, `pct_entrega_final` (la distribución del
+  último `pct_entrega` de cada sesión). Sin `p_incluir_pruebas` no cuenta origen
+  `'preview'` ni `'local'`. **Orden obligatorio: migración → deploy del visor que manda
+  los tipos nuevos → admin.html que usa la RPC.** Al revés, los inserts nuevos fallan (el
+  visor solo hace `console.warn`) o admin llama a una función que no existe. Escrita el
+  2026-10-22; **no está aplicada** hasta que Sebastian la corra, y el visor y admin
+  todavía no la usan. **Aplicada en producción el: ____-__-__** (completar al correrla).
+  Desde esa fecha los clics se deduplican (la misma unidad, la misma sesión, dentro de 60
+  s, cuenta una vez): los conteos de Demanda de antes no son comparables 1:1 con los de
+  después.
 
 ### Orden de las migraciones
 

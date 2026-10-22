@@ -11,9 +11,12 @@
 --   2. agrega un trigger que descarta en silencio los duplicados de los
 --      últimos 60 s (todos los tipos) y pone un tope por sesión a los tipos
 --      de consulta;
---   3. agrega la RPC demanda_resumen(), agrupada en el servidor: hoy admin
---      baja una fila por evento y el tope de filas de la API (1000 por
---      defecto) puede truncar los conteos sin aviso.
+--   3. agrega la RPC demanda_resumen(), agrupada en el servidor y devuelta
+--      como un solo jsonb: hoy admin baja una fila por evento y el tope de
+--      filas de la API (1000 por defecto) puede truncar los conteos sin
+--      aviso.
+-- Desde que se aplica, los clics también se deduplican (60 s): los conteos
+-- de antes no son comparables 1:1 con los de después.
 --
 -- Orden obligatorio: esta migración → deploy del visor que manda los tipos
 -- nuevos → admin.html que lee demanda_resumen(). Al revés, los inserts de
@@ -56,8 +59,12 @@ create policy "events_insert" on events
 -- antes del with check de la policy, así que un tipo inválido igual se
 -- rechaza con error después.
 --   - Duplicado (todos los tipos): el mismo (project_id, unit_id, sesion,
---     tipo) en los últimos 60 s. Un doble toque, o abrir dos veces la misma
---     unidad en un minuto, cuenta una vez.
+--     tipo, pct_entrega) en los últimos 60 s. Un doble toque, o abrir dos
+--     veces la misma unidad en un minuto, cuenta una vez. pct_entrega entra
+--     en la clave para que el simulador guarde cada valor distinto que se
+--     elige (20 → 30 → 40 son tres eventos); en los demás tipos es null y
+--     no cambia nada. Ojo: volver a un valor ya elegido dentro del minuto
+--     (20 → 40 → 20) se descarta, y el último que queda es 40.
 --   - Tope (solo los tipos de consulta): más de 20 por sesión en la última
 --     hora se descartan. 'click' y 'simulacion' sin tope.
 -- No es a prueba de balas —`sesion` la genera el cliente— pero es el mismo
@@ -74,6 +81,7 @@ begin
       and e.creado_en > now() - interval '60 seconds'
       and e.unit_id = new.unit_id
       and e.tipo = new.tipo
+      and e.pct_entrega is not distinct from new.pct_entrega
   ) then
     return null;
   end if;
@@ -110,30 +118,81 @@ create index if not exists events_sesion_reciente_idx on events (project_id, ses
 -- ============================================================
 -- 3. Resumen de demanda para admin.html
 -- ============================================================
--- Agrupado en el servidor: una fila por (unidad, tipo, origen) con la
--- cantidad de eventos y de sesiones distintas. Error en vez de vacío si el
--- que llama no es del equipo del proyecto (mismo criterio que
--- accesos_miembros()). Las columnas van calificadas con `e.`: los nombres
--- de la salida (unit_id, tipo, origen) también son variables de plpgsql.
-create or replace function demanda_resumen(p_project_id uuid)
-returns table(unit_id integer, tipo text, origen text, eventos bigint, sesiones bigint)
+-- Agrupado en el servidor y devuelto como UN solo jsonb: el tope de filas
+-- de la API (1000 por defecto) no lo corta, porque es un valor y no un
+-- conjunto de filas. Un array con un elemento por (unidad, tipo, origen):
+--   { unit_id, tipo, origen, eventos, sesiones }
+-- y en los de 'simulacion', además:
+--   pct_entrega_final: [ { pct_entrega, sesiones }, … ]
+-- la distribución del ÚLTIMO pct_entrega de cada sesión (el último por
+-- creado_en y, a igual hora, por id) en esa unidad y ese origen; su suma de
+-- sesiones es la de ese elemento. Para verlo por unidad sola se suman los
+-- orígenes. Sin p_incluir_pruebas (false por defecto) no cuenta los
+-- eventos de origen 'preview' y 'local'. Error en vez de vacío si el que
+-- llama no es del equipo del proyecto (mismo criterio que
+-- accesos_miembros()).
+-- La versión de un solo parámetro que devolvía filas se saca: nunca se
+-- aplicó, y con las dos juntas una llamada con un solo argumento sería
+-- ambigua.
+drop function if exists demanda_resumen(uuid);
+
+create or replace function demanda_resumen(p_project_id uuid, p_incluir_pruebas boolean default false)
+returns jsonb
 language plpgsql security definer set search_path = public stable as $$
+declare
+  resultado jsonb;
 begin
   if not (es_miembro(p_project_id) or es_admin_plataforma()) then
     raise exception 'No tenés permiso para ver la demanda de este proyecto'
       using errcode = '42501';
   end if;
 
-  return query
-    select e.unit_id, e.tipo, e.origen, count(*)::bigint, count(distinct e.sesion)::bigint
+  with ev as (
+    select e.id, e.unit_id, e.tipo, e.origen, e.sesion, e.pct_entrega, e.creado_en
     from events e
     where e.project_id = p_project_id
-    group by e.unit_id, e.tipo, e.origen;
+      and (p_incluir_pruebas or e.origen is null or e.origen not in ('preview', 'local'))
+  ),
+  grupos as (
+    select ev.unit_id, ev.tipo, ev.origen, count(*) as eventos, count(distinct ev.sesion) as sesiones
+    from ev
+    group by ev.unit_id, ev.tipo, ev.origen
+  ),
+  ultimos as (
+    select distinct on (ev.unit_id, ev.origen, ev.sesion) ev.unit_id, ev.origen, ev.sesion, ev.pct_entrega
+    from ev
+    where ev.tipo = 'simulacion'
+    order by ev.unit_id, ev.origen, ev.sesion, ev.creado_en desc, ev.id desc
+  ),
+  distribucion as (
+    select x.unit_id, x.origen,
+           jsonb_agg(jsonb_build_object('pct_entrega', x.pct_entrega, 'sesiones', x.sesiones)
+                     order by x.pct_entrega) as pct
+    from (
+      select u.unit_id, u.origen, u.pct_entrega, count(*) as sesiones
+      from ultimos u
+      group by u.unit_id, u.origen, u.pct_entrega
+    ) x
+    group by x.unit_id, x.origen
+  )
+  select coalesce(jsonb_agg(
+           jsonb_build_object('unit_id', g.unit_id, 'tipo', g.tipo, 'origen', g.origen,
+                              'eventos', g.eventos, 'sesiones', g.sesiones)
+           || case when g.tipo = 'simulacion'
+                   then jsonb_build_object('pct_entrega_final', coalesce(d.pct, '[]'::jsonb))
+                   else '{}'::jsonb end
+           order by g.unit_id, g.tipo, g.origen), '[]'::jsonb)
+    into resultado
+  from grupos g
+  left join distribucion d
+    on g.tipo = 'simulacion' and d.unit_id = g.unit_id and d.origen is not distinct from g.origen;
+
+  return resultado;
 end;
 $$;
 
-revoke execute on function demanda_resumen(uuid) from public, anon;
-grant execute on function demanda_resumen(uuid) to authenticated;
+revoke execute on function demanda_resumen(uuid, boolean) from public, anon;
+grant execute on function demanda_resumen(uuid, boolean) to authenticated;
 
 -- ============================================================
 -- Rollback (comentado: correr a mano solo si hace falta deshacer)
@@ -144,7 +203,7 @@ grant execute on function demanda_resumen(uuid) to authenticated;
 --
 -- drop trigger if exists events_filtrar on events;
 -- drop function if exists filtrar_eventos();
--- drop function if exists demanda_resumen(uuid);
+-- drop function if exists demanda_resumen(uuid, boolean);
 -- drop index if exists events_sesion_reciente_idx;
 -- drop policy if exists "events_insert" on events;
 -- create policy "events_insert" on events
