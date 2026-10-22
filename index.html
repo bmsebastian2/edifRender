@@ -790,26 +790,38 @@
 
     /* Un solo renglón, estados separados por divisores: si las etiquetas
        no entran (pantallas angostas, muchos estados) pasan a la versión
-       corta (.compacta, ver ajustarCabezal()). */
+       corta (.compacta, ver ajustarCabezal()); si ni la corta entra (texto
+       agrandado por el sistema), los estados bajan de renglón enteros:
+       número y etiqueta nunca se separan. */
     #ficha-resumen {
       display: flex;
+      column-gap: 21px;
       flex: 1;
       min-width: 0;
       overflow: hidden;
       white-space: nowrap;
     }
 
+    #ficha-resumen.compacta {
+      flex-wrap: wrap;
+      row-gap: 2px;
+    }
+
     #ficha-resumen .aviso-item {
+      position: relative;
       font-size: 13px
     }
 
+    /* En el medio de los 21px entre estados: 10 a cada lado. La del que
+       empieza un renglón queda fuera de la leyenda (overflow: hidden). */
     #ficha-resumen .aviso-item+.aviso-item::before {
       content: "";
-      flex: none;
+      position: absolute;
+      left: -11px;
+      top: 50%;
       width: 1px;
       height: 12px;
-      /* + el gap de 5px del ítem: 10px a cada lado del divisor. */
-      margin: 0 5px 0 10px;
+      margin-top: -6px;
       background: rgba(20, 40, 35, .16);
     }
 
@@ -3184,6 +3196,19 @@
       display: none
     }
 
+    /* Con plano (o cargándolo), el m² va debajo del dibujo, no encima: la
+       tarjeta deja una franja abajo (28 de padding en vez de 14) y la
+       etiqueta va ahí. El dibujo se achica un poco; la tarjeta no crece
+       (su proporción es fija). */
+    .p-plano:not([data-estado="vacio"]) {
+      padding-bottom: 28px
+    }
+
+    .p-plano:not([data-estado="vacio"]) .p-plano-m2 {
+      right: 14px;
+      bottom: 7px
+    }
+
     /* Celular: texto arriba y plano abajo, a lo ancho, con 16 de aire
        arriba, abajo y entre los dos. */
     @media (max-width: 480px) {
@@ -3807,14 +3832,44 @@
       }
     }
 
+    /* Celular: dos columnas, con el ícono de 20 a la izquierda y el texto
+       al lado, alineado a la izquierda (antes, ícono arriba y texto
+       centrado: celdas de 90 a 106px). El ícono se alinea con el primer
+       renglón del texto, no con el centro de la celda: (alto de renglón −
+       20) / 2, en em, así sigue alineado con el texto agrandado. */
     @media (max-width: 480px) {
+      .p-amen-cabeza {
+        margin-bottom: 12px
+      }
+
+      #p-edificio .p-edificio-tit {
+        line-height: 1.2
+      }
+
+      /* "Ver todos": toque de 44 sin mover nada (el margen negativo
+       compensa el padding). Arriba entra en el aire del bloque; abajo
+       llega justo hasta la grilla. */
+      .p-amen-todos {
+        margin: -16px -6px -12px;
+        padding: 16px 6px 12px
+      }
+
       #p-amenities {
         grid-template-columns: repeat(2, 1fr)
       }
 
+      #p-amenities .amenity {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 8px;
+        text-align: left
+      }
+
       #p-amenities .amenity svg {
-        width: 24px;
-        height: 24px
+        width: 20px;
+        height: 20px;
+        margin-top: calc((1.35em - 20px) / 2)
       }
 
       #p-amenities .amenity:nth-child(odd):not(:last-child) {

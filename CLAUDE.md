@@ -473,7 +473,8 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   siguen en el HTML, ocultos: de `#cb-datos` salen los íconos y el texto para lector
   del renglón de datos. Plegada queda en tres renglones (88px): leyenda en una
   píldora de fondo sutil con divisores y el chevron adentro (si no entra, etiquetas
-  abreviadas), barra proporcional y "▤ 10 pisos | ▦ 78 u. | ▢ Mar 2028 | 7 amenities ›"
+  abreviadas; si ni así, con el texto agrandado, los estados bajan de renglón enteros:
+  número y etiqueta nunca se separan), barra proporcional y "▤ 10 pisos | ▦ 78 u. | ▢ Mar 2028 | 7 amenities ›"
   (`#fc-linea`; "amenities" abre la capa; si no entra se va "Torre" y después los
   íconos, todo en `ajustarCabezal()`). Desplegada (transición de altura, 180 ms) suma
   solo la fila de amenities (`#fc-amenities-fila`: ícono + nombre corto — el texto si
@@ -626,7 +627,8 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
 - **Amenities del edificio**: en el panel, grilla sin tarjetas con líneas entre celdas: 4
   columnas desde 440px de grilla, 3 en un panel angosto (pantallas de ~1300px o menos), 2 en
   ≤ 480px; texto cortado a 3 líneas y a lo sumo `MAX_AMENITIES_PANEL` (8); con más, "Ver
-  todos" despliega el resto en el lugar. Mismos datos e íconos (`amenities.icono`) que la
+  todos" despliega el resto en el lugar. En celular (≤480, desde 2026-10-22) el ícono va
+  a la izquierda (20 px, alineado con el primer renglón) y el texto al lado, a la izquierda. Mismos datos e íconos (`amenities.icono`) que la
   hoja de la ficha (`#ce-amenities`), que conserva sus tarjetas.
 - **Descripción + plano** (`#p-intro`, `pintarIntro()`): debajo de la barra de datos, texto
   a la izquierda (eyebrow "Unidad N", título en Fraunces —la única serif, de Google Fonts,
@@ -650,7 +652,9 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   2026-10-22): sin planta, el estado vacío es una franja de ~64 px (ícono, título, m² y
   "Solicitar plano" con toque de 44) y con planta la tarjeta es 3:2; la hoja mide 74vh
   igual, así que lo de abajo sube pero la hoja no salta. En desktop y tablet sigue el
-  "mismo tamaño" 4:3. Nunca un esquema dibujado desde m²/dorms
+  "mismo tamaño" 4:3. Con planta, en todos los anchos, el m² de la tarjeta va en una
+  franja debajo del dibujo (28 px de padding abajo), nunca encima; la tarjeta no crece.
+  Nunca un esquema dibujado desde m²/dorms
   (el viejo `plantaSVG()` / `ambientes()` ya no existe).
 - **Tipología** (`tipologiaDe(u, NOMBRES_TIPOLOGIA)`): `nombre_publico` de la tipología
   asignada; si no hay, `geom.tipologia` ("Estudio", "Flex"), aunque la unidad tenga
