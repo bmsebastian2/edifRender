@@ -667,9 +667,10 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
 - **Cabecera** (`.p-hero`, `pintarPanel()`): foto a lo ancho (el primer render de la
   tipología; si no tiene, `renderPortada`, el primero del proyecto; sin ninguno, fondo
   verde) con piso, número, píldora de estado y píldora de orientación encima, y copiar / ⓘ
-  / cerrar en círculos blancos (toque de 44 en la hoja). En la hoja (≤860) el degradado
-  de la foto es más oscuro a la izquierda y arriba: con el de desktop, el piso (blanco al
-  90 %, 13 px) no llegaba a AA en ninguna foto medida (2026-10-22). En ≤480 el alto sale del
+  / cerrar en círculos blancos (toque de 44 en la hoja). El degradado de la foto es más
+  oscuro a la izquierda y arriba, en todos los anchos: con el anterior, el piso (blanco
+  al 90 %, 13 px) no llegaba a AA (en la hoja desde 2026-10-22; en desktop desde la
+  fase 7, donde ROSSO y BRUSCO también fallaban). En ≤480 el alto sale del
   contenido (~134 px: 16 arriba, 12 entre número y píldoras, 12 abajo; píldoras de 30 en
   el flujo, así un texto más grande la agranda en vez de pisarse) y el piso nunca llega a
   los botones (si no entra, baja de renglón). El color de la píldora de estado va por `data-estado` en
@@ -692,7 +693,8 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
 - m², terraza (`m2_terraza`), precio de cochera opcional (`cochera_precio`), unidades
   similares (`mostrarSimilares`).
 - Link de **WhatsApp** armado con `settings.whatsapp` + mensaje con plantilla +
-  `linkDe(u)`.
+  `linkDe(u)`. Sin `settings.whatsapp` el botón no va (BRUSCO; antes quedaba con
+  `href="#"`).
 - **Pie** (`.p-pie`, sticky al fondo de la hoja): la consulta. Responde al ancho del panel
   (`@container pie`): más de 480 px, en una fila; hasta 480 (panel de desktop angosto),
   texto arriba y botón abajo. En celular (≤480 de pantalla, desde 2026-10-22) una fila

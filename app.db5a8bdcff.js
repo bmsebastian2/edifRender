@@ -4281,8 +4281,7 @@
         const e = ESTADOS[k];
         const deEstado = UNIDADES.filter(u => u.estado === k);
         if (!deEstado.length) return;
-        const nombre = k === 'disponible' && hayAlquiler ? 'En venta'
-          : k === 'sin_dato' ? 'A consultar' : e.nombre;
+        const nombre = k === 'disponible' && hayAlquiler ? 'En venta' : e.nombre;
         chipsEstado[k] = chip(document.getElementById('f-estado'), nombre + cifra(deEstado.length), e.color,
           on => on ? fEstado.add(k) : fEstado.delete(k), deEstado.length);
       });
@@ -5016,6 +5015,8 @@
       // entrega y la cuota elegidas para que el vendedor arranque la
       // conversación sabiendo el presupuesto del visitante.
       function actualizarLinkWA(u) {
+        // Sin número el botón no va (ver más abajo): nada que armar.
+        if (!settingsRow.whatsapp) return;
         let texto = 'Hola, quiero consultar por la unidad ' + numeroDe(u) + ' de ' + proyecto.nombre + ' (' +
           [(tipologiaDe(u, NOMBRES_TIPOLOGIA) || etiquetaDorms(u.dorms)).toLowerCase(), u.m2 != null ? formatearM2(u.m2, proyecto.locale) + ' m²' : null]
             .filter(Boolean).join(', ') + '). ' + linkDe(u);
@@ -5024,9 +5025,7 @@
             formatearPrecio(finActual.entregaMonto, proyecto.moneda, proyecto.locale) + ') y una cuota mensual de ' +
             formatearPrecio(finActual.cuotaMensual, proyecto.moneda, proyecto.locale) + '.';
         }
-        document.getElementById('p-wa').href = settingsRow.whatsapp
-          ? 'https://wa.me/' + settingsRow.whatsapp + '?text=' + encodeURIComponent(texto)
-          : '#';
+        document.getElementById('p-wa').href = 'https://wa.me/' + settingsRow.whatsapp + '?text=' + encodeURIComponent(texto);
       }
 
       /* ------------------------------------------------------------
@@ -5039,10 +5038,16 @@
       const consultaUrl = settingsRow.consulta_url || '';
       const enIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
       btnConsultar.target = enIframe ? '_top' : '_self';
+      // Sin settings.whatsapp el botón de WhatsApp no va (antes quedaba con
+      // href="#": un botón que no hacía nada, en BRUSCO).
+      const wa = document.getElementById('p-wa');
+      if (!settingsRow.whatsapp) {
+        wa.hidden = true;
+        wa.removeAttribute('href');
+      }
       // Con Consultar, WhatsApp pasa a secundario: un solo botón verde. En el
       // pie queda solo el ícono, así que el nombre va en aria-label/title.
       if (consultaUrl) {
-        const wa = document.getElementById('p-wa');
         wa.classList.replace('bton-p', 'bton-s');
         wa.setAttribute('aria-label', 'Consultar por WhatsApp');
         wa.title = 'Consultar por WhatsApp';

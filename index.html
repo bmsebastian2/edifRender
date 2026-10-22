@@ -1990,14 +1990,17 @@
       display: none
     }
 
-    /* Oscurece la izquierda (piso y número) y el pie (píldoras): así se leen
-       sobre cualquier foto. */
+    /* Oscurece la izquierda y arriba (piso y número) y el pie (píldoras):
+       así se leen sobre cualquier foto. El piso (blanco al 90%, 13px) no
+       llegaba a AA (4.5:1) con el degradado anterior (.55 → .15, sin el de
+       arriba); con este, 4.5 o más en el peor píxel de las fotos medidas. */
     .p-hero-fondo::after {
       content: "";
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(90deg, rgba(0, 0, 0, .55) 0%, rgba(0, 0, 0, .15) 60%, transparent 100%),
+        linear-gradient(90deg, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, .4) 40%, rgba(0, 0, 0, .12) 70%, transparent 100%),
+        linear-gradient(180deg, rgba(0, 0, 0, .35) 0%, transparent 45%),
         linear-gradient(0deg, rgba(0, 0, 0, .35) 0%, transparent 50%)
     }
 
@@ -5904,17 +5907,6 @@
         right: var(--p-pad);
       }
 
-      /* El piso (blanco al 90%, 13px) no llegaba a AA (4.5:1) sobre ninguna
-       de las fotos probadas: el mismo degradado, más oscuro a la izquierda y
-       arriba, donde va el texto (medido: 4.8 o más en el peor píxel). El de
-       abajo, el de las píldoras, no cambia. */
-      .p-hero-fondo::after {
-        background:
-          linear-gradient(90deg, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, .4) 40%, rgba(0, 0, 0, .12) 70%, transparent 100%),
-          linear-gradient(180deg, rgba(0, 0, 0, .35) 0%, transparent 45%),
-          linear-gradient(0deg, rgba(0, 0, 0, .35) 0%, transparent 50%)
-      }
-
       /* Botones de la foto: toque de 44px sin agrandar el círculo de 40;
        entre un área y la otra quedan 4px libres. */
       .p-icono {
@@ -7377,6 +7369,6 @@
      error) y sus funciones y constantes de primer nivel no son globales —
      desde la consola de DevTools no se llega a UNIDADES, proyecto, abrir(),
      etc. -->
-  <script type="module" src="app.841656e919.js"></script>
+  <script type="module" src="app.db5a8bdcff.js"></script>
 </body>
 </html>
