@@ -222,11 +222,12 @@ posteriores:
   `'whatsapp'`, `'formulario'` (`consulta_url`), `'espera_ir'` ("Avisarme si se libera")
   y `'plano'` ("Solicitar plano"). `origen` sigue con su regex; `'preview'` y `'local'`
   ya la cumplen (para separar pruebas). El trigger `filtrar_eventos()` descarta en
-  silencio (`return null`) el mismo `(project_id, unit_id, sesion, tipo, pct_entrega)`
-  dentro de 60 s, para todos los tipos (así el simulador guarda cada valor distinto; volver
-  a uno ya elegido dentro del minuto se descarta), y más de 20 consultas por sesión por
-  hora (solo los tipos de consulta). `demanda_resumen(p_project_id, p_incluir_pruebas
-  default false)` (RPC, solo `authenticated`, miembro o admin de plataforma) devuelve un
+  silencio (`return null`), para todos los tipos, un evento igual al **último** de la misma
+  `(project_id, unit_id, sesion, tipo)` de los últimos 60 s (mismo `pct_entrega`, `is not
+  distinct from`): abrir dos veces la misma unidad en un minuto cuenta una; en el
+  simulador cada cambio cuenta (20 → 40 → 20 guarda los tres, 20 → 20 uno). También
+  descarta más de 20 consultas por sesión por hora (solo los tipos de consulta).
+  `demanda_resumen(p_project_id, p_incluir_pruebas default false)` (RPC, solo `authenticated`, miembro o admin de plataforma) devuelve un
   solo `jsonb` —sin el tope de filas de la API—: un array de `{unit_id, tipo, origen,
   eventos, sesiones}` y, en los de `'simulacion'`, `pct_entrega_final` (la distribución del
   último `pct_entrega` de cada sesión). Sin `p_incluir_pruebas` no cuenta origen

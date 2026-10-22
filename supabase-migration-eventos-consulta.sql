@@ -58,13 +58,14 @@ create policy "events_insert" on events
 -- ve una falla (la API contesta 201) y Demanda no cuenta de más. Corre
 -- antes del with check de la policy, así que un tipo inválido igual se
 -- rechaza con error después.
---   - Duplicado (todos los tipos): el mismo (project_id, unit_id, sesion,
---     tipo, pct_entrega) en los últimos 60 s. Un doble toque, o abrir dos
---     veces la misma unidad en un minuto, cuenta una vez. pct_entrega entra
---     en la clave para que el simulador guarde cada valor distinto que se
---     elige (20 → 30 → 40 son tres eventos); en los demás tipos es null y
---     no cambia nada. Ojo: volver a un valor ya elegido dentro del minuto
---     (20 → 40 → 20) se descarta, y el último que queda es 40.
+--   - Duplicado (todos los tipos): se compara solo con el ÚLTIMO evento de
+--     la misma (project_id, unit_id, sesion, tipo) de los últimos 60 s (el
+--     de id más alto); si su pct_entrega es idéntico (is not distinct from)
+--     el nuevo se descarta. En los tipos sin pct_entrega (null) es "abrir
+--     otra vez lo mismo en el último minuto": un doble toque, o abrir dos
+--     veces la misma unidad, cuenta una vez. En el simulador cada cambio
+--     cuenta: 20 → 40 → 20 guarda los tres (y el último, para la RPC, es
+--     20); 20 → 20 guarda uno.
 --   - Tope (solo los tipos de consulta): más de 20 por sesión en la última
 --     hora se descartan. 'click' y 'simulacion' sin tope.
 -- No es a prueba de balas —`sesion` la genera el cliente— pero es el mismo
@@ -73,16 +74,19 @@ create policy "events_insert" on events
 -- necesita contar.
 create or replace function filtrar_eventos()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  anterior record;
 begin
-  if exists (
-    select 1 from events e
-    where e.project_id = new.project_id
-      and e.sesion = new.sesion
-      and e.creado_en > now() - interval '60 seconds'
-      and e.unit_id = new.unit_id
-      and e.tipo = new.tipo
-      and e.pct_entrega is not distinct from new.pct_entrega
-  ) then
+  select e.pct_entrega into anterior
+  from events e
+  where e.project_id = new.project_id
+    and e.sesion = new.sesion
+    and e.creado_en > now() - interval '60 seconds'
+    and e.unit_id = new.unit_id
+    and e.tipo = new.tipo
+  order by e.id desc
+  limit 1;
+  if found and anterior.pct_entrega is not distinct from new.pct_entrega then
     return null;
   end if;
 
@@ -111,8 +115,10 @@ create trigger events_filtrar
 -- sesión, pero una sesión larga —el aparato del showroom comparte una sola
 -- para todos los visitantes— acumula miles de filas y el trigger las
 -- recorrería en cada insert. Con creado_en en el índice lee solo las
--- recientes. No se borra events_sesion_idx (aditivo); queda cubierto por
--- este, y se puede sacar a mano más adelante.
+-- recientes: las del último minuto (duplicado) o la última hora (tope). La
+-- del duplicado filtra además unidad y tipo y ordena por id esas pocas
+-- filas, que no necesita índice propio. No se borra events_sesion_idx
+-- (aditivo); queda cubierto por este, y se puede sacar a mano más adelante.
 create index if not exists events_sesion_reciente_idx on events (project_id, sesion, creado_en);
 
 -- ============================================================
