@@ -2544,9 +2544,12 @@
       }
     }
 
-    /* Sin botón a la vista (vendida/reservada con el formulario de espera
-       en pantalla, o ya anotado): el pie quedaría vacío. */
-    .p-pie:has(#acciones-panel[hidden]):has(#p-espera-ir[hidden]) {
+    /* Sin botón a la vista el pie no va (con display: none, --alto-pie
+       queda en 0): vendida/reservada con el formulario de espera en
+       pantalla o ya anotado, o un proyecto sin WhatsApp ni consulta_url
+       (sin canal de contacto, el pie sería un título sin acción). */
+    .p-pie:has(#acciones-panel[hidden]):has(#p-espera-ir[hidden]),
+    .p-pie:has(#p-consultar[hidden]):has(#p-wa[hidden]):has(#p-espera-ir[hidden]) {
       display: none
     }
 

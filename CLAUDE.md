@@ -701,7 +701,8 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   compacta: ícono de 24 y título (hasta dos renglones) a la izquierda y el botón de 48 a la
   derecha, sin subtítulo, ~72–80 px (antes 136, 154 a 320). Con `consulta_url` no va el
   título (Consultar a lo ancho + WhatsApp solo ícono); vendida/reservada, "Avisarme si se
-  libera" a lo ancho. Con el texto agrandado por el sistema se vuelve a apilar: el
+  libera" a lo ancho. Sin ningún botón a la vista (formulario de espera en pantalla, o un
+  proyecto sin WhatsApp ni `consulta_url`) el pie no va y `--alto-pie` queda en 0. Con el texto agrandado por el sistema se vuelve a apilar: el
   container query mide en `em` del propio pie (`22em`), que crece con el texto. El
   `scroll-padding-bottom` del panel sale del alto real del pie (`--alto-pie`, un
   `ResizeObserver`) + 16, así un foco o un `scrollIntoView` no quedan debajo de él.
