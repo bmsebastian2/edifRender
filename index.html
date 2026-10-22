@@ -628,7 +628,16 @@
       }
 
       #bs-mas {
-        display: flex
+        display: flex;
+        position: relative;
+      }
+
+      /* Área de toque de 44px sin agrandar el círculo de 36: 4px más por
+       lado, dentro de la barra y sin llegar a la calle. */
+      #bs-mas::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
       }
 
       #bs-mas[aria-expanded="true"] {
@@ -705,6 +714,14 @@
 
       .bs-etq {
         display: inline
+      }
+    }
+
+    /* Celulares: el rótulo del tipo no va y el lugar queda para la calle
+       (con él, la calle se cortaba hasta en 430px: "Ana Monterro…"). */
+    @media (max-width:440px) {
+      #cb-tipo-nombre {
+        display: none
       }
     }
 
@@ -1904,9 +1921,10 @@
       display: flex;
       flex-direction: column;
       overflow-y: auto;
-      /* Que un foco o un scrollIntoView no deje nada tapado por el pie
-         (hasta ~155px apilado, en un celular angosto). */
-      scroll-padding-bottom: 170px;
+      /* Que un foco o un scrollIntoView no deje nada tapado por el pie: su
+         alto real (--alto-pie, lo mide un ResizeObserver en el script) + 16.
+         Hasta que lo mide, 154 (el pie más alto que había). */
+      scroll-padding-bottom: calc(var(--alto-pie, 154px) + 16px);
       transform: translateX(100%);
       transition: transform var(--t-hoja) var(--ease)
     }
@@ -2098,17 +2116,39 @@
       white-space: nowrap
     }
 
+    /* Celular: el alto sale del contenido (~134px; con 160 fijo quedaban
+       24px vacíos entre el número y las píldoras): 16 arriba, 12 entre el
+       número y las píldoras, 12 abajo. Las píldoras van en el flujo, así con
+       un texto más grande la cabecera crece en vez de pisarse, y miden 30
+       con o sin ícono. El piso no llega a los botones: 140 = los tres
+       botones (136) + su margen (16) + 8 de aire − el borde (20); si no
+       entra, baja de renglón. */
     @media (max-width: 480px) {
       .p-hero {
-        height: 160px
+        height: auto;
+        padding-top: 16px;
+        padding-bottom: 12px;
+      }
+
+      .p-hero .p-eyebrow {
+        padding-right: 140px;
+        line-height: 1.2;
       }
 
       #p-unidad {
         font-size: 44px
       }
 
+      .p-hero .p-hero-pildoras {
+        position: relative;
+        inset: auto;
+        margin-top: 12px;
+      }
+
       #p-estado,
       .p-vista {
+        min-height: 30px;
+        padding-block: 0;
         font-size: 12px
       }
     }
@@ -2292,29 +2332,6 @@
       background: rgba(0, 0, 0, .1)
     }
 
-    /* Celular: una sola fila que se desliza (sin barra a la vista), con
-       cada dato a su ancho natural, y menos aire entre datos. */
-    @media (max-width: 480px) {
-      .p-datos {
-        overflow-x: auto;
-        scrollbar-width: none
-      }
-
-      .p-datos::-webkit-scrollbar {
-        display: none
-      }
-
-      .p-datos-fila {
-        flex-wrap: nowrap;
-        width: max-content;
-        column-gap: 29px
-      }
-
-      .p-dato::before {
-        left: -15px
-      }
-    }
-
     .p-dato[hidden] {
       display: none
     }
@@ -2396,12 +2413,94 @@
       display: none
     }
 
+    /* La terraza como dato aparte: solo en celular (ver abajo). */
+    #p-terraza-c {
+      display: none
+    }
+
+    /* Celular: sin scroll, la orientación siempre a la vista (antes la fila
+       se deslizaba y a 360px la orientación quedaba fuera de pantalla). Menos
+       aire —16 entre datos, con la línea a 8, y 6 entre ícono y texto— y el
+       mismo acomodo que desktop: primero "(área propia)" baja debajo del m²
+       y, si ni así entra (320px), la orientación pasa entera al renglón de
+       abajo, a la izquierda, sin línea (queda fuera de la fila). Con terraza
+       son cuatro datos y van en una grilla de 2×2 (más abajo). */
+    @media (max-width: 480px) {
+      .p-datos {
+        padding: 12px var(--p-pad)
+      }
+
+      .p-datos-fila {
+        gap: 8px 16px
+      }
+
+      .p-dato::before {
+        left: -8px
+      }
+
+      .p-dato dd {
+        gap: 6px
+      }
+
+      .p-dato dd svg {
+        width: 18px;
+        height: 18px
+      }
+
+      /* "(área propia)" solo aclara algo al lado de una terraza. */
+      #p-m2-c:has(#p-terraza[hidden]) #p-m2+.p-dato-extra {
+        display: none
+      }
+
+      /* Con terraza: dormitorios | m² / orientación | terraza, en una
+       grilla de 2×2 sin líneas. La terraza va en su celda (#p-terraza-c),
+       no al lado del m² como en desktop. */
+      #p-m2-c #p-terraza {
+        display: none
+      }
+
+      #p-terraza-c:not([hidden]) {
+        display: block
+      }
+
+      #p-terraza-c dd {
+        white-space: normal
+      }
+
+      #p-terraza-c dd b {
+        white-space: nowrap
+      }
+
+      .p-datos-fila:has(#p-terraza-c:not([hidden])) {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(min-content, 1fr))
+      }
+
+      .p-datos-fila:has(#p-terraza-c:not([hidden])) .p-dato::before {
+        display: none
+      }
+    }
+
+    /* Los celulares más angostos: 12 entre datos (con 16, a 320px
+       "Interior" de BRUSCO bajaba de renglón por 1,6px). */
+    @media (max-width: 340px) {
+      .p-datos-fila {
+        column-gap: 12px
+      }
+
+      .p-dato::before {
+        left: -6px
+      }
+    }
+
     /* Pie fijo: la consulta, en una banda verde bosque. Sticky al fondo
        del panel (que es el que scrollea), de borde a borde; margin-top:
        auto lo baja al fondo cuando el contenido es corto. Responde a su
-       propio ancho (@container pie), no al de la pantalla: hasta 480px (el
-       celular) el texto va arriba y el botón abajo, a lo ancho; más ancho
-       (el panel de desktop, la hoja de tablet), en una fila. */
+       propio ancho (@container pie), no al de la pantalla: hasta 480px (un
+       panel de desktop angosto) el texto va arriba y el botón abajo, a lo
+       ancho; más ancho (el panel de desktop, la hoja de tablet), en una
+       fila. En celular, una fila compacta (ver "Pie en celular", después de
+       los botones). */
     .p-pie {
       position: sticky;
       bottom: 0;
@@ -2427,12 +2526,6 @@
         flex-direction: column;
         align-items: stretch;
         gap: 12px
-      }
-    }
-
-    @media (max-width: 480px) {
-      .p-pie-cont {
-        padding: 16px 16px calc(16px + env(safe-area-inset-bottom))
       }
     }
 
@@ -2815,7 +2908,8 @@
        izquierda, tarjeta del plano a la derecha. De borde a borde como la
        barra de datos, con su propia línea abajo. El plano es la planta de
        la tipología (subida desde admin.html); sin planta, la tarjeta queda
-       del mismo tamaño con el estado vacío, así el panel no salta. */
+       del mismo tamaño con el estado vacío, así el panel no salta (en
+       celular no: ahí es una franja, ver el @media de 480). */
     .p-intro {
       flex: none;
       display: grid;
@@ -2920,8 +3014,9 @@
       outline-offset: 2px
     }
 
-    /* Tarjeta del plano. Siempre 4:3, con o sin plano. Contenedor: el
-       estado vacío se compacta según el ancho (= el alto) de la tarjeta. */
+    /* Tarjeta del plano. Siempre 4:3, con o sin plano (en celular no, ver
+       el @media de 480). Contenedor: el estado vacío se compacta según el
+       ancho (= el alto) de la tarjeta. */
     .p-plano {
       position: relative;
       aspect-ratio: 4 / 3;
@@ -3089,20 +3184,97 @@
       display: none
     }
 
-    /* Celular: texto arriba y plano abajo, a lo ancho. */
+    /* Celular: texto arriba y plano abajo, a lo ancho, con 16 de aire
+       arriba, abajo y entre los dos. */
     @media (max-width: 480px) {
       .p-intro {
-        grid-template-columns: minmax(0, 1fr)
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+        padding-top: 16px;
+        padding-bottom: 16px
       }
 
       .p-intro-tit {
+        margin: 4px 0 8px;
         font-size: 22px
+      }
+
+      .p-intro-desc {
+        line-height: 1.45
       }
 
       .p-ver-plano {
         display: flex;
         justify-content: center;
-        width: 100%
+        width: 100%;
+        min-height: 44px
+      }
+
+      /* Con plano, 3:2 (en desktop y tablet sigue 4:3): entra entero igual
+       (contain), nunca se recorta. */
+      .p-plano {
+        aspect-ratio: 3 / 2
+      }
+
+      /* Sin plano, una franja de ~64px en vez de la tarjeta entera: el
+       ícono, "Plano no disponible" con el m² debajo y "Solicitar plano" a la
+       derecha; sin el link, el subtítulo debajo del título y el m² a la
+       derecha. La hoja mide 74vh igual: lo de abajo sube, la hoja no salta. */
+      .p-plano[data-estado="vacio"] {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas: "ico tit m2" "ico sub m2";
+        align-items: center;
+        column-gap: 12px;
+        aspect-ratio: auto;
+        min-height: 64px;
+        padding: 10px 14px
+      }
+
+      body:not(.kiosco) .p-plano[data-estado="vacio"]:has(.p-plano-pedir:not([hidden])) {
+        grid-template-areas: "ico tit pedir" "ico m2 pedir"
+      }
+
+      .p-plano[data-estado="vacio"] .p-plano-vacio {
+        display: contents;
+        text-align: left
+      }
+
+      .p-plano-vacio svg {
+        grid-area: ico;
+        width: 28px;
+        height: 28px
+      }
+
+      .p-plano-vacio-tit {
+        grid-area: tit;
+        align-self: end
+      }
+
+      .p-plano-vacio-sub {
+        grid-area: sub;
+        align-self: start
+      }
+
+      .p-plano-pedir {
+        grid-area: pedir;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 44px
+      }
+
+      .p-plano[data-estado="vacio"] .p-plano-m2 {
+        position: static;
+        grid-area: m2
+      }
+
+      body:not(.kiosco) .p-plano[data-estado="vacio"]:has(.p-plano-pedir:not([hidden])) .p-plano-vacio-sub {
+        display: none
+      }
+
+      body:not(.kiosco) .p-plano[data-estado="vacio"]:has(.p-plano-pedir:not([hidden])) .p-plano-m2 {
+        align-self: start
       }
     }
 
@@ -3191,6 +3363,76 @@
 
     #p-espera-ir {
       flex: 1 0 auto
+    }
+
+    /* Pie en celular: una sola fila —ícono y título a la izquierda, el botón
+       a la derecha— en lugar de texto arriba y botón abajo (136px; 154 a
+       320). ~72 con el título en un renglón, ~80 en dos. Sin subtítulo
+       (display: none: tampoco queda para el lector de pantalla). El botón
+       nunca se achica por debajo de su texto. Con consulta_url no va el
+       título: Consultar a lo ancho y WhatsApp (solo ícono) al lado; en
+       vendida/reservada el título ya no va (ver arriba) y "Avisarme si se
+       libera" queda a lo ancho. Con el texto agrandado por el sistema la fila
+       no entra: debajo de 22em de pie (el container query mide en el em del
+       propio pie, que crece con el texto) se vuelve a apilar. En desktop,
+       con un panel de 480px o menos, el pie sigue apilado como antes. */
+    @media (max-width: 480px) {
+      .p-pie-cont {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom))
+      }
+
+      .p-pie-msg {
+        gap: 12px
+      }
+
+      .p-pie-icono {
+        width: 24px;
+        height: 24px
+      }
+
+      .p-pie-tit {
+        line-height: 1.2
+      }
+
+      .p-pie-sub {
+        display: none
+      }
+
+      .p-pie .bton {
+        height: 48px;
+        padding: 0 20px;
+        min-width: max-content
+      }
+
+      .acciones-panel #p-wa.bton-s {
+        width: 48px
+      }
+
+      .p-pie:has(#p-consultar:not([hidden])) .p-pie-msg {
+        display: none
+      }
+
+      .p-pie:has(#p-consultar:not([hidden])) .acciones-panel {
+        flex: 1
+      }
+
+      /* A 320px, con el ícono el título iba en tres renglones: se va el
+       ícono (antes que achicar la letra). */
+      @container pie (max-width: 340px) {
+        .p-pie-icono {
+          display: none
+        }
+      }
+
+      @container pie (max-width: 22em) {
+        .p-pie-cont {
+          flex-direction: column;
+          align-items: stretch
+        }
+      }
     }
 
     .bton {
@@ -4923,6 +5165,36 @@
         display: none
       }
 
+      /* Y la píldora es la tarjeta: sin la tarjeta blanca alrededor (dos
+       fondos y dos paddings para un renglón), 36px de alto y 8 de margen.
+       El toque sube hasta el header (44px) sin sumar alto a la vista. */
+      body:has(#panel.abierto) #ficha:not(.abierta) {
+        margin-top: 8px;
+        padding: 0;
+        border-radius: 999px;
+      }
+
+      body:has(#panel.abierto) #ficha:not(.abierta) #ficha-toggle {
+        position: relative;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        border-radius: inherit;
+      }
+
+      /* El margen de 8 + el borde de la tarjeta: del header a su borde de
+       abajo. */
+      body:has(#panel.abierto) #ficha:not(.abierta) #ficha-toggle::after {
+        content: "";
+        position: absolute;
+        inset: -9px -1px -1px;
+      }
+
+      body:has(#panel.abierto) #ficha:not(.abierta) .fc-pildora {
+        padding: 8px 14px;
+        background: none;
+      }
+
       /* Filtros: en desktop es un panel siempre visible abajo a la izquierda;
        en mobile eso significaba Tipología + Estado + "Separar pisos"
        ocupando permanentemente un tercio de la pantalla y tapando el
@@ -5560,6 +5832,44 @@
         height: 4px;
         border-radius: 2px;
         background: rgba(255, 255, 255, .8);
+      }
+
+      /* Cabecera, barra de datos e intro van de borde a borde (margen
+       negativo); su contenido se alinea con el resto de la hoja (--p-pad),
+       no con los 24px de desktop. Los botones de la foto siguen en su
+       esquina. */
+      .p-hero,
+      .p-datos,
+      .p-intro {
+        padding-inline: var(--p-pad)
+      }
+
+      .p-hero-pildoras {
+        left: var(--p-pad);
+        right: var(--p-pad);
+      }
+
+      /* El piso (blanco al 90%, 13px) no llegaba a AA (4.5:1) sobre ninguna
+       de las fotos probadas: el mismo degradado, más oscuro a la izquierda y
+       arriba, donde va el texto (medido: 4.8 o más en el peor píxel). El de
+       abajo, el de las píldoras, no cambia. */
+      .p-hero-fondo::after {
+        background:
+          linear-gradient(90deg, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, .4) 40%, rgba(0, 0, 0, .12) 70%, transparent 100%),
+          linear-gradient(180deg, rgba(0, 0, 0, .35) 0%, transparent 45%),
+          linear-gradient(0deg, rgba(0, 0, 0, .35) 0%, transparent 50%)
+      }
+
+      /* Botones de la foto: toque de 44px sin agrandar el círculo de 40;
+       entre un área y la otra quedan 4px libres. */
+      .p-icono {
+        position: relative
+      }
+
+      .p-icono::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
       }
 
       #panel.abierto~#filtros {
@@ -6827,6 +7137,12 @@
           <dt>Orientación</dt>
           <dd><svg data-icono="orient" viewBox="0 0 24 24" aria-hidden="true"></svg><span id="p-orient"></span></dd>
         </div>
+        <!-- Solo celular: la terraza como cuarto dato de la grilla de 2×2 (en
+           desktop va junto al m², #p-terraza). La llena pintarPanel(). -->
+        <div class="p-dato" id="p-terraza-c" hidden>
+          <dt>Terraza</dt>
+          <dd><svg data-icono="terraza" viewBox="0 0 24 24" aria-hidden="true"></svg><span id="p-terraza-cel"></span></dd>
+        </div>
       </dl>
     </div>
 
@@ -7006,6 +7322,6 @@
      error) y sus funciones y constantes de primer nivel no son globales —
      desde la consola de DevTools no se llega a UNIDADES, proyecto, abrir(),
      etc. -->
-  <script type="module" src="app.04366b9add.js"></script>
+  <script type="module" src="app.841656e919.js"></script>
 </body>
 </html>

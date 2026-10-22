@@ -53,7 +53,7 @@ function buscarUnidad(unidades, pedida) {
 
 // Lo que muestra la tarjeta de una unidad; cada dato null si falta. Mismas
 // reglas que pintarResumenUnidad(), textoOrientacion() y nombreEstado() del
-// visor. `estado` null en sin_dato: "Sin estado público" no se nombra.
+// visor. `estado` null en sin_dato: "A consultar" no se nombra.
 function datosUnidad(proyecto, unidades, u) {
   const hayAlquiler = unidades.some(x => x.estado === 'alquiler');
   const torre = C.torreDe(u);

@@ -457,8 +457,9 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   con un degradado desde `--superficie` encima; el header pasa a opaco recién cuando la
   foto cargó (`.con-portada`), sin dato o si falla queda translúcido como antes. En
   ≤640: sin divisor ni segundo renglón de la dirección, el rótulo va junto al nombre y
-  se va si lo cortaría (`ajustarCabezal()`), y redes + Cota van en un menú `⋯`
-  (`menuRedes()`). El blur vive en `#barra-sup` y no en `#cabezal`: un
+  se va si lo cortaría (`ajustarCabezal()`; en ≤440 no va nunca: el lugar es para la
+  calle, que así entra completa hasta 430), y redes + Cota van en un menú `⋯` (`menuRedes()`; círculo de 36 con toque
+  de 44, `::after`). El blur vive en `#barra-sup` y no en `#cabezal`: un
   `backdrop-filter` en `#cabezal` rompería el `position: fixed` de `#piso-info`.
   `enfocar()` mide el borde de la barra en vez de suponer su alto.
 - **Ficha** (`#ficha`): pisos (por torre si hay `geom.torre`, calculado en vivo),
@@ -482,7 +483,9 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   `?u=` o `?sol=`; el encuadre inicial ya cuenta con ella. Sin amenities no se
   despliega. En mobile, con el
   panel abierto queda solo la leyenda: con los tres renglones la franja libre sobre la
-  hoja bajaba de 80px y `enfocar()` dejaba la unidad debajo de la ficha. Abrir/usar
+  hoja bajaba de 80px y `enfocar()` dejaba la unidad debajo de la ficha. Ahí la
+  píldora es la tarjeta (desde 2026-10-22: 36px, margen 8, sin la tarjeta blanca
+  alrededor; el toque sube hasta el header, 44px). Abrir/usar
   Filtros o Pisos no la pliega (pedido de Sebastian: los datos del edificio no
   desaparecen; `enfocar()` encuadra debajo de ella con `finFicha()`, y el riel y
   Filtros van siempre debajo vía `--fin-ficha`, que mide `ajustarCabezal()` en
@@ -598,7 +601,9 @@ ventas sin nadie que la atienda. Sección `KIOSCO` del script (al final de `inic
 
 El color y la opacidad del volumen salen de `aspectoDe(u)` (= `ESTADOS[u.estado]`).
 Vendida va en gris casi transparente (no rojo); `sin_dato` en gris neutro legible (en
-ROSSO son la mayoría). `'alquiler'` es un estado real (`supabase-migration-alquiler.sql`):
+ROSSO son la mayoría) y en el visor se llama "A consultar" (píldora del panel, tooltip,
+leyenda y chips; desde 2026-10-22, antes "Sin estado público"); admin conserva el rótulo
+interno. `'alquiler'` es un estado real (`supabase-migration-alquiler.sql`):
 verde salvia, precio en `units.precio_alquiler` (siempre UYU/mes, formato es-UY,
 independiente de `moneda`); `precio` sigue siendo el de venta. Si un proyecto tiene
 alquiler, "Disponible" se presenta como "En venta" en leyenda y chips. El riel de
@@ -615,7 +620,9 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   referencia aprobada; 505px a 1366, 710 a 1920), a toda altura; en mobile, hoja inferior a
   lo ancho. `enfocar()` encuadra en `W − panel.offsetWidth`, y el sol y la barra inferior se
   corren con la misma variable: nada asume un ancho fijo. El pie y los amenities responden
-  al ancho del panel (`@container`), no al de la pantalla.
+  al ancho del panel (`@container`), no al de la pantalla. En la hoja (≤860) la
+  cabecera, la barra de datos y la intro alinean su contenido a `--p-pad` (20px), como
+  el resto; en desktop siguen en 24.
 - **Amenities del edificio**: en el panel, grilla sin tarjetas con líneas entre celdas: 4
   columnas desde 440px de grilla, 3 en un panel angosto (pantallas de ~1300px o menos), 2 en
   ≤ 480px; texto cortado a 3 líneas y a lo sumo `MAX_AMENITIES_PANEL` (8); con más, "Ver
@@ -639,7 +646,11 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   Sin planta o si no carga:
   estado vacío del mismo tamaño (grilla de plano) con "Solicitar plano", el WhatsApp de
   `settings.whatsapp` con otro mensaje; no va en kiosco, sin WhatsApp ni en
-  vendida/reservada (como la consulta del pie). Nunca un esquema dibujado desde m²/dorms
+  vendida/reservada (como la consulta del pie). Excepción en celular (≤480, desde
+  2026-10-22): sin planta, el estado vacío es una franja de ~64 px (ícono, título, m² y
+  "Solicitar plano" con toque de 44) y con planta la tarjeta es 3:2; la hoja mide 74vh
+  igual, así que lo de abajo sube pero la hoja no salta. En desktop y tablet sigue el
+  "mismo tamaño" 4:3. Nunca un esquema dibujado desde m²/dorms
   (el viejo `plantaSVG()` / `ambientes()` ya no existe).
 - **Tipología** (`tipologiaDe(u, NOMBRES_TIPOLOGIA)`): `nombre_publico` de la tipología
   asignada; si no hay, `geom.tipologia` ("Estudio", "Flex"), aunque la unidad tenga
@@ -652,7 +663,12 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
 - **Cabecera** (`.p-hero`, `pintarPanel()`): foto a lo ancho (el primer render de la
   tipología; si no tiene, `renderPortada`, el primero del proyecto; sin ninguno, fondo
   verde) con piso, número, píldora de estado y píldora de orientación encima, y copiar / ⓘ
-  / cerrar en círculos blancos. El color de la píldora de estado va por `data-estado` en
+  / cerrar en círculos blancos (toque de 44 en la hoja). En la hoja (≤860) el degradado
+  de la foto es más oscuro a la izquierda y arriba: con el de desktop, el piso (blanco al
+  90 %, 13 px) no llegaba a AA en ninguna foto medida (2026-10-22). En ≤480 el alto sale del
+  contenido (~134 px: 16 arriba, 12 entre número y píldoras, 12 abajo; píldoras de 30 en
+  el flujo, así un texto más grande la agranda en vez de pisarse) y el piso nunca llega a
+  los botones (si no entra, baja de renglón). El color de la píldora de estado va por `data-estado` en
   el CSS, no el de `ESTADOS`: los claros de la leyenda no dejan leer el blanco sobre la
   foto. Debajo, la barra de datos (`.p-datos`): dormitorios o tipología · m² "(área
   propia)" + terraza · orientación, los tres en una sola fila (pedido de Sebastian,
@@ -661,11 +677,28 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   dormitorios no se parte. Solo si ni así entran la orientación baja de renglón: con el
   panel en su mínimo (400 px, ventanas de menos de ~1080 px) o, hasta ~1280 px de
   ventana, en unidades con terraza y orientación larga (Altamira: "Contrafrente en L").
-  En celular, una fila que se desliza.
+  En celular (≤480), sin scroll y con la orientación siempre a la vista (desde
+  2026-10-22; antes la fila se deslizaba y a 360 px la orientación quedaba fuera de
+  pantalla): 16 entre datos (12 en ≤340), íconos de 18, "(área propia)" debajo del m² si no entra y,
+  a 320 px, la orientación baja entera de renglón, alineada a la izquierda. En celular
+  "(área propia)" va solo si la unidad tiene terraza (es solo presentación: el dato no
+  cambia), y con terraza son cuatro datos en una grilla de 2×2 sin líneas (dormitorios |
+  m² / orientación | terraza): la terraza va en su propia celda (`#p-terraza-c`, la llena
+  `pintarPanel()`; en desktop sigue "+ X m² terraza" al lado del m²).
 - m², terraza (`m2_terraza`), precio de cochera opcional (`cochera_precio`), unidades
   similares (`mostrarSimilares`).
 - Link de **WhatsApp** armado con `settings.whatsapp` + mensaje con plantilla +
   `linkDe(u)`.
+- **Pie** (`.p-pie`, sticky al fondo de la hoja): la consulta. Responde al ancho del panel
+  (`@container pie`): más de 480 px, en una fila; hasta 480 (panel de desktop angosto),
+  texto arriba y botón abajo. En celular (≤480 de pantalla, desde 2026-10-22) una fila
+  compacta: ícono de 24 y título (hasta dos renglones) a la izquierda y el botón de 48 a la
+  derecha, sin subtítulo, ~72–80 px (antes 136, 154 a 320). Con `consulta_url` no va el
+  título (Consultar a lo ancho + WhatsApp solo ícono); vendida/reservada, "Avisarme si se
+  libera" a lo ancho. Con el texto agrandado por el sistema se vuelve a apilar: el
+  container query mide en `em` del propio pie (`22em`), que crece con el texto. El
+  `scroll-padding-bottom` del panel sale del alto real del pie (`--alto-pie`, un
+  `ResizeObserver`) + 16, así un foco o un `scrollIntoView` no quedan debajo de él.
 - **Simulador de financiación** (`tieneFinanciacion()` / `calcularFinanciacion()`):
   deslizador de entrega + cuotas mensuales hasta `projects.fecha_ocupacion` + saldo
   contra entrega de llaves, configurado en `settings.financiacion` jsonb

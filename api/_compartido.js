@@ -18,13 +18,15 @@ const ESTADOS = {
   // fantasma — es un gris neutro que sigue leyéndose como volumen.
   // plural / singular: la etiqueta corta de la píldora de mobile ("13
   // disponibles"); sin singular se usa el nombre en minúscula.
+  // sin_dato se presenta "A consultar", como la leyenda y los chips; el
+  // rótulo interno ("Sin estado público") queda solo en admin.html.
   disponible: { nombre: 'Disponible', plural: 'disponibles', color: '#2B6656', opacidad: 0.94 },
   // En alquiler: oferta vigente igual que disponible, en un verde salvia
   // más claro que el de venta (precio en u.precioAlquiler, UYU por mes).
   alquiler: { nombre: 'En alquiler', plural: 'en alquiler', color: '#86AC9F', opacidad: 0.86 },
   reservado: { nombre: 'Reservada', plural: 'reservadas', color: '#D2A24C', opacidad: 0.86 },
   vendido: { nombre: 'Vendida', plural: 'vendidas', color: '#B9BEBC', opacidad: 0.34 },
-  sin_dato: { nombre: 'Sin estado público', plural: 'a consultar', singular: 'a consultar', color: '#9AA19E', opacidad: 0.62 },
+  sin_dato: { nombre: 'A consultar', plural: 'a consultar', singular: 'a consultar', color: '#9AA19E', opacidad: 0.62 },
 };
 
 const fmtAlquiler = new Intl.NumberFormat('es-UY',

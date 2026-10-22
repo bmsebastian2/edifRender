@@ -13,13 +13,15 @@
       // fantasma — es un gris neutro que sigue leyéndose como volumen.
       // plural / singular: la etiqueta corta de la píldora de mobile ("13
       // disponibles"); sin singular se usa el nombre en minúscula.
+      // sin_dato se presenta "A consultar", como la leyenda y los chips; el
+      // rótulo interno ("Sin estado público") queda solo en admin.html.
       disponible: { nombre: 'Disponible', plural: 'disponibles', color: '#2B6656', opacidad: 0.94 },
       // En alquiler: oferta vigente igual que disponible, en un verde salvia
       // más claro que el de venta (precio en u.precioAlquiler, UYU por mes).
       alquiler: { nombre: 'En alquiler', plural: 'en alquiler', color: '#86AC9F', opacidad: 0.86 },
       reservado: { nombre: 'Reservada', plural: 'reservadas', color: '#D2A24C', opacidad: 0.86 },
       vendido: { nombre: 'Vendida', plural: 'vendidas', color: '#B9BEBC', opacidad: 0.34 },
-      sin_dato: { nombre: 'Sin estado público', plural: 'a consultar', singular: 'a consultar', color: '#9AA19E', opacidad: 0.62 },
+      sin_dato: { nombre: 'A consultar', plural: 'a consultar', singular: 'a consultar', color: '#9AA19E', opacidad: 0.62 },
     };
     function esAlquiler(u) {
       return u.estado === 'alquiler';
@@ -4209,6 +4211,12 @@
 
       const tooltip = document.getElementById('tooltip');
       const panel = document.getElementById('panel');
+      // El alto real del pie (sticky) para el scroll-padding-bottom del panel:
+      // un foco o un scrollIntoView no quedan debajo de él. Sin pie a la
+      // vista mide 0.
+      new ResizeObserver(([e]) => {
+        panel.style.setProperty('--alto-pie', Math.round(e.borderBoxSize[0].blockSize) + 'px');
+      }).observe(panel.querySelector('.p-pie'));
 
       // Filtro por torre (solo con TORRES): las opciones salen de las unidades
       // cargadas, en el orden Basamento → torres de geometria.torres.
@@ -5191,6 +5199,8 @@
         m2: '<path d="M4 4h10v6h6v10H4z"/>',
         // Brújula: solo en el panel (la tarjeta no muestra orientación).
         orient: '<circle cx="12" cy="12" r="8.5"/><path d="M15 9l-1.8 4.2L9 15l1.8-4.2z"/>',
+        // Una baranda: la terraza, como cuarto dato de la hoja en celular.
+        terraza: '<path d="M3 10h18M4 20h16M6 10v10M10 10v10M14 10v10M18 10v10"/>',
       };
       // Los del panel están en el HTML vacíos (data-icono): una sola fuente.
       document.querySelectorAll('svg[data-icono]').forEach(s => { s.innerHTML = ICONOS_RESUMEN[s.dataset.icono]; });
@@ -5877,6 +5887,11 @@
         const terraza = document.getElementById('p-terraza');
         terraza.hidden = !u.m2Terraza;
         if (u.m2Terraza) terraza.textContent = '+ ' + formatearM2(u.m2Terraza, proyecto.locale) + ' m² terraza';
+        // En celular la terraza es su propia celda (grilla de 2×2, ver .p-datos).
+        document.getElementById('p-terraza-c').hidden = !u.m2Terraza;
+        const pTerraza = document.getElementById('p-terraza-cel');
+        pTerraza.textContent = '';
+        if (u.m2Terraza) pTerraza.append(nodo('b', null, formatearM2(u.m2Terraza, proyecto.locale) + ' m²'), ' terraza');
 
         // Cochera: debajo del precio, en el pie — es parte de lo que cuesta.
         const cochera = document.getElementById('p-cochera');
