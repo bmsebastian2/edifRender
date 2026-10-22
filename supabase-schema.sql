@@ -39,6 +39,15 @@ create table events (
   creado_en  timestamptz not null default now()
 );
 create index events_unit_id_idx on events (unit_id);
+-- Ojo: esta es la versión single-tenant original. La tabla de hoy (project_id,
+-- sesion, origen, pct_entrega), los tipos que acepta ('click', 'simulacion',
+-- 'whatsapp', 'formulario', 'espera_ir', 'plano'), el trigger
+-- filtrar_eventos() y la RPC demanda_resumen() salen de las migraciones, en
+-- orden: multitenant → financiacion → eventos-consulta (ver "Orden de las
+-- migraciones" en CLAUDE.md). Una instalación nueva corre este archivo y
+-- después todas las migraciones; no se copian acá porque este paso fallaría
+-- (todavía no existen esas columnas ni los helpers es_miembro(),
+-- proyecto_publicado(), unidad_pertenece()).
 
 -- Fila única de configuración del sitio (redes sociales, etc.), editable
 -- desde la pestaña "Redes" de admin.html. Los campos vacíos ('') hacen que

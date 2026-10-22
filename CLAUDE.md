@@ -216,6 +216,21 @@ posteriores:
   proyecto/tipología.
 - Escrituras anónimas: `events` (tracking de clicks/simulaciones) y `leads` (lista de
   espera), con un trigger de límite por sesión (`limitar_leads_por_sesion`).
+- **`events.tipo`** no tiene enum ni check: lo restringe la policy `events_insert`. Desde
+  `supabase-migration-eventos-consulta.sql` acepta `'click'` (abrir el panel),
+  `'simulacion'` (soltar el deslizador de financiación) y los tipos de consulta del pie:
+  `'whatsapp'`, `'formulario'` (`consulta_url`), `'espera_ir'` ("Avisarme si se libera")
+  y `'plano'` ("Solicitar plano"). `origen` sigue con su regex; `'preview'` y `'local'`
+  ya la cumplen (para separar pruebas). El trigger `filtrar_eventos()` descarta en
+  silencio (`return null`) el mismo `(project_id, unit_id, sesion, tipo)` dentro de 60 s,
+  para todos los tipos, y más de 20 consultas por sesión por hora (solo los tipos de
+  consulta). `demanda_resumen(p_project_id)` (RPC, solo `authenticated`, miembro o
+  admin de plataforma) devuelve eventos y sesiones agrupados por unidad, tipo y origen,
+  sin bajar una fila por evento. **Orden obligatorio: migración → deploy del visor que
+  manda los tipos nuevos → admin.html que usa la RPC.** Al revés, los inserts nuevos
+  fallan (el visor solo hace `console.warn`) o admin llama a una función que no existe.
+  Escrita el 2026-10-22; **no está aplicada** hasta que Sebastian la corra, y el visor y
+  admin todavía no la usan.
 
 ### Orden de las migraciones
 
@@ -229,7 +244,10 @@ de Supabase — una tabla nueva editable desde admin necesita su propio `grant`)
 `alquiler` (estado `'alquiler'` + `units.precio_alquiler`, UYU/mes) → `nombre-publico`
 (`typologies.nombre_publico` + `public_typologies` recreada) → `portada`
 (`projects.portada_url` / `portada_foco` / `tipo` + `public_projects` recreada; repite el
-`add column if not exists tiene_pb` de `pisos`, así corre con o sin ella). Solo datos y sin orden:
+`add column if not exists tiene_pb` de `pisos`, así corre con o sin ella) →
+`eventos-consulta` (tipos de consulta en `events_insert`, trigger `filtrar_eventos()`,
+índice `events_sesion_reciente_idx`, RPC `demanda_resumen()`; después de `multitenant`
+y `financiacion`, y antes del deploy del visor que los usa). Solo datos y sin orden:
 `calle-cruce-rosso` (`geometria.calle.cruce_x` de ROSSO, esquina Paullier). Migraciones nuevas: archivo nuevo
 `supabase-migration-<tema>.sql`, comentario de cabecera en español explicando el porqué,
 idempotente (`if not exists`, `drop policy if exists`, `on conflict`), puramente aditiva
@@ -728,7 +746,10 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   sin precio; `estimado` solo cuenta si es `true`). El visor ignora `v=` al abrir un
   link; los links sin `v=` andan igual.
 - Cada `abrir(u)` registra un click en `events` (`registrarEvento`), que alimenta la
-  pestaña Demanda del admin.
+  pestaña Demanda del admin. Con `eventos-consulta` aplicada, volver a abrir la misma
+  unidad dentro de 60 s no suma otro (el trigger lo descarta). Los botones del pie
+  todavía no registran nada: los tipos de consulta están en la policy, pero el visor no
+  los manda.
 
 ### Selección de unidad: comportamiento protegido
 
@@ -785,7 +806,10 @@ tiene uno solo). Pestañas:
 
 - **Unidades** — cambiar `estado`, editar m²/terraza/cochera, asignar tipología en lote,
   avisos de lista de espera.
-- **Demanda** — clicks por unidad/tipología/piso + leads de lista de espera.
+- **Demanda** — clicks por unidad/tipología/piso + leads de lista de espera. Hoy baja
+  una fila por evento (`tipo = 'click'`, sin paginar: el tope de filas de la API puede
+  truncar los conteos); `demanda_resumen()` (migración `eventos-consulta`) es el
+  reemplazo agrupado, todavía sin usar. Las simulaciones se graban pero no se muestran.
 - **Amenities** — alta/baja/edición + orden.
 - **Tipologías** — alta/baja/edición + imágenes de planta/render por tipología. El
   título de cada tarjeta es el nombre interno; "Nombre para el comprador"
