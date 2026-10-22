@@ -27,6 +27,19 @@
 -- es_miembro, es_admin_plataforma; columnas project_id/sesion/origen) y de
 -- financiacion (última versión de la policy events_insert). Idempotente:
 -- se puede correr dos veces.
+--
+-- Va entera en una transacción (begin … commit): se aplica todo o nada, y
+-- nunca hay un momento sin la policy de insert. Hasta el commit las demás
+-- sesiones ven la policy vieja, y el drop policy toma un lock exclusivo de
+-- events: un insert del visor que llegue en el medio espera unos
+-- milisegundos en vez de fallar.
+
+begin;
+
+-- Si otra consulta tiene tomada events, mejor fallar que esperar: mientras
+-- el drop policy espera su lock, los inserts nuevos hacen cola detrás.
+-- Pasados 5 s, error y no queda nada aplicado; se vuelve a correr.
+set local lock_timeout = '5s';
 
 -- ============================================================
 -- 1. Policy de insert: tipos nuevos
@@ -200,13 +213,18 @@ $$;
 revoke execute on function demanda_resumen(uuid, boolean) from public, anon;
 grant execute on function demanda_resumen(uuid, boolean) to authenticated;
 
+commit;
+
 -- ============================================================
 -- Rollback (comentado: correr a mano solo si hace falta deshacer)
 -- ============================================================
 -- Vuelve a la policy de supabase-migration-financiacion.sql y saca lo que
 -- agregó esta migración. Los eventos ya grabados con los tipos nuevos
--- quedan en la tabla (admin solo lee tipo = 'click').
+-- quedan en la tabla (admin solo lee tipo = 'click'). También en una
+-- transacción, por lo mismo que arriba.
 --
+-- begin;
+-- set local lock_timeout = '5s';
 -- drop trigger if exists events_filtrar on events;
 -- drop function if exists filtrar_eventos();
 -- drop function if exists demanda_resumen(uuid, boolean);
@@ -220,3 +238,4 @@ grant execute on function demanda_resumen(uuid, boolean) to authenticated;
 --     and sesion is not null
 --     and (origen is null or origen ~ '^[a-z0-9_-]{1,40}$')
 --   );
+-- commit;
