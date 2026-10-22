@@ -234,8 +234,8 @@ posteriores:
   `'preview'` ni `'local'`. **Orden obligatorio: migración → deploy del visor que manda
   los tipos nuevos → admin.html que usa la RPC.** Al revés, los inserts nuevos fallan (el
   visor solo hace `console.warn`) o admin llama a una función que no existe. Escrita el
-  2026-10-22; **no está aplicada** hasta que Sebastian la corra, y el visor y admin
-  todavía no la usan. **Aplicada en producción el: ____-__-__** (completar al correrla).
+  2026-10-22; el visor y admin todavía no la usan. **Aplicada en producción el:
+  2026-10-22** (entre las 14:47 y las 14:50, hora de Uruguay).
   Desde esa fecha los clics se deduplican (la misma unidad, la misma sesión, dentro de 60
   s, cuenta una vez): los conteos de Demanda de antes no son comparables 1:1 con los de
   después.
