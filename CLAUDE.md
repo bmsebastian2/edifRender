@@ -234,7 +234,8 @@ posteriores:
   `'preview'` ni `'local'`. **Orden obligatorio: migración → deploy del visor que manda
   los tipos nuevos → admin.html que usa la RPC.** Al revés, los inserts nuevos fallan (el
   visor solo hace `console.warn`) o admin llama a una función que no existe. Escrita el
-  2026-10-22; el visor y admin todavía no la usan. **Aplicada en producción el:
+  2026-10-22; el visor manda los tipos de consulta desde la fase 8b (ver "Panel de
+  detalle de la unidad"), admin todavía no usa la RPC. **Aplicada en producción el:
   2026-10-22** (entre las 14:47 y las 14:50, hora de Uruguay).
   Desde esa fecha los clics se deduplican (la misma unidad, la misma sesión, dentro de 60
   s, cuenta una vez): los conteos de Demanda de antes no son comparables 1:1 con los de
@@ -406,7 +407,13 @@ El script está organizado en secciones numeradas:
    `color` y `opacidad` del volumen), más `ALQUILER` y `aspectoDe(u)` (ver "Estados de
    presentación" más abajo), resolución del slug, `cargarProyecto()`, formateo (`formatearPrecio`
    usa `moneda`/`locale` del proyecto), matemática solar, tracking de eventos/leads
-   (`obtenerSesion()` = uuid en localStorage, `obtenerOrigen()` = atribución por `?src=`),
+   (`obtenerSesion()` = uuid en localStorage, `obtenerOrigen()` = atribución por `?src=`;
+   fuera de producción siempre `'preview'` —otro `*.vercel.app`— o `'local'` —localhost,
+   una IP, `file:`, `about:srcdoc`—, aunque haya `?src=`: `origenDePrueba()`. Producción
+   es la lista explícita `HOSTS_PRODUCCION` (`['armadoporcota.vercel.app']`). **Si cambia
+   el dominio del visor en Vercel, actualizarla junto con `BASE`:** un `*.vercel.app` que
+   no esté en la lista se marca `'preview'` y Demanda deja de contar sus visitas. Un
+   dominio propio que no sea `*.vercel.app` cuenta como producción aunque falte en ella),
    y los que pintan cosas fuera de la escena 3D (redes, amenities, texto legal, lightbox
    de renders, sección de avance de obra).
 2. **ESCENA** — renderer, luces, cielo, entorno. Las dimensiones salen de
@@ -622,7 +629,10 @@ ventas sin nadie que la atienda. Sección `KIOSCO` del script (al final de `inic
   hay QR y reintenta cada 30 s. Es la única tarjeta blanca del modo: el QR necesita
   fondo y margen para leerse.
 - Atribución: usar `&src=showroom` en la URL de la pantalla para separar sus eventos en
-  Demanda (todos los visitantes del aparato comparten una sesión).
+  Demanda (todos los visitantes del aparato comparten una sesión). La pantalla tiene que
+  abrir la URL de producción (`https://armadoporcota.vercel.app/?p=<slug>&kiosco=1&src=showroom`):
+  desde localhost, una IP de la red o un preview, sus eventos salen con origen `'local'` o
+  `'preview'` aunque lleven `&src=` (ver `origenDePrueba()`), y Demanda no los cuenta.
 
 ### Estados de presentación: `aspectoDe(u)` / `ALQUILER`
 
@@ -755,9 +765,14 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   link; los links sin `v=` andan igual.
 - Cada `abrir(u)` registra un click en `events` (`registrarEvento`), que alimenta la
   pestaña Demanda del admin. Con `eventos-consulta` aplicada, volver a abrir la misma
-  unidad dentro de 60 s no suma otro (el trigger lo descarta). Los botones del pie
-  todavía no registran nada: los tipos de consulta están en la policy, pero el visor no
-  los manda.
+  unidad dentro de 60 s no suma otro (el trigger lo descarta). Los botones de consulta
+  registran su canal (desde la fase 8b) con `registrarConsulta()`: `#p-wa` →
+  `'whatsapp'`, `#p-consultar` → `'formulario'`, `#p-espera-ir` → `'espera_ir'` y
+  `#p-plano-pedir` → `'plano'`. Va con `fetch` + `keepalive` y no con `sb`: el toque abre
+  WhatsApp o navega al formulario, y el pedido tiene que salir igual (supabase-js no
+  permite `keepalive` por pedido; `sendBeacon` no manda los headers de Supabase). No
+  frena el link ni espera la respuesta; los toques repetidos los descarta la base (sin
+  dedup en el cliente). En el showroom esos botones no van.
 
 ### Selección de unidad: comportamiento protegido
 
@@ -1199,6 +1214,7 @@ lat/lon, tiene_pb, portada (`portada_url` / `portada_foco`) y `tipo`, financiaci
 tipologías + imágenes, avance de obra. Y un archivo, no un dato: el poster de carga
 (`images/poster-<slug>*.avif|webp`, paso 10 del README).
 
-Lo que sigue hardcodeado y puede necesitar cambios: `DEFAULT_SLUG` y `BASE` (en
-`app.<hash>.js`; `DEFAULT_SLUG` también en el script del poster del `<head>`), la marca/colores (variables CSS en `:root`, compartidas por todos los proyectos), y el copy de aviso de demo
+Lo que sigue hardcodeado y puede necesitar cambios: `DEFAULT_SLUG`, `BASE` y
+`HOSTS_PRODUCCION` (en `app.<hash>.js`; `DEFAULT_SLUG` también en el script del poster del
+`<head>`; `BASE` y `HOSTS_PRODUCCION` cambian juntos si cambia el dominio), la marca/colores (variables CSS en `:root`, compartidas por todos los proyectos), y el copy de aviso de demo
 (`#aviso`, y `#p-info-nota` en el popover ⓘ del panel).

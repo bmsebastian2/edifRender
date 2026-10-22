@@ -477,7 +477,25 @@
         return s;
       } catch { return crypto.randomUUID(); }
     }
+    // Hosts de producción, escritos a mano. Si cambia el dominio del visor en
+    // Vercel, actualizar esta lista (y BASE): un *.vercel.app que no esté acá
+    // se marca 'preview' y Demanda deja de contar sus visitas. Un dominio
+    // propio (no *.vercel.app) cuenta como producción aunque falte acá.
+    const HOSTS_PRODUCCION = ['armadoporcota.vercel.app'];
+    // Fuera de producción todo es prueba: otro *.vercel.app (un preview)
+    // marca 'preview' y una copia local (localhost, una IP de la red, file: o
+    // about:srcdoc) marca 'local', aunque el link traiga ?src=. Así Demanda
+    // las separa (demanda_resumen() no las cuenta salvo que se pida).
+    function origenDePrueba() {
+      const host = location.hostname;
+      if (HOSTS_PRODUCCION.includes(host)) return null;
+      if (!host || host === 'localhost' || host.endsWith('.local') || /^[\d.]+$/.test(host) || host.includes(':')) return 'local';
+      if (host.endsWith('.vercel.app')) return 'preview';
+      return null;
+    }
     function obtenerOrigen() {
+      const prueba = origenDePrueba();
+      if (prueba) return prueba;
       try {
         const porURL = new URLSearchParams(location.search).get('src');
         if (porURL) {
@@ -509,6 +527,34 @@
       }).then(({ error }) => {
         if (error) console.warn('No se pudo registrar la simulación', error);
       });
+    }
+
+    // Una consulta desde el panel, por canal: 'whatsapp' (#p-wa),
+    // 'formulario' (#p-consultar, settings.consulta_url), 'espera_ir'
+    // ("Avisarme si se libera") o 'plano' ("Solicitar plano"). Con fetch y
+    // keepalive, no con sb: el toque abre WhatsApp o navega al formulario, y
+    // keepalive sostiene el pedido aunque la página se vaya o pase a segundo
+    // plano (supabase-js no lo permite por pedido, y sendBeacon no manda los
+    // headers de Supabase). No se espera la respuesta ni se frena el link.
+    // Los toques repetidos los descarta la base (trigger filtrar_eventos(),
+    // ver supabase-migration-eventos-consulta.sql).
+    function registrarConsulta(projectId, unitId, tipo) {
+      fetch(SUPABASE_URL + '/rest/v1/events', {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({
+          project_id: projectId, unit_id: unitId, tipo,
+          sesion: obtenerSesion(), origen: obtenerOrigen(),
+        }),
+      }).then(r => {
+        if (!r.ok) console.warn('No se pudo registrar la consulta', tipo, r.status);
+      }).catch(e => console.warn('No se pudo registrar la consulta', tipo, e));
     }
 
     // URL pública de la demo. Se usa como fallback para compartir y en los
@@ -5158,6 +5204,12 @@
         espera.scrollIntoView({ block: 'start', behavior: REDUCIR_MOVIMIENTO ? 'auto' : 'smooth' });
         document.getElementById('p-espera-nombre').focus({ preventScroll: true });
       });
+
+      // Cada botón de consulta deja su evento (ver registrarConsulta()). Solo
+      // registra: el link y los otros handlers siguen igual.
+      for (const [boton, tipo] of [[wa, 'whatsapp'], [btnConsultar, 'formulario'], [esperaIr, 'espera_ir'], [intro.pedir, 'plano']]) {
+        boton.addEventListener('click', () => { if (elegida) registrarConsulta(proyecto.id, elegida.id, tipo); });
+      }
 
       document.getElementById('p-espera-similares').addEventListener('click', () => {
         if (elegida) mostrarSimilares(elegida);
