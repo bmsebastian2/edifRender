@@ -43,6 +43,16 @@ function clickLienzo() {
 // abrir() del panel de la unidad (el del lightbox de renders se llama igual).
 const iAbrir = html.indexOf('function abrir(u,');
 const abrir = iAbrir < 0 ? '' : bloqueDesde(iAbrir);
+// cerrar() del panel (el lightbox y el avance de obra tienen el suyo): el que
+// saca .abierto del panel.
+function cerrarPanel() {
+  const marca = 'function cerrar(';
+  for (let i = html.indexOf(marca); i > -1; i = html.indexOf(marca, i + 1)) {
+    const b = bloqueDesde(i);
+    if (b.includes("panel.classList.remove('abierto')")) return b;
+  }
+  return '';
+}
 
 const enfocar = cuerpo('enfocar'), mover = cuerpo('moverCamara'), seleccionar = cuerpo('seleccionar');
 const animar = cuerpo('animar'), click = clickLienzo(), medir = cuerpo('medirArrastre');
@@ -64,6 +74,9 @@ const controles = [
     click.includes('cerrar()')],
   ['Con el panel abierto, otra unidad cambia el contenido en el lugar y el scroll vuelve a 0',
     abrir.includes('pintarPanel(') && /panel\.scrollTop\s*=\s*0/.test(abrir)],
+  ['Al cerrar el panel la cámara vuelve a la vista inicial (vistaInicial() = giro 0 + encuadreGeneral(), con MS_CAMARA_UNIDAD), solo si estaba abierto',
+    /const (\w+) = panel\.classList\.contains\('abierto'\);[\s\S]*if \(\1\) moverCamara\(vistaInicial\(\), MS_CAMARA_UNIDAD\)/.test(cerrarPanel()) &&
+    /return \{ giro: 0, \.\.\.encuadreGeneral\(\) \}/.test(cuerpo('vistaInicial'))],
   ['La X y Escape cierran el panel',
     /getElementById\('cerrar'\)\.addEventListener\('click', cerrar\)/.test(html) &&
     /e\.key === 'Escape'\) \{[^}]*\bcerrar\(\)/.test(html)],

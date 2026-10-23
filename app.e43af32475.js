@@ -4659,11 +4659,13 @@
           b.appendChild(num);
           pintarCuentaPiso(b, p);
           if (pisosConstruidos.size > 0 && !pisosConstruidos.has(p)) b.classList.add('piso-sin-construir');
+          // aplicar() antes que enfocarPiso(): si cierra el panel (la unidad
+          // abierta es de otro piso), la vuelta de cerrar() no le gana al piso.
           b.addEventListener('click', () => {
             pisoAislado = pisoAislado === p ? null : p;
             actualizarRielPisos();
-            enfocarPiso(pisoAislado);
             aplicar();
+            enfocarPiso(pisoAislado);
           });
         }
         filasPiso.push(b);
@@ -4677,8 +4679,8 @@
         btnPB.addEventListener('click', () => {
           pisoAislado = pisoAislado === 0 ? null : 0;
           actualizarRielPisos();
+          aplicar(); // antes que enfocarPiso(), como en las filas
           enfocarPiso(pisoAislado);
-          aplicar();
         });
       }
 
@@ -5823,8 +5825,13 @@
       lienzo.addEventListener('pointerup', () => {
         if (encuadrePendiente) requestAnimationFrame(() => { encuadrePendiente = false; reencuadrar(); });
       });
-      document.getElementById('hr-reset').addEventListener('click', () =>
-        moverCamara({ giro: 0, ...encuadreGeneral() }));
+      // La vista con la que arranca la carga: el encuadre general con el giro
+      // en 0 (con un piso aislado, el de ese piso). La usan "Vista inicial" y
+      // cerrar() (el panel de una unidad).
+      function vistaInicial() {
+        return { giro: 0, ...encuadreGeneral() };
+      }
+      document.getElementById('hr-reset').addEventListener('click', () => moverCamara(vistaInicial()));
       document.getElementById('hr-mas').addEventListener('click', () =>
         moverCamara({ radio: Math.max(34, radio - 16) }, 260));
       document.getElementById('hr-menos').addEventListener('click', () =>
@@ -5982,6 +5989,9 @@
       }
 
       function cerrar() {
+        // Escape y el toque en el vacío también llegan acá con el panel ya
+        // cerrado: ahí la cámara no se mueve.
+        const estabaAbierto = panel.classList.contains('abierto');
         elegida = null;
         unidadAsol = null;
         panel.classList.remove('abierto');
@@ -5991,6 +6001,12 @@
         const qp = queryProyecto();
         marcarURL(location.pathname + (qp ? '?' + qp : ''));
         actualizarSolUnidad();
+        // La cámara vuelve a la vista de la carga con el recorrido de
+        // enfocar(); se mide ya sin el panel (la ficha y la barra de abajo
+        // vuelven). Quien cierra para llevar la cámara a otro lado (el
+        // showroom, el riel de pisos) la mueve después y gana. Un toque en
+        // el lienzo o la rueda la cortan, como a cualquier recorrido.
+        if (estabaAbierto) moverCamara(vistaInicial(), MS_CAMARA_UNIDAD);
       }
 
       // Copiar link: ícono en la cabecera; la confirmación sale en el mismo

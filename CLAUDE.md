@@ -442,7 +442,8 @@ El script está organizado en secciones numeradas:
    del edificio, radio escalado según la altura del edificio y el aspecto de la
    pantalla (`radioBase()`). **Encuadre general** (`encuadreTorre()`, desde
    2026-10-20; lo usan la vista inicial, "Vista inicial", separar pisos, la vuelta de
-   un piso aislado y el showroom): el edificio entero, de la base al techo, centrado en
+   un piso aislado, el showroom y el cierre del panel de una unidad —
+   `vistaInicial()`, ver "Panel de detalle"): el edificio entero, de la base al techo, centrado en
    lo que deja libre la interfaz (`rectLibre()`: arriba el header y en mobile la ficha
    —`finFicha()`—; abajo la barra inferior y la toolbar; en desktop, a la izquierda el
    borde derecho de la ficha y a la derecha el riel), corriendo el objetivo sobre los
@@ -549,7 +550,8 @@ Común a todos los proyectos (no hay tema por proyecto). Tokens en `:root` (`--v
   unidad que ya está abierta solo la vuelve a encuadrar (sin otro evento). Con el panel
   abierto, un click en otra unidad cambia el contenido en el lugar (sin cerrar ni volver a
   deslizarse) y el scroll del panel vuelve a 0. X, Escape o un click en el vacío lo
-  cierran. Un arrastre de más de `UMBRAL_ARRASTRE` (5 px) entre `pointerdown` y
+  cierran, y la cámara vuelve a la vista inicial (ver "Panel de detalle", Al cerrar).
+  Un arrastre de más de `UMBRAL_ARRASTRE` (5 px) entre `pointerdown` y
   `pointerup` no abre ni cierra nada (se mide en el recorrido: en táctil el click trae
   las coordenadas del comienzo del toque). Un pellizco tampoco: el segundo dedo en el
   lienzo pone `arrastreClic` en `Infinity`.
@@ -700,6 +702,25 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
     `overscroll-behavior: contain` en `#panel` (sin pull-to-refresh). Desactivado
     durante `.desde-tarjeta` (el viaje del showroom). Desktop sin cambios: el tirador va
     con `display: none`.
+- **Al cerrar** (desde 2026-10-23): `cerrar()` lleva la cámara a la vista inicial,
+  `moverCamara(vistaInicial(), MS_CAMARA_UNIDAD)`, con la misma curva y duración que
+  `enfocar()`.
+  - `vistaInicial()` = `{ giro: 0, ...encuadreGeneral() }`, lo mismo que el botón "Vista
+    inicial". Con un piso aislado es el encuadre de ese piso; con "Separar pisos", el de
+    la torre separada.
+  - Se mide ya sin el panel: en mobile, la ficha plegada y la barra inferior. No es
+    exactamente el encuadre de la carga, que en mobile cuenta con la ficha desplegada.
+  - **Guarda:** solo si el panel estaba abierto. Escape y el toque en el vacío llaman a
+    `cerrar()` también con el panel cerrado, y ahí la cámara no se mueve.
+  - Vale para todos los cierres que pasan por `cerrar()`: ✕, Escape, toque en el vacío,
+    arrastre de la hoja, un filtro que saca la unidad (`aplicar()`), "Ver similares" y
+    el refresco de datos.
+  - Quien cierra para llevar la cámara a otro lado la mueve después, y gana el último
+    `moverCamara()`. El showroom (`volverAlGiro()`) conserva su giro. El riel de pisos
+    llama a `aplicar()` antes que a `enfocarPiso()`, así gana el piso.
+  - Un toque en el lienzo o la rueda cortan la vuelta, como a cualquier recorrido.
+    Tocar otra unidad durante la vuelta la abre desde donde está la cámara, sin salto.
+  - Con `prefers-reduced-motion`, sin animación (`moverCamara()`).
 - **Amenities del edificio**: en el panel, grilla sin tarjetas con líneas entre celdas: 4
   columnas desde 440px de grilla, 3 en un panel angosto (pantallas de ~1300px o menos), 2 en
   ≤ 480px; texto cortado a 3 líneas y a lo sumo `MAX_AMENITIES_PANEL` (8); con más, "Ver
@@ -851,7 +872,9 @@ modifica, se actualizan el script y esta sección en el mismo commit.
 4. Con el panel abierto, un click en otra unidad cambia el contenido en el lugar, sin
    cerrarlo, y el scroll vuelve a 0; en la misma unidad solo vuelve a encuadrarla. X,
    Escape o un click en el vacío lo cierran y quitan el resaltado; un click dentro del
-   panel nunca lo cierra.
+   panel nunca lo cierra. Al cerrarse, la cámara vuelve a la vista inicial
+   (`vistaInicial()`, con `MS_CAMARA_UNIDAD`), solo si el panel estaba abierto (desde
+   2026-10-23).
 5. `?u=<id>` abre el panel directo, con la cámara frente a la unidad.
 6. El giro automático no corre con tarjeta o panel abiertos y no pelea con la cámara; un
    arrastre (más de `UMBRAL_ARRASTRE`, 5 px) que termina sobre una unidad no la abre, y un
