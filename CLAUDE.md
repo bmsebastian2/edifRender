@@ -660,6 +660,46 @@ Alquiler solo aparece si el proyecto tiene alguna unidad en alquiler o con
   al ancho del panel (`@container`), no al de la pantalla. En la hoja (≤860) la
   cabecera, la barra de datos y la intro alinean su contenido a `--p-pad` (20px), como
   el resto; en desktop siguen en 24.
+- **Hoja arrastrable** (≤860, desde 2026-10-23; sección "Hoja arrastrable" del script,
+  después de `cerrar()`): tres anclajes. **Baja** = foto + pie (`.hoja-baja`,
+  `--alto-hero` + `--alto-pie` + 1 del borde, los dos por `ResizeObserver`), **media** =
+  74vh (sin clase, la de siempre) y **alta** = hasta 8 px debajo del header
+  (`.hoja-alta`). Con contenido corto la alta mide lo que el contenido (ROSSO 801 a
+  390: 744). Si un anclaje queda a menos de 48 px de la media se descarta: a 430 px
+  ROSSO 801 no tiene alta, y en el celular horizontal queda solo la media. Abre en media;
+  al cambiar de unidad conserva el anclaje; al volver a abrir, media (`abrir()` llama a
+  `ponerAnclaje()`).
+  - Se agarra del tirador (`#p-tirador`, un `<button>` sticky arriba: sigue a mano con
+    el contenido scrolleado) o de la foto, con Pointer Events y `touch-action: none`
+    solo ahí. La captura del puntero arranca recién a los 8 px, y nunca desde un botón,
+    un link o el popover ⓘ.
+  - Desde el contenido van eventos touch (`touchmove` no pasivo): la hoja se mueve solo
+    si el scroll estaba arriba de todo y el dedo baja. Si no, scrollea como siempre (no
+    hay "scroll hacia arriba que agranda la hoja": pedido de Sebastian). Pointer Events
+    no sirve ahí: con `pan-y` el navegador manda `pointercancel` apenas empieza su
+    scroll. `#p-fin-entrega` y los campos no mueven la hoja.
+  - Mecánica: en reposo el alto lo pone el CSS; al arrastrar se anima solo el
+    `transform` (la caja se fija en el alto que se ve y crece una vez si el dedo sube
+    más) y el pie va al revés para quedar fijo abajo hasta la baja. Al soltar,
+    `fijarAnclaje()` vuelve al reposo en el mismo cuadro. El arrastre arranca desde
+    donde se apoyó el dedo: con cuadros lentos el navegador entrega un gesto rápido en
+    un solo evento, y si no perdía la velocidad.
+  - Al soltar: un gesto de más de 0,5 px/ms va al anclaje vecino en ese sentido (nunca
+    dos); si no, al más cercano a la posición + 150 ms de velocidad. Cierra al soltar a
+    más de ⅓ de la baja por debajo de ella, o con un gesto rápido hacia abajo desde la
+    baja (desde la media un gesto rápido va a la baja, nunca cierra). Después de un
+    arrastre se descarta el click siguiente, y soltar cuenta como actividad para el
+    giro automático.
+  - Al asentarse en baja o media llama a `enfocar()`, salvo que la cámara se haya
+    movido a mano desde el último encuadre (`camaraManual`: arrastre del lienzo de más
+    de `UMBRAL_ARRASTRE`, pellizco o rueda; lo limpia `enfocar()`). En alta no: el
+    edificio queda tapado.
+  - Tocar el tirador, Enter o Espacio pasa al anclaje siguiente (media → alta → baja →
+    media, salteando los descartados); `aria-label` "Expandir detalle" / "Contraer
+    detalle" + `aria-expanded`. Con `prefers-reduced-motion`, sin animación.
+    `overscroll-behavior: contain` en `#panel` (sin pull-to-refresh). Desactivado
+    durante `.desde-tarjeta` (el viaje del showroom). Desktop sin cambios: el tirador va
+    con `display: none`.
 - **Amenities del edificio**: en el panel, grilla sin tarjetas con líneas entre celdas: 4
   columnas desde 440px de grilla, 3 en un panel angosto (pantallas de ~1300px o menos), 2 en
   ≤ 480px; texto cortado a 3 líneas y a lo sumo `MAX_AMENITIES_PANEL` (8); con más, "Ver
@@ -818,7 +858,9 @@ modifica, se actualizan el script y esta sección en el mismo commit.
    pellizco con dos dedos no abre ni cierra nada (desde 2026-10-20).
 7. Encuadre: la unidad queda en lo que dejan libre la tarjeta o el panel; funciona en las
    dos torres de BRUSCO (no asume una torre centrada en el origen); en celular entran al
-   menos 40 m de ancho (sin primer plano).
+   menos 40 m de ancho (sin primer plano). En mobile, también al asentarse la hoja en
+   baja o media, salvo que la cámara se haya movido a mano (`camaraManual`, que
+   `enfocar()` limpia; ver "Hoja arrastrable"). Desde 2026-10-23.
 
 ## `admin.html`
 
@@ -1200,6 +1242,11 @@ de la notebook: el 2026-10-21 una tanda larga con la GPU real la colgó.
   2026-10-21 con toques emulados por CDP (5 de 8 toques), igual antes y después del
   cambio 2 de "Optimización del arranque"; en ROSSO a 390 px y en desktop el clic abre
   la unidad tocada. Puede ser de la emulación: primero probarlo en un celular.
+- **Hoja arrastrable: falta probarla en celular real** (iPhone y Android). Validada
+  el 2026-10-23 con toques emulados por CDP en SwiftShader (320–768 px, horizontal,
+  zoom 130 %, ROSSO y BRUSCO). Lo que la emulación no cubre: que iOS respete el
+  `preventDefault` del primer `touchmove`, el pull-to-refresh de Chrome Android y la
+  sensación del gesto rápido con cuadros reales.
 - **Próximo candidato de optimización:** la parte sincrónica de `iniciar()` (DOM,
   escena, calles, torre, interfaz hasta el calentamiento), ~0,4 s en SwiftShader. Desde
   el cambio 2 es la tarea más larga de la carga.

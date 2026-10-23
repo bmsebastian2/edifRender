@@ -1954,6 +1954,11 @@
       pointer-events: none;
     }
 
+    /* El tirador de la hoja existe solo en mobile (ver el @media). */
+    #p-tirador {
+      display: none
+    }
+
     /* Cabecera: una foto (render de la tipología o del proyecto, ver
        pintarPanel()) con piso, número, estado y orientación encima, y
        copiar / ⓘ / cerrar arriba a la derecha. A lo ancho del panel y pegada
@@ -5877,24 +5882,94 @@
         --p-pad: 20px;
         padding: 0 var(--p-pad);
         transform: translateY(100%);
+        /* Tirar hacia abajo con el contenido arriba de todo no le pasa el
+           gesto a la página (pull-to-refresh). */
+        overscroll-behavior: contain;
       }
 
       #panel.abierto {
         transform: none
       }
 
-      /* Tirador de la hoja: blanco y por encima de la foto de la cabecera. */
-      #panel::before {
+      /* Anclajes de la hoja (ver "Hoja arrastrable" en el script). Media es
+         la de siempre (74vh, sin clase). Baja: solo la foto y el pie (sus
+         altos los mide el script en --alto-hero y --alto-pie; + 1px del borde
+         de arriba). Alta: hasta 8px debajo del header. */
+      #panel.hoja-baja {
+        max-height: calc(var(--alto-hero, 134px) + var(--alto-pie, 0px) + 1px);
+        overflow-y: hidden;
+      }
+
+      #panel.hoja-alta {
+        max-height: calc(100% - var(--alto-barra) - env(safe-area-inset-top, 0px) - 8px);
+      }
+
+      /* Mientras el dedo la mueve o va hasta un anclaje, el transform lo pone
+         el script cuadro a cuadro. */
+      #panel.hoja-arrastre {
+        transition: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      /* Tirador de la hoja: un botón (arrastrarlo, o tocarlo para pasar al
+         anclaje siguiente). Sticky arriba, así sigue a mano con el contenido
+         scrolleado; no ocupa lugar (margen negativo) y va encima de la foto.
+         Blanco con un borde apenas oscuro: se ve sobre la foto y sobre el
+         fondo claro del contenido. */
+      #p-tirador {
+        display: block;
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        flex: none;
+        align-self: center;
+        width: 64px;
+        height: 24px;
+        margin: 0 0 -24px;
+        padding: 0;
+        border: 0;
+        border-radius: 0 0 12px 12px;
+        background: none;
+        cursor: grab;
+        touch-action: none;
+      }
+
+      #p-tirador::before {
         content: "";
         position: absolute;
         top: 8px;
         left: 50%;
-        z-index: 2;
         transform: translateX(-50%);
         width: 38px;
         height: 4px;
         border-radius: 2px;
-        background: rgba(255, 255, 255, .8);
+        background: rgba(255, 255, 255, .85);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, .12);
+      }
+
+      /* Hacia adentro: arriba lo cortaría el borde de la hoja. */
+      #p-tirador:focus-visible {
+        outline: none;
+        box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px var(--verde-bosque);
+      }
+
+      /* La foto es la otra agarradera: el dedo mueve la hoja en vez de
+         scrollear. Los botones de la foto y el popover ⓘ quedan como
+         estaban; la imagen no toma el puntero (con el mouse arrancaría a
+         arrastrar la imagen). */
+      .p-hero> :not(.p-cabeza-acc) {
+        touch-action: none
+      }
+
+      .p-hero-fondo img {
+        pointer-events: none
+      }
+
+      /* Los botones de la foto, encima del tirador: a 320px el de copiar
+         llega a pisar el borde de su área. */
+      .p-cabeza-acc {
+        z-index: 4
       }
 
       /* Cabecera, barra de datos e intro van de borde a borde (margen
@@ -7112,6 +7187,11 @@
        información del proyecto, cerrar) → lo que define la unidad (barra de
        datos) → descripción y plano → sol → [espera / financiación / edificio] → pie fijo
        con la consulta (position: sticky, siempre a la vista). -->
+    <!-- Tirador de la hoja (solo mobile): arrastrarlo, o arrastrar la foto,
+       sube y baja la hoja; tocarlo o Enter/Espacio la pasa al anclaje
+       siguiente. El texto y aria-expanded los pone el script (ver "Hoja
+       arrastrable"). -->
+    <button id="p-tirador" type="button" aria-label="Expandir detalle" aria-expanded="false"></button>
     <div class="p-hero">
       <!-- Foto: render de la tipología o, si no hay, del proyecto (ver
          pintarPanel()). Decorativa: lo que importa está escrito encima. -->
@@ -7374,6 +7454,6 @@
      error) y sus funciones y constantes de primer nivel no son globales —
      desde la consola de DevTools no se llega a UNIDADES, proyecto, abrir(),
      etc. -->
-  <script type="module" src="app.c6ccbaf8bf.js"></script>
+  <script type="module" src="app.5722170fa1.js"></script>
 </body>
 </html>

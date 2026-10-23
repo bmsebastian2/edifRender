@@ -3761,6 +3761,11 @@
       // pellizco nunca cuenta como clic (ver arrastreClic, más abajo).
       const dedos = new Map();
       let pellizco = null;
+      // La cámara se movió a mano (arrastre de más de UMBRAL_ARRASTRE,
+      // pellizco o rueda) desde el último enfocar(), que lo vuelve a false.
+      // Con esto la hoja de la unidad no le vuelve a encuadrar la unidad a
+      // quien estaba mirando otra cosa (ver "Hoja arrastrable").
+      let camaraManual = false;
       function distanciaDedos() {
         const [a, b] = [...dedos.values()];
         return Math.hypot(b.x - a.x, b.y - a.y) || 1;
@@ -3806,6 +3811,7 @@
       });
       lienzo.addEventListener('wheel', e => {
         e.preventDefault();
+        camaraManual = true;
         radio = Math.max(34, Math.min(190, radio + e.deltaY * 0.09));
         ubicarCamara();
       }, { passive: false });
@@ -4263,6 +4269,11 @@
       new ResizeObserver(([e]) => {
         panel.style.setProperty('--alto-pie', Math.round(e.borderBoxSize[0].blockSize) + 'px');
       }).observe(panel.querySelector('.p-pie'));
+      // Y el de la foto de la cabecera: con el pie, el anclaje bajo de la
+      // hoja en mobile (.hoja-baja, ver "Hoja arrastrable").
+      new ResizeObserver(([e]) => {
+        panel.style.setProperty('--alto-hero', Math.round(e.borderBoxSize[0].blockSize) + 'px');
+      }).observe(panel.querySelector('.p-hero'));
 
       // Filtro por torre (solo con TORRES): las opciones salen de las unidades
       // cargadas, en el orden Basamento → torres de geometria.torres.
@@ -4870,6 +4881,7 @@
       // que ya respeta prefers-reduced-motion y corta el giro automático).
       const MS_CAMARA_UNIDAD = 750;
       function enfocar(u) {
+        camaraManual = false;
         // Unidades con contorno propio no tienen col/frente utilizables para
         // orientar la cámara — se deriva un ángulo equivalente del centroide
         // (mismo criterio: signo de Z = lado frente/contrafrente, X = desplazamiento lateral).
@@ -5868,6 +5880,9 @@
         panel.scrollTop = 0;
 
         marcarURL('?' + [queryProyecto(), 'u=' + u.id].filter(Boolean).join('&'));
+        // Hoja de mobile: abre en el anclaje medio; con el panel ya abierto en
+        // otra unidad conserva el que tenga (ver "Hoja arrastrable").
+        ponerAnclaje(panel.classList.contains('abierto') ? anclaje : 'media');
         panel.classList.add('abierto');
         actualizarSolUnidad();
         // Mobile: el panel es una hoja de hasta 74vh; con la ficha desplegada
@@ -5970,6 +5985,9 @@
         elegida = null;
         unidadAsol = null;
         panel.classList.remove('abierto');
+        // Después de sacar .abierto: si se cerró arrastrando, la hoja ya está
+        // fuera de pantalla y no vuelve a subir para deslizarse.
+        cancelarHoja();
         const qp = queryProyecto();
         marcarURL(location.pathname + (qp ? '?' + qp : ''));
         actualizarSolUnidad();
@@ -5987,6 +6005,322 @@
 
       document.getElementById('cerrar').addEventListener('click', cerrar);
       addEventListener('keydown', e => { if (e.key === 'Escape') { ocultarTarjeta(); cerrar(); } });
+
+      /* ============================================================
+         Hoja arrastrable (mobile, ≤860): el panel de la unidad sube y baja
+         con el dedo entre tres anclajes:
+         - baja: la foto y el pie (se ve más edificio);
+         - media: la de siempre (74vh), con la que abre;
+         - alta: hasta 8px debajo del header.
+         Si dos quedan a menos de MIN_ENTRE_ANCLAJES (celular horizontal,
+         contenido corto) se descarta la baja o la alta; la media siempre
+         está. Al cambiar de unidad conserva el anclaje y al volver a abrir
+         arranca en la media (ver abrir()).
+         Se agarra del tirador o de la foto con Pointer Events (touch-action:
+         none ahí; nunca desde un botón, un link o el popover ⓘ) y desde el
+         contenido con eventos touch, solo si el scroll estaba arriba de todo
+         y el dedo baja; si no, scrollea como siempre. En el contenido Pointer
+         Events no sirve: con touch-action: pan-y el navegador manda
+         pointercancel apenas arranca su propio scroll. El deslizador de
+         financiación y los campos no mueven la hoja.
+         En reposo la hoja es la de siempre: el alto lo pone el CSS
+         (.hoja-baja / .hoja-alta; la media, sin clase). Al arrastrar,
+         tomarCaja() fija la caja en el alto que se ve (crecerCaja() la lleva
+         al del anclaje más alto si el dedo sube más) y translateY la baja
+         hasta donde va el dedo: el alto nunca se anima. El pie sticky va al
+         revés que la hoja para quedar fijo abajo, hasta el anclaje más bajo;
+         más abajo acompaña a la hoja. Al soltar se elige el anclaje
+         (elegirAnclaje()), la hoja va hasta él animando solo el transform y
+         recién ahí fijarAnclaje() vuelve al reposo, en el mismo cuadro y sin
+         salto. Al asentarse en baja o media, enfocar() vuelve a encuadrar la
+         unidad en lo que queda libre, salvo que la cámara se haya movido a
+         mano (camaraManual); en alta no: el edificio queda tapado.
+         ============================================================ */
+      const hojaMovil = matchMedia('(max-width: 860px)'); // mismo corte que el @media del panel
+      const tirador = document.getElementById('p-tirador');
+      const pieHoja = panel.querySelector('.p-pie');
+      const CICLO_ANCLAJES = ['media', 'alta', 'baja']; // el del tirador
+      const UMBRAL_HOJA = 8;          // px de recorrido antes de mover la hoja
+      const MIN_ENTRE_ANCLAJES = 48;  // px
+      const VEL_RAPIDA = 0.5;         // px/ms: más rápido salta al anclaje vecino
+      const MS_ANCLAJE = 280;         // = --t-hoja
+      let anclaje = 'media';
+      let hoja = null;     // la caja en arrastre o yendo hasta un anclaje
+      let agarre = null;   // puntero apoyado en el tirador o la foto
+      let toque = null;    // dedo apoyado en el contenido
+      let descartarClicHasta = 0;
+
+      function puedeArrastrarHoja() {
+        return hojaMovil.matches && panel.classList.contains('abierto') && !panel.classList.contains('desde-tarjeta');
+      }
+
+      // Alto de cada anclaje en px (con el borde, como offsetHeight), de abajo
+      // hacia arriba y sin los descartados. Con la hoja en reposo.
+      function medirAnclajes() {
+        // 74vh en px: el max-height del CSS sin la clase del anclaje actual.
+        const clase = anclaje === 'media' ? null : 'hoja-' + anclaje;
+        if (clase) panel.classList.remove(clase);
+        const media = parseFloat(getComputedStyle(panel).maxHeight);
+        if (clase) panel.classList.add(clase);
+        const borde = panel.offsetHeight - panel.clientHeight;
+        const contenido = panel.scrollHeight + borde;
+        const leer = v => parseFloat(panel.style.getPropertyValue(v)) || 0;
+        // El fondo de la pantalla (la hoja va con bottom: 0) y el del header.
+        const vista = panel.offsetTop + panel.offsetHeight;
+        const tope = document.getElementById('barra-sup').getBoundingClientRect().bottom + 8;
+        const alto = {
+          baja: Math.min(contenido, leer('--alto-hero') + leer('--alto-pie') + borde),
+          media: Math.min(contenido, media),
+          alta: Math.min(contenido, vista - tope),
+        };
+        const lista = [{ nombre: 'media', alto: alto.media }];
+        if (alto.media - alto.baja >= MIN_ENTRE_ANCLAJES) lista.unshift({ nombre: 'baja', alto: alto.baja });
+        if (alto.alta - alto.media >= MIN_ENTRE_ANCLAJES) lista.push({ nombre: 'alta', alto: alto.alta });
+        return lista;
+      }
+
+      // El anclaje al que lleva el tirador (tocarlo, Enter o Espacio).
+      function siguienteAnclaje(lista) {
+        const i = CICLO_ANCLAJES.indexOf(anclaje);
+        for (let k = 1; k < CICLO_ANCLAJES.length; k++) {
+          const n = CICLO_ANCLAJES[(i + k) % CICLO_ANCLAJES.length];
+          if (lista.some(a => a.nombre === n)) return n;
+        }
+        return null;
+      }
+
+      // Reposo en un anclaje (las clases del CSS) y el texto del tirador:
+      // "Contraer detalle" + aria-expanded si el siguiente es más bajo.
+      function ponerAnclaje(nombre) {
+        if (hoja) return; // en pleno arrastre manda el arrastre
+        anclaje = nombre;
+        panel.classList.toggle('hoja-baja', nombre === 'baja');
+        panel.classList.toggle('hoja-alta', nombre === 'alta');
+        if (!hojaMovil.matches) return;
+        const lista = medirAnclajes();
+        const sig = lista.find(a => a.nombre === siguienteAnclaje(lista));
+        const contrae = !!sig && sig.alto < panel.offsetHeight;
+        tirador.setAttribute('aria-expanded', contrae);
+        tirador.setAttribute('aria-label', contrae ? 'Contraer detalle' : 'Expandir detalle');
+      }
+
+      // De reposo a arrastre: la caja queda fija en el alto que se ve.
+      function tomarCaja(lista) {
+        const visible = panel.offsetHeight;
+        hoja = { anclajes: lista, caja: visible, visible, inicio: anclaje, anim: null };
+        panel.classList.add('hoja-arrastre');
+        panel.style.maxHeight = visible + 'px';
+        panel.classList.remove('hoja-baja', 'hoja-alta');
+      }
+      // El dedo (o el anclaje de destino) pasó el alto de la caja: crece hasta
+      // el del anclaje más alto, una sola vez por gesto.
+      function crecerCaja() {
+        hoja.caja = hoja.anclajes[hoja.anclajes.length - 1].alto;
+        panel.style.maxHeight = hoja.caja + 'px';
+      }
+      function pintarHoja() {
+        const t = hoja.caja - hoja.visible;
+        // Hasta acá el pie queda fijo abajo; más abajo acompaña a la hoja.
+        const fijo = Math.max(0, hoja.caja - hoja.anclajes[0].alto);
+        panel.style.transform = 'translateY(' + t + 'px)';
+        pieHoja.style.transform = t > 0 && fijo > 0 ? 'translateY(' + -Math.min(t, fijo) + 'px)' : '';
+      }
+      // De arrastre a reposo, sin animar: la transición del panel sigue
+      // apagada (.hoja-arrastre) hasta que el estado nuevo ya está aplicado.
+      function soltarCaja() {
+        if (!hoja) return;
+        if (hoja.anim) hoja.anim.forEach(a => a.cancel());
+        hoja = null;
+        panel.style.maxHeight = panel.style.transform = pieHoja.style.transform = '';
+        void getComputedStyle(panel).transform;
+        panel.classList.remove('hoja-arrastre');
+      }
+      // Lo llama cerrar() (X, Escape, un toque en el vacío o el arrastre).
+      function cancelarHoja() {
+        agarre = toque = null;
+        soltarCaja();
+      }
+
+      // (y, t): donde y cuando se apoyó el dedo, no donde pasó el umbral: la
+      // hoja lo alcanza en el primer movimiento, y un gesto rápido que el
+      // navegador entrega junto (un solo evento por cuadro) conserva su
+      // velocidad.
+      function empezarArrastre(y, t) {
+        if (hoja && hoja.anim) {
+          // Agarrada mientras iba hasta un anclaje: sigue desde donde está.
+          const ty = new DOMMatrixReadOnly(getComputedStyle(panel).transform).m42;
+          hoja.anim.forEach(a => a.cancel());
+          hoja.anim = null;
+          hoja.visible = hoja.caja - ty;
+        } else if (!hoja) tomarCaja(medirAnclajes());
+        hoja.y0 = y;
+        hoja.v0 = hoja.visible;
+        hoja.muestras = [{ t, v: hoja.visible }];
+        pintarHoja();
+      }
+      function moverArrastre(y, t) {
+        if (!hoja || hoja.anim) return;
+        const tope = hoja.anclajes[hoja.anclajes.length - 1].alto;
+        hoja.visible = Math.max(0, Math.min(tope, hoja.v0 - (y - hoja.y0)));
+        if (hoja.visible > hoja.caja) crecerCaja();
+        pintarHoja();
+        hoja.muestras.push({ t, v: hoja.visible });
+        while (hoja.muestras.length > 2 && t - hoja.muestras[0].t > 100) hoja.muestras.shift();
+      }
+      // y = null: el gesto se canceló (anclaje más cercano, sin velocidad).
+      function soltarArrastre(y, t) {
+        if (!hoja || hoja.anim) return;
+        let vel = 0; // px/ms, positiva hacia arriba (de los últimos 100 ms)
+        if (y != null) {
+          moverArrastre(y, t);
+          const m = hoja.muestras, a = m[0], b = m[m.length - 1];
+          if (b.t > a.t) vel = (b.v - a.v) / (b.t - a.t);
+        }
+        descartarClicHasta = performance.now() + 250;
+        registrarActividad(); // la inactividad del giro automático cuenta desde acá, no desde el pointerdown
+        irAnclaje(elegirAnclaje(vel));
+      }
+
+      // El anclaje donde se asienta la hoja al soltarla; null = cerrarla.
+      // Rápido (más de VEL_RAPIDA): el vecino en ese sentido, nunca dos. Si
+      // no, el más cercano a donde iba (la posición + 150 ms de velocidad).
+      // Se cierra soltando a más de un tercio de la baja por debajo de ella,
+      // o con un gesto rápido hacia abajo desde la baja; desde la media un
+      // gesto rápido va a la baja.
+      function elegirAnclaje(vel) {
+        const { anclajes, visible: v } = hoja;
+        const baja = anclajes[0];
+        const rapida = Math.abs(vel) > VEL_RAPIDA;
+        if (v < baja.alto * 2 / 3 && !(rapida && vel > 0)) return null;
+        if (rapida && vel < 0 && hoja.inicio === baja.nombre && v <= baja.alto + 1) return null;
+        if (rapida) {
+          const arriba = anclajes.find(a => a.alto > v + 1);
+          const abajo = [...anclajes].reverse().find(a => a.alto < v - 1);
+          return (vel > 0 ? arriba || anclajes[anclajes.length - 1] : abajo || baja).nombre;
+        }
+        const destino = v + vel * 150;
+        return anclajes.reduce((a, b) => Math.abs(b.alto - destino) < Math.abs(a.alto - destino) ? b : a).nombre;
+      }
+
+      function irAnclaje(destino) {
+        const alto = destino ? hoja.anclajes.find(a => a.nombre === destino).alto : 0;
+        if (alto > hoja.caja) { crecerCaja(); pintarHoja(); }
+        const desde = [panel.style.transform, pieHoja.style.transform || 'none'];
+        hoja.visible = alto;
+        pintarHoja();
+        // La baja es la foto: con el contenido scrolleado, vuelve arriba.
+        if (destino === 'baja' && panel.scrollTop > 0) {
+          panel.scrollTo({ top: 0, behavior: REDUCIR_MOVIMIENTO ? 'auto' : 'smooth' });
+        }
+        if (REDUCIR_MOVIMIENTO) { fijarAnclaje(destino); return; }
+        // Desacelera: arranca con la velocidad que traía el dedo.
+        const opciones = { duration: MS_ANCLAJE, easing: 'cubic-bezier(.2, .8, .2, 1)' };
+        const anim = hoja.anim = [
+          panel.animate([{ transform: desde[0] }, { transform: panel.style.transform }], opciones),
+          pieHoja.animate([{ transform: desde[1] }, { transform: pieHoja.style.transform || 'none' }], opciones),
+        ];
+        anim[0].finished.then(() => { if (hoja && hoja.anim === anim) fijarAnclaje(destino); }, () => {});
+      }
+
+      function fijarAnclaje(destino) {
+        if (!destino) { cerrar(); return; }
+        const previo = anclaje;
+        soltarCaja();
+        ponerAnclaje(destino);
+        if (destino === 'baja') panel.scrollTop = 0;
+        if (destino !== previo && destino !== 'alta' && elegida && !camaraManual) enfocar(elegida);
+      }
+
+      // Tirador: tocarlo (sin arrastrar), Enter o Espacio pasan al anclaje
+      // siguiente (media → alta → baja → media, salteando los descartados).
+      tirador.addEventListener('click', () => {
+        if (!puedeArrastrarHoja() || hoja) return;
+        const lista = medirAnclajes();
+        const destino = siguienteAnclaje(lista);
+        if (!destino) return;
+        tomarCaja(lista);
+        irAnclaje(destino);
+      });
+      // Después de un arrastre, el click que lo sigue (en el tirador, la foto
+      // o un botón del pie) no cuenta.
+      panel.addEventListener('click', e => {
+        if (performance.now() > descartarClicHasta) return;
+        descartarClicHasta = 0;
+        e.stopPropagation();
+        e.preventDefault();
+      }, true);
+
+      // Tirador y foto. La captura del puntero arranca recién al pasar el
+      // umbral: antes, el click de un botón se iría al panel.
+      panel.addEventListener('pointerdown', e => {
+        if (agarre && agarre.activo) return; // otro dedo, con el arrastre en curso
+        agarre = null;
+        if (!puedeArrastrarHoja() || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        const el = e.target;
+        if (!el.closest('#p-tirador') && (!el.closest('.p-hero') || el.closest('button, a, .p-info'))) return;
+        agarre = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, activo: false };
+      });
+      panel.addEventListener('pointermove', e => {
+        if (!agarre || e.pointerId !== agarre.id) return;
+        if (!agarre.activo) {
+          const dx = e.clientX - agarre.x, dy = e.clientY - agarre.y;
+          if (Math.hypot(dx, dy) < UMBRAL_HOJA) return;
+          if (Math.abs(dx) > Math.abs(dy)) { agarre = null; return; } // de costado: no es la hoja
+          agarre.activo = true;
+          panel.setPointerCapture(e.pointerId);
+          empezarArrastre(agarre.y, agarre.t);
+        }
+        moverArrastre(e.clientY, e.timeStamp);
+      });
+      function soltarAgarre(e) {
+        if (!agarre || e.pointerId !== agarre.id) return;
+        // El que pierde la captura implícita del toque (la foto) cuando el
+        // panel la toma no cuenta: solo la del panel.
+        if (e.type === 'lostpointercapture' && e.target !== panel) return;
+        const activo = agarre.activo;
+        agarre = null;
+        if (activo) soltarArrastre(e.type === 'pointerup' ? e.clientY : null, e.timeStamp);
+      }
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(tipo => panel.addEventListener(tipo, soltarAgarre));
+
+      // Contenido: el gesto se decide con el primer movimiento vertical (en
+      // iOS el scroll arranca ahí y después ya no se puede frenar).
+      panel.addEventListener('touchstart', e => {
+        if (toque && toque.activo) return;
+        toque = null;
+        if (!puedeArrastrarHoja() || e.touches.length > 1) return;
+        if (e.target.closest('#p-tirador, .p-hero, input, select, textarea, .p-info')) return;
+        const d = e.changedTouches[0];
+        toque = { id: d.identifier, y: d.clientY, t: e.timeStamp, arriba: panel.scrollTop <= 0, reclamado: null, activo: false };
+      }, { passive: true });
+      panel.addEventListener('touchmove', e => {
+        if (!toque) return;
+        const d = [...e.changedTouches].find(x => x.identifier === toque.id);
+        if (!d) return;
+        const dy = d.clientY - toque.y;
+        if (toque.reclamado === null) {
+          if (!dy) return;
+          toque.reclamado = toque.arriba && dy > 0;
+          if (!toque.reclamado) { toque = null; return; }
+        }
+        if (e.cancelable) e.preventDefault();
+        if (!toque.activo) {
+          if (dy < UMBRAL_HOJA) return;
+          toque.activo = true;
+          empezarArrastre(toque.y, toque.t);
+        }
+        moverArrastre(d.clientY, e.timeStamp);
+      }, { passive: false });
+      function soltarToque(e) {
+        if (!toque) return;
+        const d = [...e.changedTouches].find(x => x.identifier === toque.id);
+        if (!d) return;
+        const activo = toque.activo;
+        toque = null;
+        if (activo) soltarArrastre(e.type === 'touchend' ? d.clientY : null, e.timeStamp);
+      }
+      panel.addEventListener('touchend', soltarToque);
+      panel.addEventListener('touchcancel', soltarToque);
       // Soltar después de arrastrar (girar el edificio) también dispara
       // click: sin esta guarda, terminar un giro sobre una unidad la abría
       // y terminarlo en el vacío cerraba el panel. Si el puntero se alejó más
@@ -6016,6 +6350,7 @@
       lienzo.addEventListener('pointermove', e => {
         if (!arrastrando) return;
         medirArrastre(e);
+        if (arrastreClic > UMBRAL_ARRASTRE) camaraManual = true;
         if (arrastreClic > UMBRAL_ARRASTRE && ficha.classList.contains('abierta')) cerrarFicha();
       });
       lienzo.addEventListener('click', e => {
